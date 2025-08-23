@@ -1,0 +1,24 @@
+{
+  "name": "eternalreacteventlistener",
+  "version": "1.0.0",
+  "description": "A React and Node.js full stack application for eternal event listening",
+  "main": "index.js",
+  "scripts": {
+    "dev": "cd server && npm run dev",
+    "start": "cd server && npm start",
+    "build": "cd client && npm run build && cd ../server && npm start",
+    "debug": "cd server && node --inspect index.js",
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install",
+    "test": "cd client && npm test",
+    "legacy:dev": "concurrently \"npm run legacy:server\" \"npm run legacy:client\"",
+    "legacy:server": "cd server && npm run dev",
+    "legacy:client": "cd client && npm start"
+  },
+  "keywords": ["react", "nodejs", "fullstack", "event-listener"],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
