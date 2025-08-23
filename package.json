@@ -2,7 +2,7 @@
   "name": "eternalreacteventlistener",
   "engines": {
     "node": "24.x"
-  }
+  },
   "version": "1.0.0",
   "description": "A React and Node.js full stack application for eternal event listening",
   "main": "index.js",
