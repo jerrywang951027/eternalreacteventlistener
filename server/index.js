@@ -43,6 +43,10 @@ const activeConnections = new Map();
 const platformEventSubscriptions = new Map();
 let reactProcess = null;
 
+// Global subscription management
+let isSubscriptionInProgress = false;
+let globalSalesforceConnection = null;
+
 // Auto-start React development server in development mode
 function startReactDev() {
   if (NODE_ENV === 'development') {
@@ -220,13 +224,28 @@ app.get('/api/auth/user', (req, res) => {
   }
 });
 
-app.post('/api/auth/logout', (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      return res.status(500).json({ success: false, message: 'Logout failed' });
-    }
-    res.json({ success: true, message: 'Logged out successfully' });
-  });
+app.post('/api/auth/logout', async (req, res) => {
+  try {
+    // Clean up subscriptions when user logs out
+    console.log('🚪 [SERVER] User logging out, cleaning up subscriptions...');
+    await cleanupSubscriptions();
+    
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ success: false, message: 'Logout failed' });
+      }
+      res.json({ success: true, message: 'Logged out successfully' });
+    });
+  } catch (error) {
+    console.error('❌ [SERVER] Error during logout cleanup:', error);
+    // Still try to logout even if cleanup fails
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ success: false, message: 'Logout failed' });
+      }
+      res.json({ success: true, message: 'Logged out successfully (with cleanup warnings)' });
+    });
+  }
 });
 
 // Platform Events Routes
@@ -236,11 +255,15 @@ app.get('/api/platform-events', async (req, res) => {
   }
 
   try {
-    const conn = new jsforce.Connection({
-      oauth2: req.session.oauth2,
-      accessToken: req.session.salesforce.accessToken,
-      instanceUrl: req.session.salesforce.instanceUrl
-    });
+    // Use global connection or create a new one for fetching
+    let conn = globalSalesforceConnection;
+    if (!conn) {
+      conn = new jsforce.Connection({
+        oauth2: req.session.oauth2,
+        accessToken: req.session.salesforce.accessToken,
+        instanceUrl: req.session.salesforce.instanceUrl
+      });
+    }
 
     // Query for Platform Event definitions
     const result = await conn.sobject('EntityDefinition').find({
@@ -258,12 +281,52 @@ app.get('/api/platform-events', async (req, res) => {
   }
 });
 
+// Async function to properly cleanup subscriptions
+async function cleanupSubscriptions() {
+  console.log(`🧹 [SERVER] Starting cleanup of ${platformEventSubscriptions.size} existing subscriptions...`);
+  const existingEventNames = Array.from(platformEventSubscriptions.keys());
+  console.log(`🧹 [SERVER] Existing subscriptions:`, existingEventNames);
+  
+  const cleanupPromises = [];
+  platformEventSubscriptions.forEach((subscription, eventName) => {
+    const cleanupPromise = new Promise((resolve) => {
+      try {
+        subscription.cancel();
+        console.log(`✅ [SERVER] Cancelled existing subscription for ${eventName}`);
+        resolve();
+      } catch (error) {
+        console.error(`❌ [SERVER] Error cancelling subscription for ${eventName}:`, error);
+        resolve(); // Don't block other cleanups
+      }
+    });
+    cleanupPromises.push(cleanupPromise);
+  });
+  
+  // Wait for all cancellations to complete
+  await Promise.all(cleanupPromises);
+  
+  // Give Salesforce a moment to process the cancellations
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
+  platformEventSubscriptions.clear();
+  globalSalesforceConnection = null; // Reset connection
+  console.log(`🧹 [SERVER] Cleanup complete. Active subscriptions: ${platformEventSubscriptions.size}`);
+}
+
 app.post('/api/platform-events/subscribe', async (req, res) => {
   if (!req.session.salesforce) {
     return res.status(401).json({ success: false, message: 'Not authenticated' });
   }
 
+  // Prevent concurrent subscription requests
+  if (isSubscriptionInProgress) {
+    console.warn('⚠️ [SERVER] Subscription request rejected - another subscription is in progress');
+    return res.status(429).json({ success: false, message: 'Another subscription is in progress. Please wait.' });
+  }
+
   try {
+    isSubscriptionInProgress = true;
+    
     const { selectedEvents } = req.body;
     
     if (!selectedEvents || !Array.isArray(selectedEvents) || selectedEvents.length === 0) {
@@ -277,27 +340,22 @@ app.post('/api/platform-events/subscribe', async (req, res) => {
     }
     console.log(`📋 [SERVER] Processing subscription request for events:`, uniqueSelectedEvents);
 
-    // Clean up existing subscriptions first to prevent duplicates
-    console.log(`🧹 [SERVER] Cleaning up ${platformEventSubscriptions.size} existing subscriptions...`);
-    const existingEventNames = Array.from(platformEventSubscriptions.keys());
-    console.log(`🧹 [SERVER] Existing subscriptions:`, existingEventNames);
-    
-    platformEventSubscriptions.forEach((subscription, eventName) => {
-      try {
-        subscription.cancel();
-        console.log(`✅ [SERVER] Cancelled existing subscription for ${eventName}`);
-      } catch (error) {
-        console.error(`❌ [SERVER] Error cancelling subscription for ${eventName}:`, error);
-      }
-    });
-    platformEventSubscriptions.clear();
-    console.log(`🧹 [SERVER] Cleanup complete. Active subscriptions: ${platformEventSubscriptions.size}`);
+    // Clean up existing subscriptions first
+    await cleanupSubscriptions();
 
-    const conn = new jsforce.Connection({
-      oauth2: req.session.oauth2,
-      accessToken: req.session.salesforce.accessToken,
-      instanceUrl: req.session.salesforce.instanceUrl
-    });
+    // Create or reuse Salesforce connection
+    if (!globalSalesforceConnection) {
+      globalSalesforceConnection = new jsforce.Connection({
+        oauth2: req.session.oauth2,
+        accessToken: req.session.salesforce.accessToken,
+        instanceUrl: req.session.salesforce.instanceUrl
+      });
+      console.log('🔗 [SERVER] Created new Salesforce connection');
+    } else {
+      console.log('🔗 [SERVER] Reusing existing Salesforce connection');
+    }
+    
+    const conn = globalSalesforceConnection;
 
     // Get selected platform events details
     const platformEventsResult = await conn.sobject('EntityDefinition').find({
@@ -364,7 +422,15 @@ app.post('/api/platform-events/subscribe', async (req, res) => {
       }
     }
 
-    console.log(`🎉 Subscription complete! Active subscriptions: ${platformEventSubscriptions.size}`);
+    console.log(`🎉 [SERVER] Subscription complete!`);
+    console.log(`📊 [SERVER] Final state - Active subscriptions: ${platformEventSubscriptions.size}`);
+    console.log(`📊 [SERVER] Subscriptions created in this request: ${subscriptions.length}`);
+    console.log(`📊 [SERVER] Active subscription events:`, Array.from(platformEventSubscriptions.keys()));
+
+    // Verify subscription count matches expected
+    if (platformEventSubscriptions.size !== subscriptions.length) {
+      console.warn(`⚠️ [SERVER] WARNING: Subscription count mismatch! Expected: ${subscriptions.length}, Actual: ${platformEventSubscriptions.size}`);
+    }
 
     res.json({
       success: true,
@@ -372,6 +438,7 @@ app.post('/api/platform-events/subscribe', async (req, res) => {
       originalSelectedCount: selectedEvents.length,
       uniqueSelectedCount: uniqueSelectedEvents.length,
       subscribedCount: subscriptions.length,
+      activeSubscriptionsCount: platformEventSubscriptions.size,
       subscriptions: subscriptions.map(s => ({
         eventName: s.eventName,
         eventLabel: s.eventLabel,
@@ -380,9 +447,48 @@ app.post('/api/platform-events/subscribe', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error subscribing to platform events:', error);
+    console.error('❌ [SERVER] Error subscribing to platform events:', error);
     res.status(500).json({ success: false, message: 'Failed to subscribe to platform events' });
+  } finally {
+    isSubscriptionInProgress = false;
+    console.log('🔓 [SERVER] Subscription lock released');
   }
+});
+
+// Debug endpoint to manually cleanup subscriptions
+app.post('/api/platform-events/cleanup', async (req, res) => {
+  if (!req.session.salesforce) {
+    return res.status(401).json({ success: false, message: 'Not authenticated' });
+  }
+
+  try {
+    console.log('🧹 [SERVER] Manual cleanup requested');
+    await cleanupSubscriptions();
+    res.json({ 
+      success: true, 
+      message: 'Cleanup completed',
+      activeSubscriptions: platformEventSubscriptions.size
+    });
+  } catch (error) {
+    console.error('❌ [SERVER] Error during manual cleanup:', error);
+    res.status(500).json({ success: false, message: 'Cleanup failed' });
+  }
+});
+
+// Debug endpoint to check subscription status
+app.get('/api/platform-events/status', (req, res) => {
+  if (!req.session.salesforce) {
+    return res.status(401).json({ success: false, message: 'Not authenticated' });
+  }
+
+  const activeSubscriptions = Array.from(platformEventSubscriptions.keys());
+  res.json({
+    success: true,
+    activeSubscriptionsCount: platformEventSubscriptions.size,
+    activeSubscriptions,
+    isSubscriptionInProgress,
+    hasGlobalConnection: !!globalSalesforceConnection
+  });
 });
 
 // Sample event listener endpoint
@@ -464,17 +570,13 @@ io.on('connection', (socket) => {
 });
 
 // Cleanup function for platform event subscriptions
-process.on('SIGTERM', () => {
-  console.log('Cleaning up platform event subscriptions...');
-  platformEventSubscriptions.forEach((subscription, eventName) => {
-    try {
-      subscription.cancel();
-      console.log(`Unsubscribed from ${eventName}`);
-    } catch (error) {
-      console.error(`Error unsubscribing from ${eventName}:`, error);
-    }
-  });
-  platformEventSubscriptions.clear();
+process.on('SIGTERM', async () => {
+  console.log('🛑 [SERVER] SIGTERM received, cleaning up...');
+  try {
+    await cleanupSubscriptions();
+  } catch (error) {
+    console.error('❌ [SERVER] Error during SIGTERM cleanup:', error);
+  }
   process.exit(0);
 });
 
