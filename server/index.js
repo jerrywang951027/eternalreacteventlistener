@@ -270,17 +270,28 @@ app.post('/api/platform-events/subscribe', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please specify which events to subscribe to' });
     }
 
+    // Deduplicate selected events to prevent multiple subscriptions to the same event
+    const uniqueSelectedEvents = [...new Set(selectedEvents)];
+    if (uniqueSelectedEvents.length !== selectedEvents.length) {
+      console.warn(`⚠️ [SERVER] Duplicate events detected in selection. Original: ${selectedEvents.length}, Unique: ${uniqueSelectedEvents.length}`);
+    }
+    console.log(`📋 [SERVER] Processing subscription request for events:`, uniqueSelectedEvents);
+
     // Clean up existing subscriptions first to prevent duplicates
-    console.log('🧹 Cleaning up existing subscriptions...');
+    console.log(`🧹 [SERVER] Cleaning up ${platformEventSubscriptions.size} existing subscriptions...`);
+    const existingEventNames = Array.from(platformEventSubscriptions.keys());
+    console.log(`🧹 [SERVER] Existing subscriptions:`, existingEventNames);
+    
     platformEventSubscriptions.forEach((subscription, eventName) => {
       try {
         subscription.cancel();
-        console.log(`✅ Cancelled existing subscription for ${eventName}`);
+        console.log(`✅ [SERVER] Cancelled existing subscription for ${eventName}`);
       } catch (error) {
-        console.error(`❌ Error cancelling subscription for ${eventName}:`, error);
+        console.error(`❌ [SERVER] Error cancelling subscription for ${eventName}:`, error);
       }
     });
     platformEventSubscriptions.clear();
+    console.log(`🧹 [SERVER] Cleanup complete. Active subscriptions: ${platformEventSubscriptions.size}`);
 
     const conn = new jsforce.Connection({
       oauth2: req.session.oauth2,
@@ -290,36 +301,52 @@ app.post('/api/platform-events/subscribe', async (req, res) => {
 
     // Get selected platform events details
     const platformEventsResult = await conn.sobject('EntityDefinition').find({
-      QualifiedApiName: { $in: selectedEvents },
+      QualifiedApiName: { $in: uniqueSelectedEvents },
       IsCustomizable: true
     }, 'QualifiedApiName, Label');
 
     const platformEvents = platformEventsResult || [];
     const subscriptions = [];
 
-    console.log(`📋 Subscribing to ${selectedEvents.length} selected events:`, selectedEvents);
+    console.log(`📋 [SERVER] Subscribing to ${uniqueSelectedEvents.length} unique selected events:`, uniqueSelectedEvents);
 
     // Subscribe to each selected platform event
     for (const event of platformEvents) {
       const eventName = event.QualifiedApiName;
       const channel = `/event/${eventName}`;
       
+      // Double-check that we don't already have a subscription for this event
+      if (platformEventSubscriptions.has(eventName)) {
+        console.warn(`⚠️ [SERVER] Subscription already exists for ${eventName}, skipping...`);
+        continue;
+      }
+      
       try {
         const subscription = conn.streaming.topic(channel).subscribe((message) => {
           const timestamp = new Date().toISOString();
-          console.log(`📨 [${timestamp}] Received platform event: ${eventName}`);
-          console.log(`📡 Broadcasting to ${io.engine.clientsCount} connected clients`);
+          const subscriptionId = `${eventName}-${Math.random().toString(36).substr(2, 6)}`;
+          
+          console.log(`📨 [SERVER] [${subscriptionId}] Received platform event: ${eventName} at ${timestamp}`);
+          console.log(`📡 [SERVER] Active subscriptions: ${platformEventSubscriptions.size}`);
+          console.log(`📡 [SERVER] Broadcasting to ${io.engine.clientsCount} connected WebSocket clients`);
           
           // Emit to all connected clients
           const eventData = {
             eventName,
             eventLabel: event.Label,
             message,
-            timestamp
+            timestamp,
+            subscriptionId // Add for debugging
           };
           
           io.emit('platformEvent', eventData);
-          console.log(`✅ Event broadcasted: ${eventName} at ${timestamp}`);
+          console.log(`✅ [SERVER] Event broadcasted: ${eventName} at ${timestamp} with ID ${subscriptionId}`);
+          
+          // Log all active subscriptions for this event type
+          const sameEventSubs = Array.from(platformEventSubscriptions.keys()).filter(key => key === eventName);
+          if (sameEventSubs.length > 1) {
+            console.warn(`⚠️ [SERVER] WARNING: Multiple subscriptions detected for ${eventName}:`, sameEventSubs.length);
+          }
         });
 
         subscriptions.push({
@@ -342,7 +369,8 @@ app.post('/api/platform-events/subscribe', async (req, res) => {
     res.json({
       success: true,
       message: `Successfully subscribed to ${subscriptions.length} selected platform events`,
-      selectedCount: selectedEvents.length,
+      originalSelectedCount: selectedEvents.length,
+      uniqueSelectedCount: uniqueSelectedEvents.length,
       subscribedCount: subscriptions.length,
       subscriptions: subscriptions.map(s => ({
         eventName: s.eventName,

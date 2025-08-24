@@ -17,6 +17,15 @@ const Dashboard = ({ user, onLogout }) => {
 
   // Initialize socket connection
   useEffect(() => {
+    console.log('🔄 Initializing WebSocket connection...');
+    
+    // Prevent multiple connections
+    if (socketRef.current) {
+      console.log('⚠️ Socket already exists, cleaning up first...');
+      socketRef.current.disconnect();
+      socketRef.current.removeAllListeners();
+    }
+    
     // Use environment-appropriate URL
     const socketUrl = process.env.NODE_ENV === 'production' ? window.location.origin : 'http://localhost:5000';
     
@@ -24,6 +33,8 @@ const Dashboard = ({ user, onLogout }) => {
       withCredentials: true,
       transports: ['websocket', 'polling'] // Fallback for production
     });
+
+    console.log('🔌 WebSocket connection created');
 
     socketRef.current.on('connect', () => {
       console.log('✅ Connected to server at:', socketUrl);
@@ -41,7 +52,7 @@ const Dashboard = ({ user, onLogout }) => {
     });
 
     socketRef.current.on('platformEvent', (eventData) => {
-      console.log('📨 Received platform event:', eventData);
+      console.log('📨 [CLIENT] Received platform event:', eventData.eventName, 'at', eventData.timestamp);
       setEvents(prevEvents => {
         // Add a unique ID to prevent duplicates (using timestamp + random)
         const eventWithId = {
@@ -57,18 +68,24 @@ const Dashboard = ({ user, onLogout }) => {
         );
         
         if (isDuplicate) {
-          console.warn('🚫 Duplicate event detected and ignored:', eventData);
+          console.warn('🚫 Duplicate event detected and ignored:', eventData.eventName, 'at', eventData.timestamp);
           return prevEvents;
         }
         
+        console.log('✅ [CLIENT] Adding event to UI:', eventData.eventName, 'at', eventData.timestamp);
         return [eventWithId, ...prevEvents.slice(0, 499)]; // Keep last 500 events
       });
     });
 
+    console.log('🎧 Event listeners registered');
+
     // Cleanup on unmount
     return () => {
+      console.log('🧹 Cleaning up WebSocket connection...');
       if (socketRef.current) {
+        socketRef.current.removeAllListeners();
         socketRef.current.disconnect();
+        socketRef.current = null;
       }
     };
   }, []);
