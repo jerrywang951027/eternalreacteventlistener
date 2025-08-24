@@ -19,6 +19,16 @@ const allowedOrigins = [
   'http://localhost:3001'
 ];
 
+// Add production origins if in production
+if (NODE_ENV === 'production') {
+  // Add Heroku app URL from environment variable
+  if (process.env.HEROKU_APP_URL) {
+    allowedOrigins.push(process.env.HEROKU_APP_URL);
+  }
+  // Also allow any herokuapp.com subdomain as fallback
+  allowedOrigins.push(/^https:\/\/.*\.herokuapp\.com$/);
+}
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -155,7 +165,7 @@ app.post('/api/auth/salesforce/login', (req, res) => {
   req.session.loginUrl = loginUrl;
 
   const authUrl = oauth2.getAuthorizationUrl({
-    scope: 'api refresh_token',
+    scope: 'api',
     state: 'mystate'
   });
 
@@ -276,15 +286,19 @@ app.post('/api/platform-events/subscribe', async (req, res) => {
       
       try {
         const subscription = conn.streaming.topic(channel).subscribe((message) => {
-          console.log('Received platform event:', eventName, message);
+          console.log('📨 Received platform event:', eventName, message);
+          console.log('📡 Broadcasting to', io.engine.clientsCount, 'connected clients');
           
           // Emit to all connected clients
-          io.emit('platformEvent', {
+          const eventData = {
             eventName,
             eventLabel: event.Label,
             message,
             timestamp: new Date().toISOString()
-          });
+          };
+          
+          io.emit('platformEvent', eventData);
+          console.log('✅ Event broadcasted:', eventData);
         });
 
         subscriptions.push({
@@ -380,11 +394,13 @@ if (NODE_ENV === 'production') {
 
 // WebSocket connection handling
 io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
+  console.log('🔌 Client connected:', socket.id, 'from:', socket.handshake.address);
+  console.log('📊 Total active connections:', io.engine.clientsCount);
   activeConnections.set(socket.id, socket);
 
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
+  socket.on('disconnect', (reason) => {
+    console.log('🔌 Client disconnected:', socket.id, 'Reason:', reason);
+    console.log('📊 Total active connections:', io.engine.clientsCount - 1);
     activeConnections.delete(socket.id);
   });
 

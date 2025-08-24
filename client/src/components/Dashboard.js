@@ -16,22 +16,31 @@ const Dashboard = ({ user, onLogout }) => {
 
   // Initialize socket connection
   useEffect(() => {
-    socketRef.current = io('http://localhost:5000', {
-      withCredentials: true
+    // Use environment-appropriate URL
+    const socketUrl = process.env.NODE_ENV === 'production' ? window.location.origin : 'http://localhost:5000';
+    
+    socketRef.current = io(socketUrl, {
+      withCredentials: true,
+      transports: ['websocket', 'polling'] // Fallback for production
     });
 
     socketRef.current.on('connect', () => {
-      console.log('Connected to server');
+      console.log('✅ Connected to server at:', socketUrl);
       setConnectionStatus('connected');
     });
 
-    socketRef.current.on('disconnect', () => {
-      console.log('Disconnected from server');
+    socketRef.current.on('disconnect', (reason) => {
+      console.log('❌ Disconnected from server. Reason:', reason);
+      setConnectionStatus('disconnected');
+    });
+
+    socketRef.current.on('connect_error', (error) => {
+      console.error('🚫 Connection error:', error);
       setConnectionStatus('disconnected');
     });
 
     socketRef.current.on('platformEvent', (eventData) => {
-      console.log('Received platform event:', eventData);
+      console.log('📨 Received platform event:', eventData);
       setEvents(prevEvents => [eventData, ...prevEvents.slice(0, 499)]); // Keep last 500 events
     });
 
