@@ -42,7 +42,27 @@ const Dashboard = ({ user, onLogout }) => {
 
     socketRef.current.on('platformEvent', (eventData) => {
       console.log('📨 Received platform event:', eventData);
-      setEvents(prevEvents => [eventData, ...prevEvents.slice(0, 499)]); // Keep last 500 events
+      setEvents(prevEvents => {
+        // Add a unique ID to prevent duplicates (using timestamp + random)
+        const eventWithId = {
+          ...eventData,
+          id: `${eventData.timestamp}-${Math.random().toString(36).substr(2, 9)}`
+        };
+        
+        // Check for potential duplicates based on timestamp and event name
+        const isDuplicate = prevEvents.some(existingEvent => 
+          existingEvent.timestamp === eventData.timestamp && 
+          existingEvent.eventName === eventData.eventName &&
+          JSON.stringify(existingEvent.message) === JSON.stringify(eventData.message)
+        );
+        
+        if (isDuplicate) {
+          console.warn('🚫 Duplicate event detected and ignored:', eventData);
+          return prevEvents;
+        }
+        
+        return [eventWithId, ...prevEvents.slice(0, 499)]; // Keep last 500 events
+      });
     });
 
     // Cleanup on unmount

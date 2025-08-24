@@ -270,6 +270,18 @@ app.post('/api/platform-events/subscribe', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please specify which events to subscribe to' });
     }
 
+    // Clean up existing subscriptions first to prevent duplicates
+    console.log('🧹 Cleaning up existing subscriptions...');
+    platformEventSubscriptions.forEach((subscription, eventName) => {
+      try {
+        subscription.cancel();
+        console.log(`✅ Cancelled existing subscription for ${eventName}`);
+      } catch (error) {
+        console.error(`❌ Error cancelling subscription for ${eventName}:`, error);
+      }
+    });
+    platformEventSubscriptions.clear();
+
     const conn = new jsforce.Connection({
       oauth2: req.session.oauth2,
       accessToken: req.session.salesforce.accessToken,
@@ -294,19 +306,20 @@ app.post('/api/platform-events/subscribe', async (req, res) => {
       
       try {
         const subscription = conn.streaming.topic(channel).subscribe((message) => {
-          console.log('📨 Received platform event:', eventName, message);
-          console.log('📡 Broadcasting to', io.engine.clientsCount, 'connected clients');
+          const timestamp = new Date().toISOString();
+          console.log(`📨 [${timestamp}] Received platform event: ${eventName}`);
+          console.log(`📡 Broadcasting to ${io.engine.clientsCount} connected clients`);
           
           // Emit to all connected clients
           const eventData = {
             eventName,
             eventLabel: event.Label,
             message,
-            timestamp: new Date().toISOString()
+            timestamp
           };
           
           io.emit('platformEvent', eventData);
-          console.log('✅ Event broadcasted:', eventData);
+          console.log(`✅ Event broadcasted: ${eventName} at ${timestamp}`);
         });
 
         subscriptions.push({
@@ -318,10 +331,13 @@ app.post('/api/platform-events/subscribe', async (req, res) => {
 
         // Store subscription for cleanup later
         platformEventSubscriptions.set(eventName, subscription);
+        console.log(`🎯 Successfully subscribed to ${eventName} on channel ${channel}`);
       } catch (subError) {
-        console.error(`Error subscribing to ${eventName}:`, subError);
+        console.error(`❌ Error subscribing to ${eventName}:`, subError);
       }
     }
+
+    console.log(`🎉 Subscription complete! Active subscriptions: ${platformEventSubscriptions.size}`);
 
     res.json({
       success: true,
