@@ -264,22 +264,30 @@ app.post('/api/platform-events/subscribe', async (req, res) => {
   }
 
   try {
+    const { selectedEvents } = req.body;
+    
+    if (!selectedEvents || !Array.isArray(selectedEvents) || selectedEvents.length === 0) {
+      return res.status(400).json({ success: false, message: 'Please specify which events to subscribe to' });
+    }
+
     const conn = new jsforce.Connection({
       oauth2: req.session.oauth2,
       accessToken: req.session.salesforce.accessToken,
       instanceUrl: req.session.salesforce.instanceUrl
     });
 
-    // Get all platform events
+    // Get selected platform events details
     const platformEventsResult = await conn.sobject('EntityDefinition').find({
-      QualifiedApiName: { $like: '%__e' },
+      QualifiedApiName: { $in: selectedEvents },
       IsCustomizable: true
     }, 'QualifiedApiName, Label');
 
     const platformEvents = platformEventsResult || [];
     const subscriptions = [];
 
-    // Subscribe to each platform event
+    console.log(`📋 Subscribing to ${selectedEvents.length} selected events:`, selectedEvents);
+
+    // Subscribe to each selected platform event
     for (const event of platformEvents) {
       const eventName = event.QualifiedApiName;
       const channel = `/event/${eventName}`;
@@ -317,7 +325,9 @@ app.post('/api/platform-events/subscribe', async (req, res) => {
 
     res.json({
       success: true,
-      message: `Subscribed to ${subscriptions.length} platform events`,
+      message: `Successfully subscribed to ${subscriptions.length} selected platform events`,
+      selectedCount: selectedEvents.length,
+      subscribedCount: subscriptions.length,
       subscriptions: subscriptions.map(s => ({
         eventName: s.eventName,
         eventLabel: s.eventLabel,

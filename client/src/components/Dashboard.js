@@ -6,6 +6,7 @@ import './Dashboard.css';
 const Dashboard = ({ user, onLogout }) => {
   const [events, setEvents] = useState([]);
   const [platformEvents, setPlatformEvents] = useState([]);
+  const [selectedEvents, setSelectedEvents] = useState(new Set());
   const [subscribed, setSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
@@ -78,12 +79,40 @@ const Dashboard = ({ user, onLogout }) => {
     }
   };
 
+  // Handle checkbox selection
+  const handleEventSelection = (eventName, isChecked) => {
+    setSelectedEvents(prev => {
+      const newSelected = new Set(prev);
+      if (isChecked) {
+        newSelected.add(eventName);
+      } else {
+        newSelected.delete(eventName);
+      }
+      return newSelected;
+    });
+  };
+
+  const handleSelectAll = (isChecked) => {
+    if (isChecked) {
+      setSelectedEvents(new Set(platformEvents.map(event => event.QualifiedApiName)));
+    } else {
+      setSelectedEvents(new Set());
+    }
+  };
+
   const subscribeToPlatformEvents = async () => {
+    if (selectedEvents.size === 0) {
+      setError('Please select at least one platform event to subscribe to.');
+      return;
+    }
+
     setLoading(true);
     setError('');
     
     try {
-      const response = await axios.post('/api/platform-events/subscribe', {}, {
+      const response = await axios.post('/api/platform-events/subscribe', {
+        selectedEvents: Array.from(selectedEvents)
+      }, {
         withCredentials: true
       });
       
@@ -143,13 +172,38 @@ const Dashboard = ({ user, onLogout }) => {
           <div className="platform-events-info">
             <h3>📋 Available Platform Events ({platformEvents.length})</h3>
             {platformEvents.length > 0 ? (
-              <div className="events-list">
-                {platformEvents.map((event, index) => (
-                  <div key={index} className="event-item">
-                    <strong>{event.QualifiedApiName}</strong>
-                    {event.Label && <span> - {event.Label}</span>}
-                  </div>
-                ))}
+              <div className="events-selection">
+                <div className="select-all-container">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={selectedEvents.size === platformEvents.length && platformEvents.length > 0}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="checkbox-input"
+                    />
+                    <span className="select-all-text">
+                      Select All ({selectedEvents.size} of {platformEvents.length} selected)
+                    </span>
+                  </label>
+                </div>
+                <div className="events-list">
+                  {platformEvents.map((event, index) => (
+                    <div key={index} className="event-item">
+                      <label className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={selectedEvents.has(event.QualifiedApiName)}
+                          onChange={(e) => handleEventSelection(event.QualifiedApiName, e.target.checked)}
+                          className="checkbox-input"
+                        />
+                        <span className="event-details">
+                          <strong>{event.QualifiedApiName}</strong>
+                          {event.Label && <span className="event-label"> - {event.Label}</span>}
+                        </span>
+                      </label>
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
               <p className="no-events">No platform events found in this org.</p>
@@ -159,15 +213,17 @@ const Dashboard = ({ user, onLogout }) => {
           {!subscribed ? (
             <button
               onClick={subscribeToPlatformEvents}
-              disabled={loading || platformEvents.length === 0}
+              disabled={loading || platformEvents.length === 0 || selectedEvents.size === 0}
               className="subscribe-btn"
             >
-              {loading ? '🔄 Subscribing...' : '🎧 Start Listening'}
+              {loading ? '🔄 Subscribing...' : 
+               selectedEvents.size === 0 ? '📋 Select events to listen' :
+               `🎧 Start Listening (${selectedEvents.size} events)`}
             </button>
           ) : (
             <div className="listening-indicator">
               <div className="pulse-dot"></div>
-              <span>🎧 Listening for events...</span>
+              <span>🎧 Listening to {selectedEvents.size} selected events</span>
             </div>
           )}
 
