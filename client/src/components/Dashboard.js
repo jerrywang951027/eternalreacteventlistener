@@ -4,6 +4,7 @@ import io from 'socket.io-client';
 import './Dashboard.css';
 
 const Dashboard = ({ user, onLogout }) => {
+  const [activeTab, setActiveTab] = useState('platform-events');
   const [events, setEvents] = useState([]);
   const [platformEvents, setPlatformEvents] = useState([]);
   const [selectedEvents, setSelectedEvents] = useState(new Set());
@@ -185,27 +186,20 @@ const Dashboard = ({ user, onLogout }) => {
     }
   };
 
-  return (
-    <div className="dashboard">
-      <header className="dashboard-header">
-        <div className="header-content">
-          <h1>🔗 Platform Event Listener</h1>
-          <div className="header-info">
-            <span className={`connection-status ${connectionStatus}`}>
-              {connectionStatus === 'connected' ? '🟢' : '🔴'} {connectionStatus}
-            </span>
-            <span className="org-info">
-              📊 {user.orgType} ({user.organizationId})
-            </span>
-            <button onClick={handleLogout} className="logout-btn">
-              🚪 Logout
-            </button>
-          </div>
-        </div>
-      </header>
+  // Tab navigation
+  const tabs = [
+    { id: 'platform-events', label: 'Explore Platform Events', icon: '📨' },
+    { id: 'sobjects', label: 'Explore SObjects', icon: '🗃️' },
+    { id: 'om', label: 'Explore OM', icon: '⚙️' }
+  ];
 
-      <div className="dashboard-content">
-        <div className="control-panel">
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'platform-events':
+        return (
+          <div className="tab-content">
+            <div className="dashboard-content platform-events-content">
+              <div className="control-panel">
           <div className="platform-events-info">
             <h3>📋 Available Platform Events ({platformEvents.length})</h3>
             {platformEvents.length > 0 ? (
@@ -269,54 +263,118 @@ const Dashboard = ({ user, onLogout }) => {
               ⚠️ {error}
             </div>
           )}
-        </div>
-
-        <div className="events-section">
-          <div className="events-header">
-            <h3>📨 Received Events ({events.length})</h3>
-            {events.length > 0 && (
-              <button 
-                onClick={() => setEvents([])}
-                className="clear-btn"
-              >
-                🗑️ Clear
-              </button>
-            )}
-          </div>
-
-          <div className="events-container" ref={eventsContainerRef}>
-            {events.length === 0 ? (
-              <div className="no-events-placeholder">
-                {subscribed ? (
-                  <div>
-                    <p>👂 Listening for platform events...</p>
-                    <p className="help-text">
-                      Trigger platform events in your Salesforce org to see them here in real-time.
-                    </p>
-                  </div>
-                ) : (
-                  <p>Click "Start Listening" to begin receiving platform events.</p>
-                )}
               </div>
-            ) : (
-              events.map((event, index) => (
-                <div key={index} className="event-card">
-                  <div className="event-header">
-                    <div className="event-title">
-                      <strong>{event.eventLabel || event.eventName}</strong>
-                      <span className="event-name">{event.eventName}</span>
-                    </div>
-                    <div className="event-timestamp">
-                      {new Date(event.timestamp).toLocaleString()}
-                    </div>
-                  </div>
-                  <div className="event-data">
-                    <pre>{formatEventData(event.message)}</pre>
-                  </div>
+
+              <div className="events-section">
+                <div className="events-header">
+                  <h3>📨 Received Events ({events.length})</h3>
+                  {events.length > 0 && (
+                    <button 
+                      onClick={() => setEvents([])}
+                      className="clear-btn"
+                    >
+                      🗑️ Clear
+                    </button>
+                  )}
                 </div>
-              ))
-            )}
+
+                <div className="events-container" ref={eventsContainerRef}>
+                  {events.length === 0 ? (
+                    <div className="no-events-placeholder">
+                      {subscribed ? (
+                        <div>
+                          <p>👂 Listening for platform events...</p>
+                          <p className="help-text">
+                            Trigger platform events in your Salesforce org to see them here in real-time.
+                          </p>
+                        </div>
+                      ) : (
+                        <p>Click "Start Listening" to begin receiving platform events.</p>
+                      )}
+                    </div>
+                  ) : (
+                    events.map((event, index) => (
+                      <div key={index} className="event-card">
+                        <div className="event-header">
+                          <div className="event-title">
+                            <strong>{event.eventLabel || event.eventName}</strong>
+                            <span className="event-name">{event.eventName}</span>
+                          </div>
+                          <div className="event-timestamp">
+                            {new Date(event.timestamp).toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="event-data">
+                          <pre>{formatEventData(event.message)}</pre>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
+        );
+      case 'sobjects':
+        return (
+          <div className="tab-content">
+            <div className="under-construction">
+              <h2>🗃️ Explore SObjects</h2>
+              <p>🚧 Under Construction</p>
+              <p>This feature will allow you to explore and interact with Salesforce SObjects.</p>
+            </div>
+          </div>
+        );
+      case 'om':
+        return (
+          <div className="tab-content">
+            <div className="under-construction">
+              <h2>⚙️ Explore OM</h2>
+              <p>🚧 Under Construction</p>
+              <p>This feature will allow you to explore Object Manager capabilities.</p>
+            </div>
+          </div>
+        );
+      default:
+        return <div>Tab not found</div>;
+    }
+  };
+
+  return (
+    <div className="dashboard">
+      <header className="dashboard-header">
+        <div className="header-content">
+          <h1>🔗 Salesforce Explorer</h1>
+          <div className="header-info">
+            <span className={`connection-status ${connectionStatus}`}>
+              {connectionStatus === 'connected' ? '🟢' : '🔴'} {connectionStatus}
+            </span>
+            <span className="org-info">
+              📊 {user.orgType} ({user.organizationId})
+            </span>
+            <button onClick={handleLogout} className="logout-btn">
+              🚪 Logout
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="tabs-container">
+        <div className="tabs-nav">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              <span className="tab-icon">{tab.icon}</span>
+              <span className="tab-label">{tab.label}</span>
+            </button>
+          ))}
+        </div>
+        
+        <div className="tab-content-container">
+          {renderTabContent()}
         </div>
       </div>
     </div>
