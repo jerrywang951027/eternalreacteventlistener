@@ -297,6 +297,205 @@ When viewing SObject field details, users needed a quick way to see picklist val
 
 ---
 
+### Request #6: Implement Order Management (OM) Functionality
+**Date**: Current Session  
+**Status**: ✅ RESOLVED  
+**Priority**: High  
+
+#### Problem Description
+Implement comprehensive Order Management functionality for the "Explore OM" tab with specific requirements:
+1. Search orders by account name or order number
+2. Display order details including account name, status, order number, and subtype
+3. Show "Activate" button for orders with "In Progress" status
+4. When activated, find associated orchestration items with "Running" status and update them to "Completed" via DML
+5. Implement continuous polling of orchestration items to ensure all are "Completed"
+
+#### Solution Strategy
+**Full-Stack Order Management System**: Built complete order search, orchestration management, DML operations, and real-time status polling with professional UI.
+
+#### Solutions Implemented
+
+1. **Server-Side API Endpoints**:
+   ```javascript
+   GET /api/orders/search?query=         // Search orders by account name or order number
+   POST /api/orders/:orderId/activate    // Activate order by updating orchestration items
+   GET /api/orders/:orderId/orchestration-status  // Check orchestration completion status
+   ```
+
+2. **Advanced Order Search**:
+   - **SOQL Integration**: Direct Salesforce Order object queries
+   - **Flexible Matching**: Search by account name OR order number
+   - **Account Relationship**: Joins with Account object for account names
+   - **Comprehensive Fields**: Order number, status, type, amounts, dates
+   - **Result Limiting**: Top 50 orders sorted by creation date
+
+3. **Smart Orchestration Management**:
+   - **Flexible Object Detection**: Handles both custom OrchestrationItem__c and standard OrderItem
+   - **Status Validation**: Verifies order is "In Progress" before activation
+   - **DML Operations**: Updates running orchestration items to "Completed"
+   - **Error Handling**: Graceful fallbacks and comprehensive error reporting
+   - **Batch Updates**: Efficiently processes multiple orchestration items
+
+4. **Real-Time Polling System**:
+   - **Automatic Polling**: Starts polling after activation (every 3 seconds)
+   - **Progress Tracking**: Shows completion percentage and item counts
+   - **Smart Termination**: Stops when all items completed or after 5 minutes
+   - **Visual Indicators**: Real-time progress bars and status updates
+   - **State Management**: Tracks multiple orders simultaneously
+
+5. **Professional User Interface**:
+   - **Two-Panel Design**: Search on left, results on right
+   - **Debounced Search**: 500ms delay for server queries
+   - **Status Badges**: Color-coded order statuses with proper styling
+   - **Order Cards**: Comprehensive display of all order information
+   - **Activate Buttons**: Context-aware buttons only for "In Progress" orders
+   - **Progress Visualization**: Live progress bars and completion indicators
+
+6. **Enhanced State Management**:
+   - **Persistent State**: Order searches and results maintained across tab switches
+   - **Multi-Order Tracking**: Tracks activation and polling status for multiple orders
+   - **Real-Time Updates**: Live orchestration status updates without page refresh
+   - **Error Recovery**: Comprehensive error handling and user feedback
+
+#### Files Modified
+- `/server/index.js` - Added Order Management API endpoints with SOQL queries and DML operations
+- `/client/src/components/Dashboard.js` - Added OM state management and polling logic
+- `/client/src/components/OMTab.js` - Complete rewrite with full Order Management functionality
+- `/client/src/components/Dashboard.css` - Added comprehensive OM styling with animations
+
+#### Technical Features Implemented
+✅ **Flexible Order Search**: SOQL-based search with account name and order number matching  
+✅ **Smart Orchestration**: Handles multiple orchestration object types with graceful fallbacks  
+✅ **DML Operations**: Direct Salesforce updates via jsforce with batch processing  
+✅ **Real-Time Polling**: Continuous status monitoring with automatic termination  
+✅ **Professional UI**: Modern design with status badges, progress bars, and animations  
+✅ **State Persistence**: All searches and activations persist across navigation  
+✅ **Multi-Order Support**: Handle multiple simultaneous order activations  
+✅ **Error Resilience**: Comprehensive error handling and user feedback  
+
+#### Benefits Achieved
+⚙️ **Complete Order Management**: Full lifecycle from search to activation to completion  
+🔄 **Real-Time Updates**: Live progress tracking without manual refresh  
+🎯 **Context-Aware Actions**: Activate button only appears for eligible orders  
+📊 **Visual Progress**: Clear progress bars and completion indicators  
+🏗️ **Flexible Architecture**: Adapts to different Salesforce org configurations  
+⚡ **High Performance**: Optimized queries, debounced search, and efficient polling  
+
+#### Test Scenarios
+✅ Search by account name → Returns matching orders with account details  
+✅ Search by order number → Returns specific orders with full information  
+✅ Click Activate on "In Progress" order → Updates orchestration items to "Completed"  
+✅ Real-time polling → Shows live progress until all items completed  
+✅ Multiple order activation → Handles concurrent activations properly  
+✅ Tab switching → All order data and progress persist across navigation  
+✅ Error scenarios → Proper error handling for various failure cases  
+
+---
+
+### Request #7: Backend Refactoring to Modular Architecture
+**Date**: Current Session  
+**Status**: ✅ RESOLVED  
+**Priority**: High  
+
+#### Problem Description
+Refactor the backend component to improve code organization and maintainability:
+1. Keep all Express route definitions in index.js
+2. Create login.js to handle all login related implementation
+3. For each tab, create respective JS component to handle corresponding implementation
+
+#### Solution Strategy
+**Modular Architecture**: Separated concerns into dedicated modules while maintaining route definitions centrally in index.js for clear API structure.
+
+#### Solutions Implemented
+
+1. **Login Module** (`/server/modules/login.js`):
+   - **Authentication Logic**: Salesforce OAuth2 flow, session management
+   - **User Management**: Login, logout, user info retrieval
+   - **Connection Helper**: Salesforce connection creation and management
+   - **Auth Middleware**: `requireAuth` middleware for protected routes
+   - **Methods**: `handleSalesforceLogin`, `handleSalesforceCallback`, `getCurrentUser`, `handleLogout`, `createConnection`
+
+2. **Platform Events Module** (`/server/modules/platformEvents.js`):
+   - **Event Management**: Subscription, cleanup, status tracking
+   - **WebSocket Integration**: Real-time event broadcasting via Socket.IO
+   - **Connection Handling**: Global Salesforce connection management
+   - **Streaming API**: Platform event subscription and cancellation
+   - **Methods**: `fetchPlatformEvents`, `subscribeToPlatformEvents`, `cleanupSubscriptions`, `getSubscriptionStatus`
+
+3. **SObjects Module** (`/server/modules/sobjects.js`):
+   - **Metadata Management**: SObject search, describe, and exploration
+   - **Search Functionality**: Type-ahead search with prefix matching
+   - **Describe Operations**: Full SObject metadata retrieval
+   - **Field Information**: Comprehensive field details including picklist values
+   - **Methods**: `searchSObjects`, `fetchAllSObjects`, `describeSObject`
+
+4. **Order Management Module** (`/server/modules/orderManagement.js`):
+   - **Order Operations**: Search, activation, orchestration management
+   - **SOQL Integration**: Complex order queries with account relationships
+   - **DML Operations**: Orchestration item status updates
+   - **Status Polling**: Real-time orchestration progress tracking
+   - **Methods**: `searchOrders`, `activateOrder`, `getOrchestrationStatus`
+
+5. **Refactored Index.js**:
+   - **Route Definitions**: Centralized Express route configuration
+   - **Module Integration**: Clean module instantiation and method delegation
+   - **Global State**: Synchronized connection management across modules
+   - **Middleware Chain**: Centralized authentication and error handling
+   - **WebSocket Server**: Maintained real-time communication capabilities
+
+#### Architecture Benefits
+
+✅ **Separation of Concerns**: Each module handles specific functionality
+✅ **Maintainability**: Easier to locate, update, and test specific features
+✅ **Reusability**: Modules can be independently tested and reused
+✅ **Scalability**: New features can be added as separate modules
+✅ **Clean Routes**: index.js focuses purely on route definitions and delegation
+✅ **Shared State**: Global connection synchronized across all modules
+✅ **Error Isolation**: Module-specific error handling and logging
+
+#### Files Created/Modified
+- **NEW** `/server/modules/login.js` - Authentication and session management
+- **NEW** `/server/modules/platformEvents.js` - Platform event streaming and subscriptions  
+- **NEW** `/server/modules/sobjects.js` - SObject metadata operations
+- **NEW** `/server/modules/orderManagement.js` - Order search and orchestration management
+- **REFACTORED** `/server/index.js` - Modular route definitions with clean delegation
+
+#### Technical Implementation Details
+
+**Module Pattern**: Each module is implemented as a class with:
+- Constructor accepting dependencies (io, global connections, etc.)
+- Public methods for route handlers
+- Private helper methods for internal operations
+- Connection management and error handling
+
+**Route Delegation Pattern**:
+```javascript
+// Before: Inline implementation
+app.get('/api/orders/search', async (req, res) => {
+  // 50+ lines of implementation logic
+});
+
+// After: Clean delegation
+app.get('/api/orders/search', loginModule.requireAuth, (req, res) => {
+  orderManagementModule.searchOrders(req, res);
+});
+```
+
+**Global State Synchronization**:
+- Centralized `syncGlobalConnection()` function
+- All modules receive updated Salesforce connections
+- Consistent connection management across features
+
+#### Benefits Achieved
+🏗️ **Clean Architecture**: Clear separation between routing and business logic  
+🔧 **Maintainability**: Easy to locate and modify specific functionality  
+🧪 **Testability**: Individual modules can be unit tested independently  
+📈 **Scalability**: New features can be added without modifying existing code  
+🛡️ **Error Isolation**: Module failures don't affect other components  
+📚 **Code Readability**: Focused, single-responsibility modules  
+
+---
+
 ## 🏗️ Project Architecture Overview
 
 ### Current System Architecture
@@ -363,6 +562,8 @@ Dashboard (State Container)
 - **2024**: Created comprehensive project documentation
 - **2024**: Implemented full SObject exploration functionality with search, describe, and state persistence
 - **2024**: Added picklist field hover popup to show available values and status indicators
+- **2024**: Implemented comprehensive Order Management functionality with search, activation, and real-time orchestration polling
+- **2024**: Refactored backend to modular architecture with dedicated components for login, platform events, SObjects, and order management
 
 ---
 

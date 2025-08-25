@@ -4,11 +4,18 @@ import io from 'socket.io-client';
 import PlatformEventsTab from './PlatformEventsTab';
 import SObjectsTab from './SObjectsTab';
 import OMTab from './OMTab';
+import OmnistudioTab from './OmnistudioTab';
+import UserInfoPopup from './UserInfoPopup';
 import './Dashboard.css';
 
 const Dashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('platform-events');
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  
+  // User info popup state
+  const [showUserPopup, setShowUserPopup] = useState(false);
+  const [userPopupPosition, setUserPopupPosition] = useState({ x: 0, y: 0 });
+  const [userPopupTimeout, setUserPopupTimeout] = useState(null);
   
   // Platform Events Tab State (lifted up to preserve across tab switches)
   const [platformEventsState, setPlatformEventsState] = useState({
@@ -28,6 +35,18 @@ const Dashboard = ({ user, onLogout }) => {
     selectedSObject: null,
     describe: null,
     showAllSObjects: false,
+    loading: false,
+    error: ''
+  });
+
+  // OM Tab State (lifted up to preserve across tab switches)
+  const [omState, setOMState] = useState({
+    searchQuery: '',
+    searchResults: [],
+    activatingOrders: new Set(),
+    pollingOrders: new Set(),
+    refreshingOrders: new Set(),
+    orchestrationStatus: {},
     loading: false,
     error: ''
   });
@@ -239,6 +258,32 @@ const Dashboard = ({ user, onLogout }) => {
     fetchPlatformEvents();
   }, []);
 
+  // Load all Omnistudio components globally after successful login
+  useEffect(() => {
+    const loadGlobalOmnistudioComponents = async () => {
+      if (!user) return; // Only load if user is authenticated
+      
+      try {
+        console.log('🔄 [OMNISTUDIO] Loading all components globally...');
+        
+        const response = await axios.post('/api/omnistudio/load-all', {}, {
+          withCredentials: true
+        });
+        
+        if (response.data.success) {
+          console.log('✅ [OMNISTUDIO] Global components loaded successfully:', response.data.summary);
+        } else {
+          console.error('❌ [OMNISTUDIO] Failed to load global components:', response.data.message);
+        }
+      } catch (error) {
+        console.error('❌ [OMNISTUDIO] Error loading global components:', error);
+        // Don't show error to user as this is background loading
+      }
+    };
+
+    loadGlobalOmnistudioComponents();
+  }, [user]); // Trigger when user becomes available
+
   // SObjects functions (moved from SObjectsTab)
   const searchSObjects = async (query) => {
     if (!query || query.trim().length === 0) {
@@ -364,6 +409,202 @@ const Dashboard = ({ user, onLogout }) => {
     }));
   };
 
+  // OM functions (moved from OMTab)
+  const searchOrders = async (query) => {
+    if (!query || query.trim().length === 0) {
+      setOMState(prev => ({
+        ...prev,
+        searchQuery: '',
+        searchResults: []
+      }));
+      return;
+    }
+
+    setOMState(prev => ({
+      ...prev,
+      searchQuery: query,
+      loading: true,
+      error: ''
+    }));
+
+    try {
+      const response = await axios.get(`/api/orders/search?query=${encodeURIComponent(query)}`, {
+        withCredentials: true
+      });
+      
+      if (response.data.success) {
+        setOMState(prev => ({
+          ...prev,
+          searchResults: response.data.orders,
+          loading: false
+        }));
+      }
+    } catch (error) {
+      setOMState(prev => ({
+        ...prev,
+        error: 'Failed to search orders: ' + (error.response?.data?.message || error.message),
+        loading: false
+      }));
+    }
+  };
+
+  // Refresh specific order data after orchestration completion
+  const refreshOrderStatus = async (orderId) => {
+    try {
+      console.log(`🔄 Refreshing order status for order ${orderId}...`);
+      
+      // Add to refreshing set
+      setOMState(prev => ({
+        ...prev,
+        refreshingOrders: new Set([...prev.refreshingOrders, orderId])
+      }));
+      
+      // Use current search query to get updated order information
+      const currentQuery = omState.searchQuery;
+      if (!currentQuery) {
+        // Remove from refreshing set
+        setOMState(prev => ({
+          ...prev,
+          refreshingOrders: new Set([...prev.refreshingOrders].filter(id => id !== orderId))
+        }));
+        return;
+      }
+      
+      const response = await axios.get(`/api/orders/search?query=${encodeURIComponent(currentQuery)}`, {
+        withCredentials: true
+      });
+      
+      if (response.data.success) {
+        // Find the updated order in the new results
+        const updatedOrder = response.data.orders.find(order => order.id === orderId);
+        
+        if (updatedOrder) {
+          setOMState(prev => ({
+            ...prev,
+            searchResults: prev.searchResults.map(order => 
+              order.id === orderId ? updatedOrder : order
+            ),
+            refreshingOrders: new Set([...prev.refreshingOrders].filter(id => id !== orderId))
+          }));
+          
+          console.log(`✅ Order ${orderId} status refreshed to: ${updatedOrder.status}`);
+        } else {
+          console.log(`⚠️ Order ${orderId} not found in search results during refresh`);
+          // Remove from refreshing set even if not found
+          setOMState(prev => ({
+            ...prev,
+            refreshingOrders: new Set([...prev.refreshingOrders].filter(id => id !== orderId))
+          }));
+        }
+      } else {
+        // Remove from refreshing set on failure
+        setOMState(prev => ({
+          ...prev,
+          refreshingOrders: new Set([...prev.refreshingOrders].filter(id => id !== orderId))
+        }));
+      }
+    } catch (error) {
+      console.error(`❌ Failed to refresh order status for ${orderId}:`, error);
+      // Remove from refreshing set on error
+      setOMState(prev => ({
+        ...prev,
+        refreshingOrders: new Set([...prev.refreshingOrders].filter(id => id !== orderId))
+      }));
+    }
+  };
+
+  const activateOrder = async (orderId) => {
+    setOMState(prev => ({
+      ...prev,
+      activatingOrders: new Set([...prev.activatingOrders, orderId]),
+      error: ''
+    }));
+
+    try {
+      const response = await axios.post(`/api/orders/${orderId}/activate`, {}, {
+        withCredentials: true
+      });
+      
+      if (response.data.success) {
+        // Start polling for orchestration status
+        setOMState(prev => ({
+          ...prev,
+          activatingOrders: new Set([...prev.activatingOrders].filter(id => id !== orderId)),
+          pollingOrders: new Set([...prev.pollingOrders, orderId])
+        }));
+        
+        // Begin polling
+        startPollingOrchestration(orderId);
+      }
+    } catch (error) {
+      setOMState(prev => ({
+        ...prev,
+        activatingOrders: new Set([...prev.activatingOrders].filter(id => id !== orderId)),
+        error: `Failed to activate order: ${error.response?.data?.message || error.message}`
+      }));
+    }
+  };
+
+  const startPollingOrchestration = (orderId) => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await axios.get(`/api/orders/${orderId}/orchestration-status`, {
+          withCredentials: true
+        });
+        
+        if (response.data.success) {
+          setOMState(prev => ({
+            ...prev,
+            orchestrationStatus: {
+              ...prev.orchestrationStatus,
+              [orderId]: response.data
+            }
+          }));
+
+          // If all orchestration items are completed, stop polling and refresh order status
+          if (response.data.allCompleted) {
+            clearInterval(pollInterval);
+            setOMState(prev => ({
+              ...prev,
+              pollingOrders: new Set([...prev.pollingOrders].filter(id => id !== orderId))
+            }));
+            console.log(`✅ All orchestration items completed for order ${orderId}`);
+            
+            // Refresh the order status to get the latest data from Salesforce
+            setTimeout(() => {
+              refreshOrderStatus(orderId);
+            }, 2000); // Wait 2 seconds to allow Salesforce to process status changes
+          }
+        }
+      } catch (error) {
+        console.error(`Error polling orchestration for order ${orderId}:`, error);
+        clearInterval(pollInterval);
+        setOMState(prev => ({
+          ...prev,
+          pollingOrders: new Set([...prev.pollingOrders].filter(id => id !== orderId))
+        }));
+      }
+    }, 10000); // Poll every 10 seconds
+
+    // Set a maximum polling time (5 minutes)
+    setTimeout(() => {
+      clearInterval(pollInterval);
+      setOMState(prev => ({
+        ...prev,
+        pollingOrders: new Set([...prev.pollingOrders].filter(id => id !== orderId))
+      }));
+    }, 5 * 60 * 1000);
+  };
+
+  const clearOMState = () => {
+    setOMState(prev => ({
+      ...prev,
+      searchQuery: '',
+      searchResults: [],
+      error: ''
+    }));
+  };
+
   const handleLogout = async () => {
     try {
       await axios.post('/api/auth/logout', {}, {
@@ -376,11 +617,44 @@ const Dashboard = ({ user, onLogout }) => {
     }
   };
 
+  // User popup handlers
+  const handleLogoutMouseEnter = (event) => {
+    if (userPopupTimeout) {
+      clearTimeout(userPopupTimeout);
+      setUserPopupTimeout(null);
+    }
+
+    const rect = event.target.getBoundingClientRect();
+    setUserPopupPosition({
+      x: window.innerWidth - rect.left,
+      y: rect.top + rect.height + 10
+    });
+    
+    setShowUserPopup(true);
+  };
+
+  const handleLogoutMouseLeave = () => {
+    const timeout = setTimeout(() => {
+      setShowUserPopup(false);
+    }, 200); // Small delay to allow moving to popup
+    setUserPopupTimeout(timeout);
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (userPopupTimeout) {
+        clearTimeout(userPopupTimeout);
+      }
+    };
+  }, [userPopupTimeout]);
+
   // Tab navigation
   const tabs = [
     { id: 'platform-events', label: 'Explore Platform Events', icon: '📨' },
     { id: 'sobjects', label: 'Explore SObjects', icon: '🗃️' },
-    { id: 'om', label: 'Explore OM', icon: '⚙️' }
+    { id: 'om', label: 'Explore OM', icon: '⚙️' },
+    { id: 'omnistudio', label: 'Explore Omnistudio(MP)', icon: '🔧' }
   ];
 
   const renderTabContent = () => {
@@ -426,7 +700,25 @@ const Dashboard = ({ user, onLogout }) => {
           />
         );
       case 'om':
-        return <OMTab />;
+        return (
+          <OMTab 
+            // OM State
+            searchQuery={omState.searchQuery}
+            searchResults={omState.searchResults}
+            activatingOrders={omState.activatingOrders}
+            pollingOrders={omState.pollingOrders}
+            refreshingOrders={omState.refreshingOrders}
+            orchestrationStatus={omState.orchestrationStatus}
+            loading={omState.loading}
+            error={omState.error}
+            // OM Functions
+            searchOrders={searchOrders}
+            activateOrder={activateOrder}
+            clearOMState={clearOMState}
+          />
+        );
+      case 'omnistudio':
+        return <OmnistudioTab />;
       default:
         return <div>Tab not found</div>;
     }
@@ -441,10 +733,13 @@ const Dashboard = ({ user, onLogout }) => {
             <span className={`connection-status ${connectionStatus}`}>
               {connectionStatus === 'connected' ? '🟢' : '🔴'} {connectionStatus}
             </span>
-            <span className="org-info">
-              📊 {user.orgType} ({user.organizationId})
-            </span>
-            <button onClick={handleLogout} className="logout-btn">
+            <button 
+              onClick={handleLogout} 
+              className="logout-btn"
+              onMouseEnter={handleLogoutMouseEnter}
+              onMouseLeave={handleLogoutMouseLeave}
+              title="Click to logout or hover for account info"
+            >
               🚪 Logout
             </button>
           </div>
@@ -469,6 +764,13 @@ const Dashboard = ({ user, onLogout }) => {
           {renderTabContent()}
         </div>
       </div>
+
+      {/* User Info Popup */}
+      <UserInfoPopup 
+        user={user}
+        visible={showUserPopup}
+        position={userPopupPosition}
+      />
     </div>
   );
 };

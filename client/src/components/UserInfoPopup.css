@@ -1,0 +1,122 @@
+.user-info-popup {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15), 0 4px 10px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  min-width: 280px;
+  animation: userPopupSlideIn 0.2s ease-out;
+  pointer-events: none; /* Don't interfere with mouse events */
+}
+
+@keyframes userPopupSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.user-info-content {
+  padding: 16px;
+}
+
+.user-info-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.user-avatar {
+  font-size: 18px;
+  background: #f3f4f6;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #1f2937;
+}
+
+.user-info-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.user-info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.user-info-item .label {
+  font-weight: 500;
+  color: #6b7280;
+  font-size: 13px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.user-info-item .value {
+  color: #1f2937;
+  font-size: 13px;
+  text-align: right;
+  word-break: break-all;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.popup-arrow {
+  position: absolute;
+  top: 20px;
+  right: -6px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid white;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+}
+
+.popup-arrow::before {
+  content: '';
+  position: absolute;
+  top: -7px;
+  left: -7px;
+  width: 0;
+  height: 0;
+  border-left: 7px solid rgba(0, 0, 0, 0.1);
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .user-info-popup {
+    min-width: 240px;
+    right: 10px !important;
+  }
+  
+  .user-info-item {
+    flex-direction: column;
+    gap: 2px;
+    align-items: flex-start;
+  }
+  
+  .user-info-item .value {
+    text-align: left;
+  }
+}
+
+

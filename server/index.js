@@ -1,12 +1,44 @@
 const express = require('express');
 const cors = require('cors');
 const session = require('express-session');
-const jsforce = require('jsforce');
 const { Server } = require('socket.io');
 const http = require('http');
 const path = require('path');
 const { spawn } = require('child_process');
+const fs = require('fs');
 require('dotenv').config();
+
+// Setup file logging
+const logsDir = path.join(__dirname, 'logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir);
+}
+
+const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+const logFileName = `server-${timestamp}.log`;
+const logFilePath = path.join(logsDir, logFileName);
+const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
+
+// Override console.log to write to both console and file
+const originalLog = console.log;
+console.log = function(...args) {
+  const logMessage = args.map(arg => 
+    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+  ).join(' ');
+  const timestampedMessage = `[${new Date().toISOString()}] ${logMessage}`;
+  
+  originalLog.apply(console, args); // Still log to console
+  logStream.write(timestampedMessage + '\n'); // Also write to file
+};
+
+console.log(`📝 [LOGGING] Server logs will be written to: ${logFilePath}`);
+
+// Import modules
+const LoginModule = require('./modules/login');
+const PlatformEventsModule = require('./modules/platformEvents');
+const SObjectsModule = require('./modules/sobjects');
+const OrderManagementModule = require('./modules/orderManagement');
+const OmnistudioModule = require('./modules/omnistudio');
 
 const PORT = process.env.PORT || 5000;
 const CLIENT_PORT = process.env.CLIENT_PORT || 3000;
@@ -22,8 +54,8 @@ const allowedOrigins = [
 // Add production origins if in production
 if (NODE_ENV === 'production') {
   // Add Heroku app URL from environment variable
-  if (process.env.HEROKU_APP_URL) {
-    allowedOrigins.push(process.env.HEROKU_APP_URL);
+  if (process.env.APP_URL) {
+    allowedOrigins.push(process.env.APP_URL);
   }
   // Also allow any herokuapp.com subdomain as fallback
   allowedOrigins.push(/^https:\/\/.*\.herokuapp\.com$/);
@@ -44,8 +76,23 @@ const platformEventSubscriptions = new Map();
 let reactProcess = null;
 
 // Global subscription management
-let isSubscriptionInProgress = false;
 let globalSalesforceConnection = null;
+
+// Helper function to sync global connection across modules
+function syncGlobalConnection(connection) {
+  globalSalesforceConnection = connection;
+  platformEventsModule.setGlobalConnection(connection);
+  sObjectsModule.setGlobalConnection(connection);
+  orderManagementModule.setGlobalConnection(connection);
+  omnistudioModule.setGlobalConnection(connection);
+}
+
+// Initialize modules
+const loginModule = new LoginModule(syncGlobalConnection);
+const platformEventsModule = new PlatformEventsModule(io, platformEventSubscriptions);
+const sObjectsModule = new SObjectsModule();
+const orderManagementModule = new OrderManagementModule();
+const omnistudioModule = new OmnistudioModule(globalSalesforceConnection);
 
 // Auto-start React development server in development mode
 function startReactDev() {
@@ -128,7 +175,7 @@ app.get('/', (req, res) => {
   });
 });
 
-// API Routes
+// Health check route
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'healthy', 
@@ -138,562 +185,148 @@ app.get('/api/health', (req, res) => {
 });
 
 // Authentication Routes
-app.post('/api/auth/salesforce/login', (req, res) => {
-  const { orgType, customUrl } = req.body;
-  
-  let loginUrl;
-  switch (orgType) {
-    case 'production':
-      loginUrl = 'https://login.salesforce.com';
-      break;
-    case 'sandbox':
-      loginUrl = 'https://test.salesforce.com';
-      break;
-    case 'custom':
-      loginUrl = customUrl;
-      break;
-    default:
-      return res.status(400).json({ success: false, message: 'Invalid org type' });
-  }
-
-  // Create OAuth2 connection
-  const oauth2 = new jsforce.OAuth2({
-    clientId: process.env.SALESFORCE_CLIENT_ID,
-    clientSecret: process.env.SALESFORCE_CLIENT_SECRET,
-    redirectUri: process.env.SALESFORCE_REDIRECT_URI || 'http://localhost:5000/api/auth/salesforce/callback',
-    loginUrl: loginUrl
-  });
-
-  req.session.oauth2 = oauth2;
-  req.session.orgType = orgType;
-  req.session.loginUrl = loginUrl;
-
-  const authUrl = oauth2.getAuthorizationUrl({
-    scope: 'api',
-    state: 'mystate'
-  });
-
-  res.json({ success: true, authUrl });
+app.get('/api/auth/orgs', (req, res) => {
+  loginModule.getOrgsList(req, res);
 });
 
-app.get('/api/auth/salesforce/callback', async (req, res) => {
-  const { code, state } = req.query;
-  
-  if (!req.session.oauth2) {
-    const clientUrl = NODE_ENV === 'production' ? process.env.HEROKU_APP_URL || 'https://localhost:3000' : 'http://localhost:3000';
-    return res.redirect(`${clientUrl}?error=session_expired`);
-  }
+app.post('/api/auth/salesforce/login', (req, res) => {
+  loginModule.handleSalesforceLogin(req, res);
+});
 
-  try {
-    const conn = new jsforce.Connection({
-      oauth2: req.session.oauth2
-    });
-
-    const userInfo = await conn.authorize(code);
-    
-    // Store connection info in session
-    req.session.salesforce = {
-      accessToken: conn.accessToken,
-      refreshToken: conn.refreshToken,
-      instanceUrl: conn.instanceUrl,
-      organizationId: userInfo.organizationId,
-      userId: userInfo.id,
-      orgType: req.session.orgType
-    };
-
-    // Redirect to success page
-    const clientUrl = NODE_ENV === 'production' ? process.env.HEROKU_APP_URL || 'https://localhost:3000' : 'http://localhost:3000';
-    res.redirect(`${clientUrl}?auth=success`);
-  } catch (error) {
-    console.error('Salesforce auth error:', error);
-    const clientUrl = NODE_ENV === 'production' ? process.env.HEROKU_APP_URL || 'https://localhost:3000' : 'http://localhost:3000';
-    res.redirect(`${clientUrl}?error=auth_failed`);
-  }
+app.get('/api/auth/salesforce/callback', (req, res) => {
+  loginModule.handleSalesforceCallback(req, res);
 });
 
 app.get('/api/auth/user', (req, res) => {
-  if (req.session.salesforce) {
-    res.json({
-      success: true,
-      user: {
-        userId: req.session.salesforce.userId,
-        organizationId: req.session.salesforce.organizationId,
-        instanceUrl: req.session.salesforce.instanceUrl,
-        orgType: req.session.salesforce.orgType
-      }
-    });
-  } else {
-    res.status(401).json({ success: false, message: 'Not authenticated' });
-  }
+  loginModule.getCurrentUser(req, res);
 });
 
-app.post('/api/auth/logout', async (req, res) => {
-  try {
-    // Clean up subscriptions when user logs out
-    console.log('🚪 [SERVER] User logging out, cleaning up subscriptions...');
-    await cleanupSubscriptions();
-    
-    req.session.destroy((err) => {
-      if (err) {
-        return res.status(500).json({ success: false, message: 'Logout failed' });
-      }
-      res.json({ success: true, message: 'Logged out successfully' });
-    });
-  } catch (error) {
-    console.error('❌ [SERVER] Error during logout cleanup:', error);
-    // Still try to logout even if cleanup fails
-    req.session.destroy((err) => {
-      if (err) {
-        return res.status(500).json({ success: false, message: 'Logout failed' });
-      }
-      res.json({ success: true, message: 'Logged out successfully (with cleanup warnings)' });
-    });
-  }
+app.post('/api/auth/logout', (req, res) => {
+  loginModule.handleLogout(req, res, platformEventsModule.cleanupSubscriptions.bind(platformEventsModule));
 });
 
 // Platform Events Routes
-app.get('/api/platform-events', async (req, res) => {
-  if (!req.session.salesforce) {
-    return res.status(401).json({ success: false, message: 'Not authenticated' });
-  }
-
-  try {
-    // Use global connection or create a new one for fetching
-    let conn = globalSalesforceConnection;
-    if (!conn) {
-      conn = new jsforce.Connection({
-        oauth2: req.session.oauth2,
-        accessToken: req.session.salesforce.accessToken,
-        instanceUrl: req.session.salesforce.instanceUrl
-      });
-    }
-
-    // Query for Platform Event definitions
-    const result = await conn.sobject('EntityDefinition').find({
-      QualifiedApiName: { $like: '%__e' },
-      IsCustomizable: true
-    }, 'QualifiedApiName, Label, DeveloperName');
-
-    res.json({
-      success: true,
-      platformEvents: result || []
-    });
-  } catch (error) {
-    console.error('Error fetching platform events:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch platform events' });
-  }
+app.get('/api/platform-events', loginModule.requireAuth, (req, res) => {
+  platformEventsModule.fetchPlatformEvents(req, res);
 });
 
-// Async function to properly cleanup subscriptions
-async function cleanupSubscriptions() {
-  console.log(`🧹 [SERVER] Starting cleanup of ${platformEventSubscriptions.size} existing subscriptions...`);
-  const existingEventNames = Array.from(platformEventSubscriptions.keys());
-  console.log(`🧹 [SERVER] Existing subscriptions:`, existingEventNames);
-  
-  const cleanupPromises = [];
-  platformEventSubscriptions.forEach((subscription, eventName) => {
-    const cleanupPromise = new Promise((resolve) => {
-      try {
-        subscription.cancel();
-        console.log(`✅ [SERVER] Cancelled existing subscription for ${eventName}`);
-        resolve();
-      } catch (error) {
-        console.error(`❌ [SERVER] Error cancelling subscription for ${eventName}:`, error);
-        resolve(); // Don't block other cleanups
-      }
+app.post('/api/platform-events/subscribe', loginModule.requireAuth, (req, res) => {
+  platformEventsModule.subscribeToPlatformEvents(req, res);
+});
+
+app.post('/api/platform-events/cleanup', loginModule.requireAuth, (req, res) => {
+  platformEventsModule.manualCleanup(req, res);
+});
+
+app.get('/api/platform-events/status', loginModule.requireAuth, (req, res) => {
+  platformEventsModule.getSubscriptionStatus(req, res);
+});
+
+// SObjects Routes
+app.get('/api/sobjects/search', loginModule.requireAuth, (req, res) => {
+  sObjectsModule.searchSObjects(req, res);
+});
+
+app.get('/api/sobjects/all', loginModule.requireAuth, (req, res) => {
+  sObjectsModule.fetchAllSObjects(req, res);
+});
+
+app.get('/api/sobjects/:sobjectName/describe', loginModule.requireAuth, (req, res) => {
+  sObjectsModule.describeSObject(req, res);
+});
+
+// Order Management Routes
+app.get('/api/orders/search', loginModule.requireAuth, (req, res) => {
+  orderManagementModule.searchOrders(req, res);
+});
+
+app.get('/api/orders/:orderId/items', loginModule.requireAuth, (req, res) => {
+  orderManagementModule.getOrderItems(req, res);
+});
+
+app.post('/api/orders/:orderId/activate', loginModule.requireAuth, (req, res) => {
+  orderManagementModule.activateOrder(req, res);
+});
+
+app.get('/api/orders/:orderId/orchestration-status', loginModule.requireAuth, (req, res) => {
+  orderManagementModule.getOrchestrationStatus(req, res);
+});
+
+// Omnistudio API routes
+app.post('/api/omnistudio/load-all', loginModule.requireAuth, (req, res) => {
+  omnistudioModule.loadAllComponents(req, res);
+});
+
+app.get('/api/omnistudio/global-data', loginModule.requireAuth, (req, res) => {
+  omnistudioModule.getGlobalComponentData(req, res);
+});
+
+app.get('/api/omnistudio/global-summary', loginModule.requireAuth, (req, res) => {
+  const globalData = omnistudioModule.getGlobalComponentData();
+  if (!globalData) {
+    return res.status(404).json({
+      success: false,
+      message: 'No global component data loaded. Please call /api/omnistudio/load-all first.'
     });
-    cleanupPromises.push(cleanupPromise);
-  });
-  
-  // Wait for all cancellations to complete
-  await Promise.all(cleanupPromises);
-  
-  // Give Salesforce a moment to process the cancellations
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  platformEventSubscriptions.clear();
-  globalSalesforceConnection = null; // Reset connection
-  console.log(`🧹 [SERVER] Cleanup complete. Active subscriptions: ${platformEventSubscriptions.size}`);
-}
-
-app.post('/api/platform-events/subscribe', async (req, res) => {
-  if (!req.session.salesforce) {
-    return res.status(401).json({ success: false, message: 'Not authenticated' });
   }
-
-  // Prevent concurrent subscription requests
-  if (isSubscriptionInProgress) {
-    console.warn('⚠️ [SERVER] Subscription request rejected - another subscription is in progress');
-    return res.status(429).json({ success: false, message: 'Another subscription is in progress. Please wait.' });
-  }
-
-  try {
-    isSubscriptionInProgress = true;
-    
-    const { selectedEvents } = req.body;
-    
-    if (!selectedEvents || !Array.isArray(selectedEvents) || selectedEvents.length === 0) {
-      return res.status(400).json({ success: false, message: 'Please specify which events to subscribe to' });
-    }
-
-    // Deduplicate selected events to prevent multiple subscriptions to the same event
-    const uniqueSelectedEvents = [...new Set(selectedEvents)];
-    if (uniqueSelectedEvents.length !== selectedEvents.length) {
-      console.warn(`⚠️ [SERVER] Duplicate events detected in selection. Original: ${selectedEvents.length}, Unique: ${uniqueSelectedEvents.length}`);
-    }
-    console.log(`📋 [SERVER] Processing subscription request for events:`, uniqueSelectedEvents);
-
-    // Clean up existing subscriptions first
-    await cleanupSubscriptions();
-
-    // Create or reuse Salesforce connection
-    if (!globalSalesforceConnection) {
-      globalSalesforceConnection = new jsforce.Connection({
-        oauth2: req.session.oauth2,
-        accessToken: req.session.salesforce.accessToken,
-        instanceUrl: req.session.salesforce.instanceUrl
-      });
-      console.log('🔗 [SERVER] Created new Salesforce connection');
-    } else {
-      console.log('🔗 [SERVER] Reusing existing Salesforce connection');
-    }
-    
-    const conn = globalSalesforceConnection;
-
-    // Get selected platform events details
-    const platformEventsResult = await conn.sobject('EntityDefinition').find({
-      QualifiedApiName: { $in: uniqueSelectedEvents },
-      IsCustomizable: true
-    }, 'QualifiedApiName, Label');
-
-    const platformEvents = platformEventsResult || [];
-    const subscriptions = [];
-
-    console.log(`📋 [SERVER] Subscribing to ${uniqueSelectedEvents.length} unique selected events:`, uniqueSelectedEvents);
-
-    // Subscribe to each selected platform event
-    for (const event of platformEvents) {
-      const eventName = event.QualifiedApiName;
-      const channel = `/event/${eventName}`;
-      
-      // Double-check that we don't already have a subscription for this event
-      if (platformEventSubscriptions.has(eventName)) {
-        console.warn(`⚠️ [SERVER] Subscription already exists for ${eventName}, skipping...`);
-        continue;
-      }
-      
-      try {
-        const subscription = conn.streaming.topic(channel).subscribe((message) => {
-          const timestamp = new Date().toISOString();
-          const subscriptionId = `${eventName}-${Math.random().toString(36).substr(2, 6)}`;
-          
-          console.log(`📨 [SERVER] [${subscriptionId}] Received platform event: ${eventName} at ${timestamp}`);
-          console.log(`📡 [SERVER] Active subscriptions: ${platformEventSubscriptions.size}`);
-          console.log(`📡 [SERVER] Broadcasting to ${io.engine.clientsCount} connected WebSocket clients`);
-          
-          // Emit to all connected clients
-          const eventData = {
-            eventName,
-            eventLabel: event.Label,
-            message,
-            timestamp,
-            subscriptionId // Add for debugging
-          };
-          
-          io.emit('platformEvent', eventData);
-          console.log(`✅ [SERVER] Event broadcasted: ${eventName} at ${timestamp} with ID ${subscriptionId}`);
-          
-          // Log all active subscriptions for this event type
-          const sameEventSubs = Array.from(platformEventSubscriptions.keys()).filter(key => key === eventName);
-          if (sameEventSubs.length > 1) {
-            console.warn(`⚠️ [SERVER] WARNING: Multiple subscriptions detected for ${eventName}:`, sameEventSubs.length);
-          }
-        });
-
-        subscriptions.push({
-          eventName,
-          eventLabel: event.Label,
-          channel,
-          subscription
-        });
-
-        // Store subscription for cleanup later
-        platformEventSubscriptions.set(eventName, subscription);
-        console.log(`🎯 Successfully subscribed to ${eventName} on channel ${channel}`);
-      } catch (subError) {
-        console.error(`❌ Error subscribing to ${eventName}:`, subError);
-      }
-    }
-
-    console.log(`🎉 [SERVER] Subscription complete!`);
-    console.log(`📊 [SERVER] Final state - Active subscriptions: ${platformEventSubscriptions.size}`);
-    console.log(`📊 [SERVER] Subscriptions created in this request: ${subscriptions.length}`);
-    console.log(`📊 [SERVER] Active subscription events:`, Array.from(platformEventSubscriptions.keys()));
-
-    // Verify subscription count matches expected
-    if (platformEventSubscriptions.size !== subscriptions.length) {
-      console.warn(`⚠️ [SERVER] WARNING: Subscription count mismatch! Expected: ${subscriptions.length}, Actual: ${platformEventSubscriptions.size}`);
-    }
-
-    res.json({
-      success: true,
-      message: `Successfully subscribed to ${subscriptions.length} selected platform events`,
-      originalSelectedCount: selectedEvents.length,
-      uniqueSelectedCount: uniqueSelectedEvents.length,
-      subscribedCount: subscriptions.length,
-      activeSubscriptionsCount: platformEventSubscriptions.size,
-      subscriptions: subscriptions.map(s => ({
-        eventName: s.eventName,
-        eventLabel: s.eventLabel,
-        channel: s.channel
+  
+  // Create a comprehensive summary
+  const summary = {
+    loadedAt: globalData.loadedAt,
+    totalComponents: globalData.totalComponents,
+    counts: {
+      integrationProcedures: globalData.integrationProcedures ? globalData.integrationProcedures.length : 0,
+      omniscripts: globalData.omniscripts ? globalData.omniscripts.length : 0,
+      dataMappers: globalData.dataMappers ? globalData.dataMappers.length : 0
+    },
+    hierarchyRelationships: Object.keys(globalData.hierarchy || {}).length,
+    components: {
+      integrationProcedures: (globalData.integrationProcedures || []).map(ip => ({
+        id: ip.id,
+        name: ip.name,
+        type: ip.type,
+        subType: ip.subType,
+        version: ip.version,
+        uniqueId: ip.uniqueId,
+        stepsCount: ip.steps ? ip.steps.length : 0,
+        childComponents: ip.childComponents ? ip.childComponents.length : 0,
+        hasBlockStructure: ip.blockStructure && ip.blockStructure.length > 0
+      })),
+      omniscripts: (globalData.omniscripts || []).map(os => ({
+        id: os.id,
+        name: os.name,
+        type: os.type,
+        subType: os.subType,
+        version: os.version,
+        uniqueId: os.uniqueId,
+        stepsCount: os.steps ? os.steps.length : 0,
+        childComponents: os.childComponents ? os.childComponents.length : 0,
+        hasBlockStructure: os.blockStructure && os.blockStructure.length > 0
+      })),
+      dataMappers: (globalData.dataMappers || []).map(dm => ({
+        id: dm.id,
+        name: dm.name,
+        type: dm.type,
+        description: dm.description,
+        uniqueId: dm.uniqueId,
+        configItemsCount: dm.configItems ? dm.configItems.length : 0
       }))
-    });
-
-  } catch (error) {
-    console.error('❌ [SERVER] Error subscribing to platform events:', error);
-    res.status(500).json({ success: false, message: 'Failed to subscribe to platform events' });
-  } finally {
-    isSubscriptionInProgress = false;
-    console.log('🔓 [SERVER] Subscription lock released');
-  }
-});
-
-// Debug endpoint to manually cleanup subscriptions
-app.post('/api/platform-events/cleanup', async (req, res) => {
-  if (!req.session.salesforce) {
-    return res.status(401).json({ success: false, message: 'Not authenticated' });
-  }
-
-  try {
-    console.log('🧹 [SERVER] Manual cleanup requested');
-    await cleanupSubscriptions();
-    res.json({ 
-      success: true, 
-      message: 'Cleanup completed',
-      activeSubscriptions: platformEventSubscriptions.size
-    });
-  } catch (error) {
-    console.error('❌ [SERVER] Error during manual cleanup:', error);
-    res.status(500).json({ success: false, message: 'Cleanup failed' });
-  }
-});
-
-// Debug endpoint to check subscription status
-app.get('/api/platform-events/status', (req, res) => {
-  if (!req.session.salesforce) {
-    return res.status(401).json({ success: false, message: 'Not authenticated' });
-  }
-
-  const activeSubscriptions = Array.from(platformEventSubscriptions.keys());
+    }
+  };
+  
   res.json({
     success: true,
-    activeSubscriptionsCount: platformEventSubscriptions.size,
-    activeSubscriptions,
-    isSubscriptionInProgress,
-    hasGlobalConnection: !!globalSalesforceConnection
+    summary,
+    timestamp: new Date().toISOString()
   });
 });
 
-// SObject Routes
-app.get('/api/sobjects/search', async (req, res) => {
-  if (!req.session.salesforce) {
-    return res.status(401).json({ success: false, message: 'Not authenticated' });
-  }
-
-  const { query } = req.query;
-  
-  if (!query || query.trim().length === 0) {
-    return res.json({ success: true, sobjects: [] });
-  }
-
-  try {
-    // Use global connection or create a new one
-    let conn = globalSalesforceConnection;
-    if (!conn) {
-      conn = new jsforce.Connection({
-        oauth2: req.session.oauth2,
-        accessToken: req.session.salesforce.accessToken,
-        instanceUrl: req.session.salesforce.instanceUrl
-      });
-    }
-
-    // Search for SObjects by name (case-insensitive prefix match)
-    const searchPattern = query.trim().toLowerCase();
-    
-    // Get all SObjects first, then filter
-    const describe = await conn.describeGlobal();
-    const matchingSObjects = describe.sobjects
-      .filter(sobject => 
-        sobject.name.toLowerCase().startsWith(searchPattern) ||
-        sobject.name.toLowerCase().includes(searchPattern) ||
-        (sobject.label && sobject.label.toLowerCase().includes(searchPattern))
-      )
-      .sort((a, b) => {
-        // Prioritize exact prefix matches
-        const aStartsWith = a.name.toLowerCase().startsWith(searchPattern);
-        const bStartsWith = b.name.toLowerCase().startsWith(searchPattern);
-        
-        if (aStartsWith && !bStartsWith) return -1;
-        if (!aStartsWith && bStartsWith) return 1;
-        
-        // Then sort alphabetically
-        return a.name.localeCompare(b.name);
-      })
-      .slice(0, 20); // Limit to top 20 results for performance
-
-    res.json({
-      success: true,
-      sobjects: matchingSObjects.map(sobject => ({
-        name: sobject.name,
-        label: sobject.label,
-        labelPlural: sobject.labelPlural,
-        keyPrefix: sobject.keyPrefix,
-        custom: sobject.custom,
-        queryable: sobject.queryable,
-        createable: sobject.createable,
-        updateable: sobject.updateable,
-        deletable: sobject.deletable
-      }))
-    });
-  } catch (error) {
-    console.error('Error searching SObjects:', error);
-    res.status(500).json({ success: false, message: 'Failed to search SObjects: ' + error.message });
-  }
+app.get('/api/omnistudio/instances', loginModule.requireAuth, (req, res) => {
+  omnistudioModule.getInstances(req, res);
 });
 
-app.get('/api/sobjects/all', async (req, res) => {
-  if (!req.session.salesforce) {
-    return res.status(401).json({ success: false, message: 'Not authenticated' });
-  }
-
-  try {
-    // Use global connection or create a new one
-    let conn = globalSalesforceConnection;
-    if (!conn) {
-      conn = new jsforce.Connection({
-        oauth2: req.session.oauth2,
-        accessToken: req.session.salesforce.accessToken,
-        instanceUrl: req.session.salesforce.instanceUrl
-      });
-    }
-
-    const describe = await conn.describeGlobal();
-    const allSObjects = describe.sobjects
-      .filter(sobject => sobject.queryable) // Only include queryable objects
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map(sobject => ({
-        name: sobject.name,
-        label: sobject.label,
-        labelPlural: sobject.labelPlural,
-        keyPrefix: sobject.keyPrefix,
-        custom: sobject.custom,
-        queryable: sobject.queryable,
-        createable: sobject.createable,
-        updateable: sobject.updateable,
-        deletable: sobject.deletable
-      }));
-
-    res.json({
-      success: true,
-      sobjects: allSObjects
-    });
-  } catch (error) {
-    console.error('Error fetching all SObjects:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch SObjects: ' + error.message });
-  }
-});
-
-app.get('/api/sobjects/:sobjectName/describe', async (req, res) => {
-  if (!req.session.salesforce) {
-    return res.status(401).json({ success: false, message: 'Not authenticated' });
-  }
-
-  const { sobjectName } = req.params;
-
-  try {
-    // Use global connection or create a new one
-    let conn = globalSalesforceConnection;
-    if (!conn) {
-      conn = new jsforce.Connection({
-        oauth2: req.session.oauth2,
-        accessToken: req.session.salesforce.accessToken,
-        instanceUrl: req.session.salesforce.instanceUrl
-      });
-    }
-
-    const describe = await conn.sobject(sobjectName).describe();
-    
-    res.json({
-      success: true,
-      describe: {
-        name: describe.name,
-        label: describe.label,
-        labelPlural: describe.labelPlural,
-        keyPrefix: describe.keyPrefix,
-        custom: describe.custom,
-        queryable: describe.queryable,
-        createable: describe.createable,
-        updateable: describe.updateable,
-        deletable: describe.deletable,
-        mergeable: describe.mergeable,
-        replicateable: describe.replicateable,
-        retrieveable: describe.retrieveable,
-        searchable: describe.searchable,
-        undeletable: describe.undeletable,
-        triggerable: describe.triggerable,
-        fields: describe.fields.map(field => ({
-          name: field.name,
-          label: field.label,
-          type: field.type,
-          length: field.length,
-          byteLength: field.byteLength,
-          digits: field.digits,
-          precision: field.precision,
-          scale: field.scale,
-          custom: field.custom,
-          nillable: field.nillable,
-          createable: field.createable,
-          updateable: field.updateable,
-          unique: field.unique,
-          externalId: field.externalId,
-          idLookup: field.idLookup,
-          filterable: field.filterable,
-          sortable: field.sortable,
-          groupable: field.groupable,
-          autoNumber: field.autoNumber,
-          defaultValue: field.defaultValue,
-          calculated: field.calculated,
-          controllerName: field.controllerName,
-          dependentPicklist: field.dependentPicklist,
-          htmlFormatted: field.htmlFormatted,
-          nameField: field.nameField,
-          namePointing: field.namePointing,
-          restrictedPicklist: field.restrictedPicklist,
-          picklistValues: field.picklistValues,
-          referenceTo: field.referenceTo,
-          relationshipName: field.relationshipName,
-          relationshipOrder: field.relationshipOrder,
-          writeRequiresMasterRead: field.writeRequiresMasterRead,
-          cascadeDelete: field.cascadeDelete,
-          restrictedDelete: field.restrictedDelete
-        })),
-        recordTypeInfos: describe.recordTypeInfos,
-        childRelationships: describe.childRelationships?.map(rel => ({
-          cascadeDelete: rel.cascadeDelete,
-          childSObject: rel.childSObject,
-          deprecatedAndHidden: rel.deprecatedAndHidden,
-          field: rel.field,
-          junctionIdListNames: rel.junctionIdListNames,
-          junctionReferenceTo: rel.junctionReferenceTo,
-          relationshipName: rel.relationshipName,
-          restrictedDelete: rel.restrictedDelete
-        })) || []
-      }
-    });
-  } catch (error) {
-    console.error(`Error describing SObject ${sobjectName}:`, error);
-    res.status(500).json({ success: false, message: `Failed to describe SObject: ${error.message}` });
-  }
+app.get('/api/omnistudio/:componentType/:instanceName/details', loginModule.requireAuth, (req, res) => {
+  omnistudioModule.getInstanceDetails(req, res);
 });
 
 // Sample event listener endpoint
@@ -775,21 +408,31 @@ io.on('connection', (socket) => {
 });
 
 // Cleanup function for platform event subscriptions
-process.on('SIGTERM', async () => {
-  console.log('🛑 [SERVER] SIGTERM received, cleaning up...');
+const cleanup = async () => {
+  console.log('🛑 [SERVER] Shutdown signal received, cleaning up...');
   try {
-    await cleanupSubscriptions();
+    await platformEventsModule.cleanupSubscriptions();
+    console.log('📝 [LOGGING] Closing log file...');
+    logStream.end();
   } catch (error) {
-    console.error('❌ [SERVER] Error during SIGTERM cleanup:', error);
+    console.error('❌ [SERVER] Error during cleanup:', error);
   }
   process.exit(0);
-});
+};
+
+process.on('SIGTERM', cleanup);
+process.on('SIGINT', cleanup); // Handle Ctrl+C
 
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📍 Server URL: http://localhost:${PORT}`);
   console.log(`💡 Environment: ${NODE_ENV}`);
   console.log(`🔌 WebSocket server ready for connections`);
+  console.log(`📦 Using modular architecture:`);
+  console.log(`   🔐 LoginModule initialized`);
+  console.log(`   📡 PlatformEventsModule initialized`);
+  console.log(`   📊 SObjectsModule initialized`);
+  console.log(`   ⚙️ OrderManagementModule initialized`);
   
   // Start React development server automatically in development mode
   if (NODE_ENV === 'development') {

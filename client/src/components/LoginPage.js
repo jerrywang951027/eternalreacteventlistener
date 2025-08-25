@@ -1,18 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './LoginPage.css';
 
 const LoginPage = ({ onLoginSuccess }) => {
-  const [orgType, setOrgType] = useState('production');
-  const [customUrl, setCustomUrl] = useState('');
+  const [availableOrgs, setAvailableOrgs] = useState({});
+  const [selectedOrgKey, setSelectedOrgKey] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingOrgs, setLoadingOrgs] = useState(true);
   const [error, setError] = useState('');
+
+  // Fetch available orgs on component mount
+  useEffect(() => {
+    fetchAvailableOrgs();
+  }, []);
+
+  const fetchAvailableOrgs = async () => {
+    setLoadingOrgs(true);
+    try {
+      const response = await axios.get('/api/auth/orgs');
+      if (response.data.success) {
+        setAvailableOrgs(response.data.orgs);
+        // Auto-select first org if available
+        const orgKeys = Object.keys(response.data.orgs);
+        if (orgKeys.length > 0) {
+          setSelectedOrgKey(orgKeys[0]);
+        }
+      }
+    } catch (error) {
+      setError('Failed to load organization list: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setLoadingOrgs(false);
+    }
+  };
 
   const handleLogin = async (e) => {
     e.preventDefault();
     
-    if (orgType === 'custom' && !customUrl) {
-      setError('Please enter a custom URL');
+    if (!selectedOrgKey) {
+      setError('Please select an organization');
       return;
     }
 
@@ -21,8 +46,7 @@ const LoginPage = ({ onLoginSuccess }) => {
 
     try {
       const response = await axios.post('/api/auth/salesforce/login', {
-        orgType,
-        customUrl: orgType === 'custom' ? customUrl : undefined
+        orgKey: selectedOrgKey
       }, {
         withCredentials: true
       });
@@ -87,62 +111,80 @@ const LoginPage = ({ onLoginSuccess }) => {
 
   return (
     <div className="login-container">
+      {/* Cute Agentforce Robot Decorations */}
+      <div className="agentforce-decoration robot-1">🤖</div>
+      <div className="agentforce-decoration robot-2">🧠</div>
+      <div className="agentforce-decoration robot-3">⚡</div>
+      <div className="agentforce-decoration robot-4">✨</div>
+      
       <div className="login-card">
-        <h1>🔗 Eternal React Event Listener</h1>
-        <p>Connect to your Salesforce org to listen for platform events</p>
+        <h1>🤖 Salesforce Explorer</h1>
+        <p>Connect to your Salesforce org and unleash the power of Agentforce</p>
         
-        <form onSubmit={handleLogin} className="login-form">
-          <div className="form-group">
-            <label htmlFor="orgType">Salesforce Org Type:</label>
-            <select
-              id="orgType"
-              value={orgType}
-              onChange={(e) => setOrgType(e.target.value)}
-              className="form-select"
-            >
-              <option value="production">Production</option>
-              <option value="sandbox">Sandbox</option>
-              <option value="custom">Custom URL</option>
-            </select>
+        {loadingOrgs ? (
+          <div className="loading-orgs">
+            <div className="loading-spinner">🔄</div>
+            <p>Loading available organizations...</p>
           </div>
-
-          {orgType === 'custom' && (
+        ) : (
+          <form onSubmit={handleLogin} className="login-form">
             <div className="form-group">
-              <label htmlFor="customUrl">Custom Salesforce URL:</label>
-              <input
-                id="customUrl"
-                type="url"
-                value={customUrl}
-                onChange={(e) => setCustomUrl(e.target.value)}
-                placeholder="https://your-domain.my.salesforce.com"
-                className="form-input"
-                required={orgType === 'custom'}
-              />
+              <label htmlFor="orgSelection">Select Salesforce Organization:</label>
+              {Object.keys(availableOrgs).length > 0 ? (
+                <select
+                  id="orgSelection"
+                  value={selectedOrgKey}
+                  onChange={(e) => setSelectedOrgKey(e.target.value)}
+                  className="form-select"
+                >
+                  <option value="">-- Select Organization --</option>
+                  {Object.entries(availableOrgs).map(([orgKey, org]) => (
+                    <option key={orgKey} value={orgKey}>
+                      {org.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="no-orgs-message">
+                  <p>⚠️ No organizations are configured.</p>
+                  <p>Please check your server configuration.</p>
+                </div>
+              )}
             </div>
-          )}
 
-          {error && (
-            <div className="error-message">
-              ⚠️ {error}
-            </div>
-          )}
+            {selectedOrgKey && availableOrgs[selectedOrgKey] && (
+              <div className="org-info">
+                <h4>Selected Organization:</h4>
+                <div className="org-details">
+                  <p><strong>Name:</strong> {availableOrgs[selectedOrgKey].name}</p>
+                  <p><strong>URL:</strong> {availableOrgs[selectedOrgKey].url}</p>
+                </div>
+              </div>
+            )}
 
-          <button 
-            type="submit" 
-            className="login-button"
-            disabled={loading}
-          >
-            {loading ? 'Connecting...' : '🚀 Connect to Salesforce'}
-          </button>
-        </form>
+            {error && (
+              <div className="error-message">
+                ⚠️ {error}
+              </div>
+            )}
+
+            <button 
+              type="submit" 
+              className="login-button"
+              disabled={loading || !selectedOrgKey || Object.keys(availableOrgs).length === 0}
+            >
+              {loading ? 'Connecting...' : '🚀 Connect to Salesforce'}
+            </button>
+          </form>
+        )}
 
         <div className="info-section">
-          <h3>ℹ️ Setup Requirements</h3>
+          <h3>ℹ️ Multi-Org Setup</h3>
           <ul>
-            <li>Create a Connected App in Salesforce Setup</li>
-            <li>Enable OAuth Settings with callback URL: <code>http://localhost:5000/api/auth/salesforce/callback</code></li>
-            <li>Grant API permissions</li>
-            <li>Add your Client ID and Secret to server environment variables</li>
+            <li>Organizations are pre-configured on the server</li>
+            <li>Each org has its own Connected App credentials</li>
+            <li>Select your target org from the dropdown above</li>
+            <li>Contact your administrator to add new organizations</li>
           </ul>
         </div>
       </div>

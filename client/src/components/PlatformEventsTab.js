@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 
 const PlatformEventsTab = ({ 
   socketRef, 
@@ -18,6 +18,19 @@ const PlatformEventsTab = ({
   clearEvents,
   formatEventData
 }) => {
+  // Search state for filtering platform events
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Filter platform events based on search term
+  const filteredPlatformEvents = useMemo(() => {
+    if (!searchTerm.trim()) return platformEvents;
+    
+    const term = searchTerm.toLowerCase();
+    return platformEvents.filter(event => 
+      event.QualifiedApiName.toLowerCase().includes(term) ||
+      (event.Label && event.Label.toLowerCase().includes(term))
+    );
+  }, [platformEvents, searchTerm]);
 
   return (
     <div className="tab-content">
@@ -25,7 +38,38 @@ const PlatformEventsTab = ({
         <div className="control-panel">
           <div className="platform-events-info">
             <h3>📋 Available Platform Events ({platformEvents.length})</h3>
-            {platformEvents.length > 0 ? (
+            
+            {/* Search box for filtering platform events */}
+            {platformEvents.length > 0 && (
+              <div className="search-container">
+                <div className="search-input-wrapper">
+                  <span className="search-icon">🔍</span>
+                  <input
+                    type="text"
+                    placeholder="Search platform events..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="search-input"
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="clear-search-btn"
+                      title="Clear search"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+                {searchTerm && (
+                  <div className="search-results-info">
+                    Showing {filteredPlatformEvents.length} of {platformEvents.length} events
+                  </div>
+                )}
+              </div>
+            )}
+
+            {filteredPlatformEvents.length > 0 ? (
               <div className="events-selection">
                 <div className="select-all-container">
                   <label className="checkbox-label">
@@ -41,7 +85,7 @@ const PlatformEventsTab = ({
                   </label>
                 </div>
                 <div className="events-list">
-                  {platformEvents.map((event, index) => (
+                  {filteredPlatformEvents.map((event, index) => (
                     <div key={event.QualifiedApiName || index} className="event-item">
                       <label className="checkbox-label">
                         <input
@@ -59,6 +103,8 @@ const PlatformEventsTab = ({
                   ))}
                 </div>
               </div>
+            ) : searchTerm ? (
+              <p className="no-events">No platform events match "{searchTerm}". Try a different search term.</p>
             ) : (
               <p className="no-events">No platform events found in this org.</p>
             )}
@@ -67,7 +113,7 @@ const PlatformEventsTab = ({
           {!subscribed ? (
             <button
               onClick={subscribeToPlatformEvents}
-              disabled={loading || platformEvents.length === 0 || selectedEvents.size === 0}
+              disabled={loading || filteredPlatformEvents.length === 0 || selectedEvents.size === 0}
               className="subscribe-btn"
             >
               {loading ? '🔄 Subscribing...' : 

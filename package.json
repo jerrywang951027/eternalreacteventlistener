@@ -14,16 +14,31 @@
     "heroku-postbuild": "cd server && npm install && cd ../client && npm install && npm run build",
     "debug": "cd server && node --inspect index.js",
     "install-all": "npm install && cd server && npm install && cd ../client && npm install",
-    "test": "cd client && npm test",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "test:salesforce": "playwright test salesforce-login.spec.js",
+    "test:report": "playwright show-report",
+    "test:install": "playwright install",
+    "test:client": "cd client && npm test",
     "legacy:dev": "concurrently \"npm run legacy:server\" \"npm run legacy:client\"",
     "legacy:server": "cd server && npm run dev",
     "legacy:client": "cd client && npm start"
   },
-  "keywords": ["react", "nodejs", "fullstack", "event-listener"],
+  "keywords": [
+    "react",
+    "nodejs",
+    "fullstack",
+    "event-listener"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "@playwright/mcp": "^0.0.35",
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^24.3.0",
+    "concurrently": "^8.2.2",
+    "playwright": "^1.55.0"
   }
 }

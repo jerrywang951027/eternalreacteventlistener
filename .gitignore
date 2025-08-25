@@ -101,6 +101,16 @@ Thumbs.db
 
 # Debug logs
 *.log
+*.txt
 
 # Local development
 .cursor/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+#prompt related files
+work/*.*
