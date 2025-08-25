@@ -1402,6 +1402,416 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
     return steps;
   }
 
+  /**
+   * Build hierarchical relationships between components
+   */
+  buildHierarchicalRelationships(allComponents) {
+    console.log('🔗 [OMNISTUDIO] Building hierarchical relationships...');
+    
+    // Create lookup maps
+    const componentsByUniqueId = new Map();
+    const componentsByName = new Map();
+    
+    allComponents.forEach(component => {
+      componentsByUniqueId.set(component.uniqueId, component);
+      componentsByName.set(component.name, component);
+    });
+
+    // Find hierarchical relationships
+    allComponents.forEach(component => {
+      if (component.steps && component.steps.length > 0) {
+        this.findChildComponents(component, componentsByUniqueId, componentsByName, []);
+      }
+    });
+  }
+
+  /**
+   * Find child components referenced in steps
+   */
+  findChildComponents(parentComponent, componentsByUniqueId, componentsByName, hierarchicalPath = []) {
+    const processSteps = (steps, currentLevel = 0, currentPath = []) => {
+      if (currentLevel > 4) { // Prevent infinite recursion (max 4 levels)
+        console.warn(`Max hierarchy depth reached for ${parentComponent.name}`);
+        return;
+      }
+
+      steps.forEach(step => {
+        // Check for Integration Procedure references
+        if (step.integrationProcedureKey) {
+          const childComponent = componentsByUniqueId.get(step.integrationProcedureKey) ||
+                               componentsByName.get(step.integrationProcedureKey);
+          
+          if (childComponent) {
+            step.childComponent = {
+              id: childComponent.id,
+              name: childComponent.name,
+              componentType: childComponent.componentType,
+              uniqueId: childComponent.uniqueId,
+              stepsCount: childComponent.steps ? childComponent.steps.length : 0,
+              level: currentLevel + 1
+            };
+            
+            // Build the full hierarchical path for this reference with prefixes and cycle detection
+            const fullPath = [...currentPath, parentComponent.uniqueId];
+            
+            // Check for circular references - prevent adding child if it's already in the path
+            if (fullPath.includes(childComponent.uniqueId)) {
+              console.log(`    🔄 [CYCLE-DETECTED] Skipping circular reference: "${childComponent.name}" already exists in path [${fullPath.join(' => ')}]`);
+              // Skip this child component but continue processing other steps
+              continue;
+            } else {
+              // Only process the child component reference if no circular reference is detected
+              const pathString = fullPath.length > 1 
+                ? fullPath.slice(0, -1).map(id => {
+                    const comp = componentsByUniqueId.get(id);
+                    if (!comp) return id;
+                    const prefix = comp.componentType === 'integration-procedure' ? 'IP-' : 
+                                  comp.componentType === 'omniscript' ? 'OS-' : '';
+                    return prefix + comp.name;
+                  }).join(' => ') + ' => ' + this.getComponentPrefix(parentComponent.componentType) + parentComponent.name
+                : this.getComponentPrefix(parentComponent.componentType) + parentComponent.name;
+              
+              console.log(`    🔗 [CHILD-IP] Step "${step.name}" references child IP "${childComponent.name}" with ${childComponent.steps.length} steps (Path: ${pathString})`);
+              
+              // Add to parent's child components list
+              if (!parentComponent.childComponents.find(cc => cc.uniqueId === childComponent.uniqueId)) {
+                parentComponent.childComponents.push({
+                  uniqueId: childComponent.uniqueId,
+                  name: childComponent.name,
+                  componentType: childComponent.componentType,
+                  referencedInStep: step.name,
+                  level: currentLevel + 1,
+                  hierarchicalPath: fullPath,
+                  pathString: pathString
+                });
+              }
+              
+              // Add to child component's referencedBy array (enhanced hierarchical tracking)
+              if (!childComponent.referencedBy) {
+                childComponent.referencedBy = [];
+              }
+              
+              const referenceEntry = {
+                parentUniqueId: parentComponent.uniqueId,
+                parentName: parentComponent.name,
+                parentComponentType: parentComponent.componentType,
+                stepName: step.name,
+                hierarchicalPath: fullPath,
+                pathString: pathString,
+                level: currentLevel + 1
+              };
+              
+              // Check if this reference already exists
+              const existingRef = childComponent.referencedBy.find(ref => 
+                ref.parentUniqueId === parentComponent.uniqueId && ref.stepName === step.name
+              );
+              
+              if (!existingRef) {
+                childComponent.referencedBy.push(referenceEntry);
+                console.log(`    📈 [REFERENCE-ADDED] "${childComponent.name}" now referenced by "${parentComponent.name}" via step "${step.name}" (Path: ${pathString})`);
+              }
+              
+              // Recursively process child component steps with updated path
+              if (childComponent.steps && childComponent.steps.length > 0) {
+                const newPath = [...fullPath, childComponent.uniqueId];
+                processSteps(childComponent.steps, currentLevel + 1, newPath);
+              }
+            }
+          }
+        }
+
+        // Process sub-steps recursively
+        if (step.subSteps && step.subSteps.length > 0) {
+          processSteps(step.subSteps, currentLevel, currentPath);
+        }
+
+        // Process conditional/loop/cache blocks
+        if (step.blockSteps && step.blockSteps.length > 0) {
+          processSteps(step.blockSteps, currentLevel, currentPath);
+        }
+      });
+    };
+
+    processSteps(parentComponent.steps, 0, []);
+  }
+
+  /**
+   * Extract hierarchical steps with block support
+   */
+  extractHierarchicalSteps(children, componentType, containerName = 'Unknown') {
+    const steps = [];
+
+    const processStep = (child, parentLevel = 0, parentBlockType = null, childIndex = -1) => {
+      // Identify block type first
+      const blockType = this.identifyBlockType(child, componentType);
+      
+      console.log(`  📊 [STEP] Found component in "${containerName}" (${componentType}):
+    Name: "${child.name || 'Unnamed'}"
+    Type: "${child.type || 'Unknown'}"
+    Level: ${parentLevel}
+    Has Children: ${child.children ? child.children.length : 0}
+    Block Type: ${blockType || 'None'}
+    Parent Block: ${parentBlockType || 'None'}
+    Containing Integration Procedure: "${containerName}"
+    Component Index: ${childIndex}
+    Element Type: ${child.eleType || 'N/A'}
+    Class: ${child.class || 'N/A'}
+    Implementation Class: ${child.implClass || 'N/A'}`);
+      
+      console.log(`  🔬 [BLOCK-TYPE-RESULT] Block type detection result for "${child.name}": ${blockType || 'None'} (Based on type: "${child.type}", name: "${child.name}")`);
+      
+      const step = {
+        name: child.name || 'Unnamed Step',
+        type: child.type,
+        blockType: blockType,
+        hasChildren: child.children && child.children.length > 0
+      };
+
+      // Extract conditions
+      if (child.propSetMap) {
+        if (child.propSetMap.executionConditionalFormula) {
+          step.executionCondition = child.propSetMap.executionConditionalFormula;
+        }
+        if (child.propSetMap.show) {
+          step.showCondition = this.formatCondition(child.propSetMap.show);
+        }
+
+        // Extract other properties
+        step.label = child.propSetMap.label;
+        step.description = child.propSetMap.description;
+        step.bundle = child.propSetMap.bundle;
+        step.integrationProcedureKey = child.propSetMap.integrationProcedureKey;
+        
+        if (step.integrationProcedureKey) {
+          console.log(`    🔑 [IP-KEY] Step "${step.name}" has integrationProcedureKey: "${step.integrationProcedureKey}"`);
+        }
+        
+        // Remote action details for IPs
+        if (componentType === 'integration-procedure' && child.type && child.type.toLowerCase().includes('remote')) {
+          step.remoteClass = child.propSetMap.remoteClass;
+          step.remoteMethod = child.propSetMap.remoteMethod;
+        }
+
+        // Block-specific properties
+        if (step.blockType) {
+          step.blockCondition = child.propSetMap.condition || child.propSetMap.loopCondition;
+          step.blockIterator = child.propSetMap.iterator;
+          step.blockCacheKey = child.propSetMap.cacheKey;
+        }
+      }
+
+      // Process children based on block type
+      let childrenToProcess = [];
+      
+      // Process children based on the structure
+      if (child.children) {
+        if (componentType === 'omniscript' && child.type === 'Step' && Array.isArray(child.children)) {
+          // For Omniscript Steps, iterate through ALL children elements and collect ALL eleArray items
+          childrenToProcess = [];
+          child.children.forEach((childElement, childIndex) => {
+            if (childElement.eleArray && Array.isArray(childElement.eleArray)) {
+              childrenToProcess.push(...childElement.eleArray);
+              console.log(`    📋 [OMNISCRIPT-STEP] Found ${childElement.eleArray.length} items in children[${childIndex}].eleArray for Step "${child.name}"`);
+            }
+          });
+          console.log(`    ✅ [OMNISCRIPT-STEP-TOTAL] Total ${childrenToProcess.length} children collected from all eleArray in Step "${child.name}"`);                                                                 
+        } else if (step.blockType === 'block' && Array.isArray(child.children)) {
+          // Regular blocks (like CustInfoBlock) - iterate through ALL children and collect ALL eleArray items
+          childrenToProcess = [];
+          child.children.forEach((childElement, childIndex) => {
+            if (childElement.eleArray && Array.isArray(childElement.eleArray)) {
+              childrenToProcess.push(...childElement.eleArray);
+              console.log(`    📋 [REGULAR-BLOCK] Found ${childElement.eleArray.length} items in children[${childIndex}].eleArray for Block "${child.name}"`);
+            }
+          });
+          console.log(`    ✅ [REGULAR-BLOCK-TOTAL] Total ${childrenToProcess.length} children collected from all eleArray in Block "${child.name}"`);                                                                  
+        } else if (step.blockType === 'conditional' && Array.isArray(child.children) && 
+            child.children[0] && child.children[0].eleArray && Array.isArray(child.children[0].eleArray)) {
+          // Conditional blocks use eleArray from children[0]
+          childrenToProcess = child.children[0].eleArray;
+          console.log(`    ✅ [CONDITIONAL-CHILDREN] Found ${childrenToProcess.length} children in children[0].eleArray for conditional block "${child.name}"`);                                                        
+        } else if (Array.isArray(child.children) && child.children[0] && 
+                   child.children[0].eleArray && Array.isArray(child.children[0].eleArray)) {
+          // Other components with eleArray structure
+          childrenToProcess = child.children[0].eleArray;
+          console.log(`    ✅ [ELEARRAY-CHILDREN] Found ${childrenToProcess.length} children in children[0].eleArray for "${child.name}"`);                                                                             
+        } else if (Array.isArray(child.children)) {
+          // Regular children array
+          childrenToProcess = child.children;
+          console.log(`    📋 [REGULAR-CHILDREN] Found ${childrenToProcess.length} children in regular array for "${child.name}"`);
+        } else if (step.blockType === 'conditional') {
+          // Conditional block but no eleArray - log warning
+          console.log(`    ⚠️ [CONDITIONAL-NO-ELEARRAY] Conditional block "${child.name}" has children but no eleArray in children[0]. Children structure: ${JSON.stringify(child.children).substring(0, 200)}...`);
+        }
+      }
+      
+      if (childrenToProcess.length > 0) {
+        console.log(`    🎯 [PROCESSING] About to process ${childrenToProcess.length} children for step "${child.name}" with blockType "${step.blockType}"`);
+        
+        // Special handling for Omniscript "Step" elements - their children should always be subSteps
+        const isOmniscriptStep = componentType === 'omniscript' && child.type === 'Step';
+        
+        if (isOmniscriptStep) {
+          // For Omniscript Steps, children are sub-steps
+          console.log(`    📋 [OMNISCRIPT-SUBSTEPS] Creating subSteps array for Omniscript Step "${child.name}"`);
+          
+          step.subSteps = childrenToProcess.map((grandChild, index) => {
+            console.log(`      📋 [SUB-STEP] Processing Omniscript sub-step ${index + 1}/${childrenToProcess.length} in "${containerName}" (type: ${grandChild.type}, name: "${grandChild.name}")`);
+            return processStep(grandChild, child.level + 1, parentBlockType, index);
+          });
+          console.log(`    ✅ [OMNISCRIPT-SUBSTEPS-DONE] Created ${step.subSteps.length} subSteps for Omniscript Step "${child.name}"`);                                                                                
+        } else if (step.blockType) {
+          // For blocks (conditional, loop, cache), children are block steps
+          console.log(`    🎛️ [BLOCK-STEPS] Creating blockSteps array for ${step.blockType} block "${child.name}"`);
+          
+          step.blockSteps = childrenToProcess.map((grandChild, index) => {
+            console.log(`      🎛️ [BLOCK-CHILD] Processing block step ${index + 1}/${childrenToProcess.length} in "${containerName}" for ${step.blockType} block`);
+            return processStep(grandChild, child.level + 1, step.blockType, index);
+          });
+          console.log(`    ✅ [BLOCK-STEPS-DONE] Created ${step.blockSteps.length} blockSteps for ${step.blockType} block "${child.name}"`);                                                                            
+        } else {
+          // For regular steps, children are sub-steps  
+          step.subSteps = childrenToProcess.map((grandChild, index) => {
+            console.log(`      📋 [SUB-STEP] Processing sub-step ${index + 1}/${childrenToProcess.length} in "${containerName}"`);
+            return processStep(grandChild, child.level + 1, parentBlockType, index);
+          });
+        }
+      } else {
+        console.log(`    ⚠️ [NO-CHILDREN] No children to process for step "${child.name}" (blockType: ${step.blockType})`);
+      }
+
+      return step;
+    };
+
+    console.log(`🚀 [MAIN-STEPS] Processing ${children.length} main steps for "${containerName}" (${componentType})`);
+    
+    children.forEach((child, index) => {
+      console.log(`  🎯 [MAIN-STEP] Processing main step ${index + 1}/${children.length}: "${child.name || 'Unnamed'}" in "${containerName}"`);
+      steps.push(processStep(child, 0, null, index));
+    });
+
+    console.log(`✨ [COMPLETED] Finished processing all steps for "${containerName}" (${componentType}) - Total steps: ${steps.length}`);                                                                               
+    return steps;
+  }
+
+  /**
+   * Identify block types (conditional, cache, loop)
+   */
+  identifyBlockType(child, componentType) {
+    if (!child.type && !child.name) return null;
+
+    const type = (child.type || '').toLowerCase();
+    const name = (child.name || '').toLowerCase();
+    
+    // Quick conditional block detection
+    let isConditional = false;
+    let detectionMethod = '';
+    
+    // Method 1: Check if has eleArray structure (user's specific guidance)
+    // Structure: children[0].eleArray (not children.eleArray)  
+    // BUT: Don't treat Omniscript Steps as conditional blocks even if they have eleArray
+    // ALSO: Don't treat regular Blocks with multiple children as conditional blocks
+    if (child.children && Array.isArray(child.children) && child.children[0] && 
+        child.children[0].eleArray && Array.isArray(child.children[0].eleArray) &&
+        !(componentType === 'omniscript' && child.type === 'Step') &&
+        !(child.type === 'Block' && child.children.length > 1)) {
+      isConditional = true;
+      detectionMethod = 'eleArray';
+    }
+    
+    // Method 2: Name patterns
+    if (!isConditional && name.toLowerCase().includes('if')) {
+      isConditional = true;
+      detectionMethod = 'name(if)';
+    }
+    
+    // Method 3: Type patterns  
+    if (!isConditional && type.toLowerCase().includes('conditional')) {
+      isConditional = true;
+      detectionMethod = 'type(conditional)';
+    }
+    
+    if (isConditional) {
+      const eleArrayItems = child.children && child.children[0] && child.children[0].eleArray 
+        ? child.children[0].eleArray.length 
+        : 0;
+      console.log(`    ✅ [CONDITIONAL-FOUND] "${child.name}" detected by ${detectionMethod} - eleArray: ${eleArrayItems > 0 ? eleArrayItems + ' items' : 'NO'}`);                                                      
+      return 'conditional';
+    }
+    
+    // Block type (Omniscript UI blocks that have nested children)
+    if (type === 'block' && child.children && Array.isArray(child.children) && child.children.length > 0) {
+      console.log(`    ✅ [BLOCK-FOUND] "${child.name}" detected as Block type with ${child.children.length} children`);                                                                                                
+      return 'block';
+    }
+    
+    // Loop blocks
+    if (type.includes('loop') || type.includes('for') || type.includes('while') || type === 'loop block' ||
+        name.includes('loop') || name.includes('foreach') || name.includes('for each')) {
+      return 'loop';
+    }
+    
+    // Cache blocks  
+    if (type.includes('cache') || type === 'cache block' || name.includes('cache')) {
+      return 'cache';
+    }
+
+    // Check properties for block indicators (more flexible)
+    if (child.propSetMap) {
+      if (child.propSetMap.loopCondition || child.propSetMap.iterator) {
+        return 'loop';
+      }
+      if (child.propSetMap.cacheKey || child.propSetMap.cacheTimeout) {
+        return 'cache';
+      }
+      // Check for conditional even if no children (might have nested logic)
+      if (child.propSetMap.condition || child.propSetMap.executionConditionalFormula) {
+        return 'conditional';
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Extract block structure for better organization
+   */
+  extractBlockStructure(children, componentType) {
+    const blocks = [];
+    
+    children.forEach((child, index) => {
+      const blockType = this.identifyBlockType(child, componentType);
+      
+      if (blockType) {
+        blocks.push({
+          index,
+          name: child.name,
+          type: blockType,
+          condition: child.propSetMap?.condition || child.propSetMap?.loopCondition,
+          iterator: child.propSetMap?.iterator,
+          cacheKey: child.propSetMap?.cacheKey,
+          childrenCount: child.children ? child.children.length : 0
+        });
+      }
+    });
+    
+    return blocks.length > 0 ? blocks : null;
+  }
+
+  /**
+   * Get component prefix for display
+   */
+  getComponentPrefix(componentType) {
+    switch (componentType) {
+      case 'integration-procedure':
+        return 'IP-';
+      case 'omniscript':
+        return 'OS-';
+      default:
+        return '';
+    }
+  }
+
   // Format condition object to readable string
   formatCondition(showCondition) {
     try {
