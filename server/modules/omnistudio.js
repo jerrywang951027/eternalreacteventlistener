@@ -23,6 +23,61 @@ class OmnistudioModule {
 
 
   /**
+   * Internal method to load all components without HTTP response handling
+   */
+  async loadAllComponentsInternal(req) {
+    if (!req.session.salesforce) {
+      throw new Error('Not authenticated with Salesforce');
+    }
+
+    // Start timing
+    const startTime = new Date();
+    const startTimestamp = startTime.toISOString();
+    
+    const connection = this.createConnection(req);
+    console.log(`🔄 [OMNISTUDIO] Starting component loading at ${startTimestamp}...`);
+
+    // Load all components in parallel
+    const [integrationProcedures, omniscripts, dataMappers] = await Promise.all([
+      this.loadAllIntegrationProcedures(connection),
+      this.loadAllOmniscripts(connection), 
+      this.loadAllDataMappers(connection)
+    ]);
+
+    console.log(`📊 [OMNISTUDIO] Loaded: ${integrationProcedures.length} IPs, ${omniscripts.length} Omniscripts, ${dataMappers.length} Data Mappers`);
+    console.log('🔗 [OMNISTUDIO] Building hierarchical relationships...');
+
+    // Build hierarchical relationships
+    this.buildHierarchicalRelationships(integrationProcedures, omniscripts);
+
+    // End timing
+    const endTime = new Date();
+    const endTimestamp = endTime.toISOString();
+    const durationMs = endTime.getTime() - startTime.getTime();
+
+    console.log(`⏱️ [OMNISTUDIO] Component loading completed in ${durationMs}ms (${(durationMs / 1000).toFixed(2)}s)`);
+
+    // Store per-org with timing information
+    const orgId = req.session.salesforce.organizationId;
+    this.orgComponentsDataCache.set(orgId, {
+      integrationProcedures,
+      omniscripts,
+      dataMappers,
+      hierarchy: Object.fromEntries(this.componentHierarchy),
+      loadedAt: endTimestamp,
+      totalComponents: integrationProcedures.length + omniscripts.length + dataMappers.length,
+      timing: {
+        startTime: startTimestamp,
+        endTime: endTimestamp,
+        durationMs: durationMs,
+        durationSeconds: parseFloat((durationMs / 1000).toFixed(2))
+      }
+    });
+
+    return this.orgComponentsDataCache.get(orgId);
+  }
+
+  /**
    * Load all Omnistudio components globally with hierarchical relationships
    */
   async loadAllComponents(req, res) {
@@ -34,58 +89,19 @@ class OmnistudioModule {
         });
       }
 
-      // Start timing
-      const startTime = new Date();
-      const startTimestamp = startTime.toISOString();
-      
-      const connection = this.createConnection(req);
-      console.log(`🔄 [OMNISTUDIO] Starting global component loading at ${startTimestamp}...`);
-
-      // Load all components in parallel
-      const [integrationProcedures, omniscripts, dataMappers] = await Promise.all([
-        this.loadAllIntegrationProcedures(connection),
-        this.loadAllOmniscripts(connection), 
-        this.loadAllDataMappers(connection)
-      ]);
-
-      console.log(`📊 [OMNISTUDIO] Loaded: ${integrationProcedures.length} IPs, ${omniscripts.length} Omniscripts, ${dataMappers.length} Data Mappers`);
-
-      // Build hierarchical relationships
-      this.buildHierarchicalRelationships([...integrationProcedures, ...omniscripts]);
-
-      // End timing
-      const endTime = new Date();
-      const endTimestamp = endTime.toISOString();
-      const durationMs = endTime.getTime() - startTime.getTime();
-
-      console.log(`⏱️ [OMNISTUDIO] Component loading completed in ${durationMs}ms (${(durationMs / 1000).toFixed(2)}s)`);
-
-      // Store per-org with timing information
-      const orgId = req.session.salesforce.organizationId;
-      this.orgComponentsDataCache.set(orgId, {
-        integrationProcedures,
-        omniscripts,
-        dataMappers,
-        hierarchy: Object.fromEntries(this.componentHierarchy),
-        loadedAt: endTimestamp,
-        totalComponents: integrationProcedures.length + omniscripts.length + dataMappers.length,
-        timing: {
-          startTime: startTimestamp,
-          endTime: endTimestamp,
-          durationMs: durationMs,
-          durationSeconds: parseFloat((durationMs / 1000).toFixed(2))
-        }
-      });
+      // Use the internal method to do the actual loading
+      const componentData = await this.loadAllComponentsInternal(req);
 
       res.json({
         success: true,
         message: 'All components loaded successfully',
         summary: {
-          integrationProcedures: integrationProcedures.length,
-          omniscripts: omniscripts.length,
-          dataMappers: dataMappers.length,
-          totalComponents: globalComponentsData.totalComponents,
-          hierarchicalRelationships: this.componentHierarchy.size
+          integrationProcedures: componentData.integrationProcedures.length,
+          omniscripts: componentData.omniscripts.length,
+          dataMappers: componentData.dataMappers.length,
+          totalComponents: componentData.totalComponents,
+          hierarchicalRelationships: this.componentHierarchy.size,
+          timing: componentData.timing
         }
       });
 
@@ -769,13 +785,32 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
   async getGlobalComponentData(req, res) {
     try {
       const orgId = req.session.salesforce.organizationId;
-      const globalComponentsData = this.orgComponentsDataCache.get(orgId);
+      let globalComponentsData = this.orgComponentsDataCache.get(orgId);
       
+      // Auto-load global data if it doesn't exist
       if (!globalComponentsData) {
-        return res.status(404).json({
-          success: false,
-          message: 'Global component data not loaded for this org. Please call /api/omnistudio/load-all first.'
-        });
+        console.log(`📦 [OMNISTUDIO] No global data found for org ${orgId}. Auto-loading...`);
+        
+        try {
+          // Load all components for this org
+          await this.loadAllComponentsInternal(req);
+          globalComponentsData = this.orgComponentsDataCache.get(orgId);
+          
+          if (!globalComponentsData) {
+            return res.status(500).json({
+              success: false,
+              message: 'Failed to auto-load global component data for this org.'
+            });
+          }
+          
+          console.log(`✅ [OMNISTUDIO] Auto-loaded global data for org ${orgId}: ${globalComponentsData.totalComponents} components`);
+        } catch (loadError) {
+          console.error(`❌ [OMNISTUDIO] Auto-load failed for org ${orgId}:`, loadError);
+          return res.status(500).json({
+            success: false,
+            message: 'Failed to load global component data: ' + loadError.message
+          });
+        }
       }
 
       // Maintain backward compatibility with frontend expectations
