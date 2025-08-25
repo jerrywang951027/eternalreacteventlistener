@@ -272,32 +272,19 @@ const OmnistudioTab = () => {
   const [selectedInstance, setSelectedInstance] = useState(null);
   const [instanceDetails, setInstanceDetails] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [globalComponentsData, setGlobalComponentsData] = useState(null);
   
   // Loading states
   const [loadingInstances, setLoadingInstances] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [loadingGlobalData, setLoadingGlobalData] = useState(false);
   
   // Error states
   const [instanceError, setInstanceError] = useState('');
   const [detailError, setDetailError] = useState('');
-  const [globalDataError, setGlobalDataError] = useState('');
-
-  // Load global components data on mount (for hierarchy features)
-  useEffect(() => {
-    loadGlobalComponentsData();
-  }, []);
 
   // Fetch instances when component type changes or search term changes
   useEffect(() => {
-    if (globalComponentsData) {
-      processInstancesFromGlobalData();
-    } else {
-      // Fallback to individual API calls when global data not available
-      fetchInstancesFromAPI();
-    }
-  }, [globalComponentsData, selectedComponentType, searchTerm]);
+    fetchInstancesFromAPI();
+  }, [selectedComponentType, searchTerm]);
 
   // Clear selected instance when component type changes
   useEffect(() => {
@@ -343,7 +330,8 @@ const OmnistudioTab = () => {
         params.searchTerm = searchTerm.trim();
       }
 
-      const response = await axios.get('/api/omnistudio/instances', { params });
+      // Use the new search endpoint for real-time search
+      const response = await axios.get('/api/omnistudio/search', { params });
       
       if (response.data.success) {
         setInstances(response.data.instances);
@@ -360,142 +348,14 @@ const OmnistudioTab = () => {
     }
   };
 
-  const processInstancesFromGlobalData = () => {
-    if (!globalComponentsData) return;
 
-    setLoadingInstances(true);
-    setInstanceError('');
 
-    try {
-      let sourceData = [];
-      
-      switch (selectedComponentType) {
-        case 'integration-procedure':
-          sourceData = globalComponentsData.integrationProcedures || [];
-          break;
-        case 'omniscript':
-          sourceData = globalComponentsData.omniscripts || [];
-          break;
-        case 'data-mapper':
-          sourceData = globalComponentsData.dataMappers || [];
-          break;
-        default:
-          sourceData = [];
-      }
 
-      // Apply search filter
-      let filteredData = sourceData;
-      if (searchTerm.trim()) {
-        const searchLower = searchTerm.toLowerCase().trim();
-        filteredData = sourceData.filter(component =>
-          component.name.toLowerCase().includes(searchLower) ||
-          (component.type && component.type.toLowerCase().includes(searchLower)) ||
-          (component.subType && component.subType.toLowerCase().includes(searchLower))
-        );
-      }
-
-      // Convert to display format
-      const processedInstances = filteredData.map(component => ({
-        id: component.id,
-        name: component.name,
-        type: component.type,
-        subType: component.subType,
-        version: component.version,
-        procedureKey: component.procedureKey,
-        uniqueId: component.uniqueId,
-        description: component.description,
-        componentType: component.componentType
-      }));
-
-      setInstances(processedInstances);
-    } catch (error) {
-      setInstanceError('Error processing component data: ' + error.message);
-      setInstances([]);
-    } finally {
-      setLoadingInstances(false);
-    }
-  };
-
-  const getInstanceDetailsFromGlobalData = (componentType, instanceName) => {
-    if (!globalComponentsData) return null;
-
-    let sourceData = [];
-    switch (componentType) {
-      case 'integration-procedure':
-        sourceData = globalComponentsData.integrationProcedures || [];
-        break;
-      case 'omniscript':
-        sourceData = globalComponentsData.omniscripts || [];
-        break;
-      case 'data-mapper':
-        sourceData = globalComponentsData.dataMappers || [];
-        break;
-      default:
-        return null;
-    }
-
-    const component = sourceData.find(comp => comp.name === instanceName);
-    if (!component) return null;
-
-    // Convert to the expected details format
-    if (componentType === 'data-mapper') {
-      return {
-        name: component.name,
-        id: component.id,
-        componentType: component.componentType,
-        description: component.description,
-        configurationItems: component.configItems || [],
-        totalItems: (component.configItems || []).length
-      };
-    } else {
-      // For omniscripts and integration procedures
-      return {
-        name: component.name,
-        id: component.id,
-        componentType: component.componentType,
-        rawContent: component.rawContent,
-        parsedContent: component.parsedContent,
-        contentError: component.contentError,
-        summary: {
-          type: component.type,
-          subType: component.subType,
-          version: component.version,
-          childrenCount: component.steps ? component.steps.length : 0,
-          steps: component.steps || [],
-          hierarchy: component.childComponents || [],
-          blockStructure: component.blockStructure
-        }
-      };
-    }
-  };
 
   const handleInstanceSelect = (instance) => {
     setSelectedInstance(instance);
-    
-    if (globalComponentsData) {
-      // Use global data for enhanced hierarchy features
-      setLoadingDetails(true);
-      setDetailError('');
-      
-      try {
-        const details = getInstanceDetailsFromGlobalData(selectedComponentType, instance.name);
-        if (details) {
-          setInstanceDetails(details);
-          console.log(`📋 [OMNISTUDIO] Loaded details for ${instance.name} from global data:`, details);
-        } else {
-          setDetailError(`No details found for ${instance.name}`);
-          setInstanceDetails(null);
-        }
-      } catch (error) {
-        setDetailError('Error loading details: ' + error.message);
-        setInstanceDetails(null);
-      } finally {
-        setLoadingDetails(false);
-      }
-    } else {
-      // Fallback to API call for basic details
-      fetchInstanceDetailsFromAPI(selectedComponentType, instance.name);
-    }
+    // Always use API call for instance details
+    fetchInstanceDetailsFromAPI(selectedComponentType, instance.name);
   };
 
   const fetchInstanceDetailsFromAPI = async (componentType, instanceName) => {
@@ -554,32 +414,7 @@ const OmnistudioTab = () => {
             <h3>🔧 Omnistudio Components</h3>
             <p>Explore Integration Procedures, Omniscripts, and Data Mappers</p>
             
-            {/* Component Counts Summary */}
-            {globalComponentsData && (
-              <div className="component-counts-summary">
-                <div className="count-item">
-                  <span className="count-icon">⚡</span>
-                  <span className="count-label">Integration Procedures:</span>
-                  <span className="count-value">{globalComponentsData.integrationProcedures?.length || 0}</span>
-                </div>
-                <div className="count-item">
-                  <span className="count-icon">📋</span>
-                  <span className="count-label">Omniscripts:</span>
-                  <span className="count-value">{globalComponentsData.omniscripts?.length || 0}</span>
-                </div>
-                <div className="count-item">
-                  <span className="count-icon">🔄</span>
-                  <span className="count-label">Data Mappers:</span>
-                  <span className="count-value">{globalComponentsData.dataMappers?.length || 0}</span>
-                </div>
-                <div className="count-total">
-                  <strong>Total: {globalComponentsData.totalComponents || 0} components</strong>
-                  {globalComponentsData.loadedAt && (
-                    <small> • Loaded {new Date(globalComponentsData.loadedAt).toLocaleTimeString()}</small>
-                  )}
-                </div>
-              </div>
-            )}
+
           </div>
 
           {/* Component Type Selection */}
@@ -630,8 +465,6 @@ const OmnistudioTab = () => {
             {filteredInstances.length !== instances.length && instances.length > 0 && (
               <div className="search-results-info">
                 Showing {filteredInstances.length} of {instances.length} components
-                {globalComponentsData && <span> • Enhanced mode</span>}
-                {!globalComponentsData && <span> • Basic mode</span>}
               </div>
             )}
           </div>
@@ -654,27 +487,7 @@ const OmnistudioTab = () => {
               </div>
             )}
 
-            {globalDataError && !globalComponentsData && (
-              <div className="info-message">
-                <span>ℹ️ {globalDataError}</span>
-                <button onClick={loadGlobalComponentsData} className="retry-btn">
-                  🔄 Retry Enhanced Features
-                </button>
-              </div>
-            )}
 
-            {/* Force refresh button when global data is available */}
-            {globalComponentsData && (
-              <div className="info-message">
-                <span>🚀 Enhanced hierarchy mode active</span>
-                <button onClick={() => {
-                  setGlobalComponentsData(null);
-                  loadGlobalComponentsData();
-                }} className="retry-btn">
-                  🔄 Refresh Data
-                </button>
-              </div>
-            )}
 
             {instanceError && (
               <div className="error-message">
@@ -684,7 +497,7 @@ const OmnistudioTab = () => {
 
             {loadingInstances ? (
               <div className="loading-spinner">
-                {globalComponentsData ? 'Processing components...' : 'Loading instances...'}
+                Loading instances...
               </div>
             ) : filteredInstances.length === 0 ? (
               <div className="no-instances">
@@ -839,51 +652,7 @@ const OmnistudioTab = () => {
                     </div>
                   )}
 
-                  {/* References Section - Show where this component is referenced from */}
-                  {globalComponentsData && instanceDetails && (instanceDetails.componentType === 'integration-procedure' || instanceDetails.componentType === 'omniscript') && (
-                    <div className="details-section">
-                      <h4>🔗 Referenced From</h4>
-                      {(() => {
-                        // Find the component in global data to get its references
-                        let component = null;
-                        if (instanceDetails.componentType === 'integration-procedure') {
-                          component = globalComponentsData.integrationProcedures?.find(ip => 
-                            ip.name === instanceDetails.name || ip.id === instanceDetails.id
-                          );
-                        } else if (instanceDetails.componentType === 'omniscript') {
-                          component = globalComponentsData.omniscripts?.find(os => 
-                            os.name === instanceDetails.name || os.id === instanceDetails.id
-                          );
-                        }
 
-                        const references = component?.referencedBy || [];
-
-                        if (references.length === 0) {
-                          return (
-                            <div className="no-references">
-                              <p>This component is not referenced by any other components.</p>
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <div className="references-list">
-                            {references.map((ref, index) => (
-                              <div key={index} className="reference-item">
-                                <div className="reference-path">
-                                  <span className="path-string">{ref.pathString}</span>
-                                </div>
-                                <div className="reference-details">
-                                  <span className="reference-step">via step: <strong>{ref.stepName}</strong></span>
-                                  <span className="reference-level">Level: {ref.level}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  )}
 
                   {/* Content Error */}
                   {instanceDetails.contentError && (
@@ -909,12 +678,6 @@ const OmnistudioTab = () => {
                     <li>📋 View detailed step-by-step configuration and structure</li>
                     <li>👁️ See execution conditions and remote action details</li>
                     <li>📁 Expand Omniscript steps to view sub-elements</li>
-                    {globalComponentsData && (
-                      <li>🚀 <strong>Enhanced hierarchy features available</strong> - see nested component relationships up to 4 levels deep</li>
-                    )}
-                    {!globalComponentsData && (
-                      <li>ℹ️ Basic mode - enhanced hierarchy features will be available once global data loads</li>
-                    )}
                   </ul>
                 </div>
               </div>

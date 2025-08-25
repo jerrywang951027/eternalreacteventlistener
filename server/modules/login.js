@@ -1,9 +1,8 @@
 const jsforce = require('jsforce');
 
 class LoginModule {
-  constructor(syncGlobalConnectionCallback = null) {
+  constructor() {
     this.NODE_ENV = process.env.NODE_ENV || 'development';
-    this.syncGlobalConnection = syncGlobalConnectionCallback;
     this.loadOrgConfigurations();
   }
 
@@ -289,11 +288,7 @@ class LoginModule {
         email: identityInfo.email
       };
 
-      // Sync the connection to all modules
-      if (this.syncGlobalConnection) {
-        this.syncGlobalConnection(conn);
-        console.log('🔗 [LOGIN] Global connection synced to all modules');
-      }
+      // Note: No longer syncing global connections - each module will create connections per-request
 
       // Redirect to success page
       const clientUrl = this.NODE_ENV === 'production' 
@@ -422,17 +417,12 @@ class LoginModule {
   /**
    * Create Salesforce connection from session
    */
-  createConnection(req, globalConnection) {
-    // Use global connection or create a new one
-    let conn = globalConnection;
-    if (!conn) {
-      conn = new jsforce.Connection({
-        oauth2: req.session.oauth2,
-        accessToken: req.session.salesforce.accessToken,
-        instanceUrl: req.session.salesforce.instanceUrl
-      });
-    }
-    return conn;
+  createConnection(req) {
+    return new jsforce.Connection({
+      oauth2: req.session.oauth2,
+      accessToken: req.session.salesforce.accessToken,
+      instanceUrl: req.session.salesforce.instanceUrl
+    });
   }
 }
 

@@ -1,30 +1,19 @@
 const jsforce = require('jsforce');
 
 class SObjectsModule {
-  constructor(globalSalesforceConnection) {
-    this.globalSalesforceConnection = globalSalesforceConnection;
+  constructor() {
+    // No more global connection storage
   }
 
   /**
-   * Set the global Salesforce connection
-   */
-  setGlobalConnection(connection) {
-    this.globalSalesforceConnection = connection;
-  }
-
-  /**
-   * Create or get Salesforce connection
+   * Create Salesforce connection from session
    */
   createConnection(req) {
-    let conn = this.globalSalesforceConnection;
-    if (!conn) {
-      conn = new jsforce.Connection({
-        oauth2: req.session.oauth2,
-        accessToken: req.session.salesforce.accessToken,
-        instanceUrl: req.session.salesforce.instanceUrl
-      });
-    }
-    return conn;
+    return new jsforce.Connection({
+      oauth2: req.session.oauth2,
+      accessToken: req.session.salesforce.accessToken,
+      instanceUrl: req.session.salesforce.instanceUrl
+    });
   }
 
   /**

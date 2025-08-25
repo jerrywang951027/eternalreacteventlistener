@@ -258,31 +258,7 @@ const Dashboard = ({ user, onLogout }) => {
     fetchPlatformEvents();
   }, []);
 
-  // Load all Omnistudio components globally after successful login
-  useEffect(() => {
-    const loadGlobalOmnistudioComponents = async () => {
-      if (!user) return; // Only load if user is authenticated
-      
-      try {
-        console.log('🔄 [OMNISTUDIO] Loading all components globally...');
-        
-        const response = await axios.post('/api/omnistudio/load-all', {}, {
-          withCredentials: true
-        });
-        
-        if (response.data.success) {
-          console.log('✅ [OMNISTUDIO] Global components loaded successfully:', response.data.summary);
-        } else {
-          console.error('❌ [OMNISTUDIO] Failed to load global components:', response.data.message);
-        }
-      } catch (error) {
-        console.error('❌ [OMNISTUDIO] Error loading global components:', error);
-        // Don't show error to user as this is background loading
-      }
-    };
-
-    loadGlobalOmnistudioComponents();
-  }, [user]); // Trigger when user becomes available
+  // Note: Omnistudio components are now loaded on-demand per search, no global loading needed
 
   // SObjects functions (moved from SObjectsTab)
   const searchSObjects = async (query) => {

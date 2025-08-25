@@ -1,9 +1,8 @@
 const jsforce = require('jsforce');
 
 class OmnistudioModule {
-  constructor(globalSalesforceConnection) {
-    this.globalSalesforceConnection = globalSalesforceConnection;
-    this.globalComponentsData = null; // Store all components globally
+  constructor() {
+    this.orgComponentsDataCache = new Map(); // Store components per org: orgId -> componentData
     this.componentHierarchy = new Map(); // Store hierarchical relationships
   }
 
@@ -21,12 +20,7 @@ class OmnistudioModule {
     }
   }
 
-  /**
-   * Set the global Salesforce connection
-   */
-  setGlobalConnection(connection) {
-    this.globalSalesforceConnection = connection;
-  }
+
 
   /**
    * Load all Omnistudio components globally with hierarchical relationships
@@ -66,8 +60,9 @@ class OmnistudioModule {
 
       console.log(`⏱️ [OMNISTUDIO] Component loading completed in ${durationMs}ms (${(durationMs / 1000).toFixed(2)}s)`);
 
-      // Store globally with timing information
-      this.globalComponentsData = {
+      // Store per-org with timing information
+      const orgId = req.session.salesforce.organizationId;
+      this.orgComponentsDataCache.set(orgId, {
         integrationProcedures,
         omniscripts,
         dataMappers,
@@ -80,7 +75,7 @@ class OmnistudioModule {
           durationMs: durationMs,
           durationSeconds: parseFloat((durationMs / 1000).toFixed(2))
         }
-      };
+      });
 
       res.json({
         success: true,
@@ -89,7 +84,7 @@ class OmnistudioModule {
           integrationProcedures: integrationProcedures.length,
           omniscripts: omniscripts.length,
           dataMappers: dataMappers.length,
-          totalComponents: this.globalComponentsData.totalComponents,
+          totalComponents: globalComponentsData.totalComponents,
           hierarchicalRelationships: this.componentHierarchy.size
         }
       });
@@ -745,23 +740,24 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
   }
 
   /**
-   * Get globally loaded component data
+   * Get component data for a specific org
    */
-  getGlobalComponentData() {
-    return this.globalComponentsData;
+  getOrgComponentData(orgId) {
+    return this.orgComponentsDataCache.get(orgId);
   }
 
   /**
-   * Get component by unique ID from global data
+   * Get component by unique ID from org data
    */
-  getComponentByUniqueId(uniqueId) {
-    if (!this.globalComponentsData) return null;
+  getComponentByUniqueId(uniqueId, orgId) {
+    const orgData = this.orgComponentsDataCache.get(orgId);
+    if (!orgData) return null;
     
     // Search in all component types
     const allComponents = [
-      ...this.globalComponentsData.integrationProcedures,
-      ...this.globalComponentsData.omniscripts,
-      ...this.globalComponentsData.dataMappers
+      ...orgData.integrationProcedures,
+      ...orgData.omniscripts,
+      ...orgData.dataMappers
     ];
     
     return allComponents.find(comp => comp.uniqueId === uniqueId || comp.name === uniqueId);
@@ -772,10 +768,13 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
    */
   async getGlobalComponentData(req, res) {
     try {
-      if (!this.globalComponentsData) {
+      const orgId = req.session.salesforce.organizationId;
+      const globalComponentsData = this.orgComponentsDataCache.get(orgId);
+      
+      if (!globalComponentsData) {
         return res.status(404).json({
           success: false,
-          message: 'Global component data not loaded. Please call /api/omnistudio/load-all first.'
+          message: 'Global component data not loaded for this org. Please call /api/omnistudio/load-all first.'
         });
       }
 
@@ -783,19 +782,19 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
       // Frontend expects: response.data.data.integrationProcedures, etc.
       const backwardCompatibleData = {
         // Original structure that frontend expects
-        integrationProcedures: this.globalComponentsData.integrationProcedures,
-        omniscripts: this.globalComponentsData.omniscripts,
-        dataMappers: this.globalComponentsData.dataMappers,
-        hierarchy: this.globalComponentsData.hierarchy,
-        loadedAt: this.globalComponentsData.loadedAt,
-        totalComponents: (this.globalComponentsData.integrationProcedures?.length || 0) + 
-                        (this.globalComponentsData.omniscripts?.length || 0) + 
-                        (this.globalComponentsData.dataMappers?.length || 0),
-        timing: this.globalComponentsData.timing,
+        integrationProcedures: globalComponentsData.integrationProcedures,
+        omniscripts: globalComponentsData.omniscripts,
+        dataMappers: globalComponentsData.dataMappers,
+        hierarchy: globalComponentsData.hierarchy,
+        loadedAt: globalComponentsData.loadedAt,
+        totalComponents: (globalComponentsData.integrationProcedures?.length || 0) + 
+                        (globalComponentsData.omniscripts?.length || 0) + 
+                        (globalComponentsData.dataMappers?.length || 0),
+        timing: globalComponentsData.timing,
         
         // Enhanced hierarchical reference summary (additional data)
         enhancedSummary: {
-          integrationProcedures: this.globalComponentsData.integrationProcedures.map(ip => ({
+          integrationProcedures: globalComponentsData.integrationProcedures.map(ip => ({
             uniqueId: ip.uniqueId,
             name: ip.name,
             componentType: ip.componentType,
@@ -805,7 +804,7 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
             referencedBy: ip.referencedBy || [],
             childComponents: ip.childComponents || []
           })),
-          omniscripts: this.globalComponentsData.omniscripts.map(os => ({
+          omniscripts: globalComponentsData.omniscripts.map(os => ({
             uniqueId: os.uniqueId,
             name: os.name,
             componentType: os.componentType,
@@ -815,7 +814,7 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
             referencedBy: os.referencedBy || [],
             childComponents: os.childComponents || []
           })),
-          dataMappers: this.globalComponentsData.dataMappers.map(dm => ({
+          dataMappers: globalComponentsData.dataMappers.map(dm => ({
             uniqueId: dm.uniqueId,
             name: dm.name,
             componentType: dm.componentType,
@@ -823,12 +822,12 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
             referencedBy: dm.referencedBy || []
           })),
           totals: {
-            integrationProcedures: this.globalComponentsData.integrationProcedures.length,
-            omniscripts: this.globalComponentsData.omniscripts.length,
-            dataMappers: this.globalComponentsData.dataMappers.length,
-            totalHierarchicalReferences: this.globalComponentsData.integrationProcedures.reduce((sum, ip) => sum + (ip.referencedBy?.length || 0), 0) + 
-                                       this.globalComponentsData.omniscripts.reduce((sum, os) => sum + (os.referencedBy?.length || 0), 0) + 
-                                       this.globalComponentsData.dataMappers.reduce((sum, dm) => sum + (dm.referencedBy?.length || 0), 0)
+            integrationProcedures: globalComponentsData.integrationProcedures.length,
+            omniscripts: globalComponentsData.omniscripts.length,
+            dataMappers: globalComponentsData.dataMappers.length,
+            totalHierarchicalReferences: globalComponentsData.integrationProcedures.reduce((sum, ip) => sum + (ip.referencedBy?.length || 0), 0) + 
+                                       globalComponentsData.omniscripts.reduce((sum, os) => sum + (os.referencedBy?.length || 0), 0) + 
+                                       globalComponentsData.dataMappers.reduce((sum, dm) => sum + (dm.referencedBy?.length || 0), 0)
           }
         }
       };
@@ -855,18 +854,14 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
   }
 
   /**
-   * Create or get Salesforce connection
+   * Create Salesforce connection from session
    */
   createConnection(req) {
-    let conn = this.globalSalesforceConnection;
-    if (!conn) {
-      conn = new jsforce.Connection({
-        oauth2: req.session.oauth2,
-        accessToken: req.session.salesforce.accessToken,
-        instanceUrl: req.session.salesforce.instanceUrl
-      });
-    }
-    return conn;
+    return new jsforce.Connection({
+      oauth2: req.session.oauth2,
+      accessToken: req.session.salesforce.accessToken,
+      instanceUrl: req.session.salesforce.instanceUrl
+    });
   }
 
   // Component type configurations (now used only internally)
@@ -891,6 +886,123 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
         icon: '🔄'
       }
     ];
+  }
+
+  /**
+   * Search for omnistudio components by name (real-time API endpoint)
+   */
+  async searchComponents(req, res) {
+    try {
+      if (!req.session.salesforce) {
+        return res.status(401).json({ 
+          success: false, 
+          message: 'Not authenticated with Salesforce' 
+        });
+      }
+
+      const connection = this.createConnection(req);
+      const { componentType, searchTerm = '' } = req.query;
+
+      if (!componentType) {
+        return res.status(400).json({
+          success: false,
+          message: 'Component type is required'
+        });
+      }
+
+      let instances = [];
+
+      switch (componentType) {
+        case 'integration-procedure':
+          const ipQuery = `SELECT Id,Name,vlocity_cmt__Type__c,vlocity_cmt__SubType__c,vlocity_cmt__IsProcedure__c,vlocity_cmt__ProcedureKey__c,vlocity_cmt__Version__c
+                          FROM vlocity_cmt__OmniScript__c 
+                          WHERE vlocity_cmt__IsProcedure__c=true AND vlocity_cmt__IsActive__c=true ${searchTerm ? `AND Name LIKE '%${searchTerm}%'` : ''}
+                          ORDER BY Name ASC LIMIT 1000`;
+          
+          console.log(`🔍 [OMNISTUDIO] Executing search query: ${ipQuery}`);
+          const ipResult = await connection.query(ipQuery);
+          
+          instances = ipResult.records.map(record => {
+            const uniqueId = `${record.vlocity_cmt__Type__c}_${record.vlocity_cmt__SubType__c}`;
+            return {
+              id: record.Id,
+              name: record.Name,
+              uniqueId: uniqueId,
+              type: record.vlocity_cmt__Type__c,
+              subtype: record.vlocity_cmt__SubType__c,
+              procedureKey: record.vlocity_cmt__ProcedureKey__c,
+              version: record.vlocity_cmt__Version__c,
+              componentType: 'integration-procedure'
+            };
+          });
+          break;
+
+        case 'omniscript':
+          const osQuery = `SELECT Id,Name,vlocity_cmt__Type__c,vlocity_cmt__SubType__c,vlocity_cmt__IsProcedure__c,vlocity_cmt__ProcedureKey__c,vlocity_cmt__Version__c
+                          FROM vlocity_cmt__OmniScript__c 
+                          WHERE vlocity_cmt__IsProcedure__c=false AND vlocity_cmt__IsActive__c=true ${searchTerm ? `AND Name LIKE '%${searchTerm}%'` : ''}
+                          ORDER BY Name ASC LIMIT 1000`;
+          
+          console.log(`🔍 [OMNISTUDIO] Executing search query: ${osQuery}`);
+          const osResult = await connection.query(osQuery);
+          
+          instances = osResult.records.map(record => {
+            const uniqueId = `${record.vlocity_cmt__Type__c}_${record.vlocity_cmt__SubType__c}`;
+            return {
+              id: record.Id,
+              name: record.Name,
+              uniqueId: uniqueId,
+              type: record.vlocity_cmt__Type__c,
+              subtype: record.vlocity_cmt__SubType__c,
+              version: record.vlocity_cmt__Version__c,
+              componentType: 'omniscript'
+            };
+          });
+          break;
+
+        case 'data-mapper':
+          const dmQuery = `SELECT Id,Name,vlocity_cmt__Type__c,vlocity_cmt__Version__c
+                          FROM vlocity_cmt__DRBundle__c 
+                          WHERE vlocity_cmt__IsActive__c=true ${searchTerm ? `AND Name LIKE '%${searchTerm}%'` : ''}
+                          ORDER BY Name ASC LIMIT 1000`;
+          
+          console.log(`🔍 [OMNISTUDIO] Executing search query: ${dmQuery}`);
+          const dmResult = await connection.query(dmQuery);
+          
+          instances = dmResult.records.map(record => ({
+            id: record.Id,
+            name: record.Name,
+            uniqueId: record.Name,
+            type: record.vlocity_cmt__Type__c,
+            version: record.vlocity_cmt__Version__c,
+            componentType: 'data-mapper'
+          }));
+          break;
+
+        default:
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid component type'
+          });
+      }
+
+      console.log(`✅ [OMNISTUDIO] Search completed: Found ${instances.length} ${componentType} components`);
+
+      res.json({
+        success: true,
+        instances,
+        searchTerm,
+        componentType,
+        totalFound: instances.length
+      });
+
+    } catch (error) {
+      console.error(`❌ [OMNISTUDIO] Error searching ${req.query.componentType}:`, error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to search components: ' + error.message
+      });
+    }
   }
 
   // Get instances based on component type

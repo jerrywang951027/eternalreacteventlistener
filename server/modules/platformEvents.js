@@ -5,36 +5,17 @@ class PlatformEventsModule {
     this.io = io;
     this.platformEventSubscriptions = platformEventSubscriptions;
     this.isSubscriptionInProgress = false;
-    this.globalSalesforceConnection = null;
   }
 
   /**
-   * Set the global Salesforce connection
-   */
-  setGlobalConnection(connection) {
-    this.globalSalesforceConnection = connection;
-  }
-
-  /**
-   * Get the global Salesforce connection
-   */
-  getGlobalConnection() {
-    return this.globalSalesforceConnection;
-  }
-
-  /**
-   * Create or get Salesforce connection
+   * Create Salesforce connection from session
    */
   createConnection(req) {
-    let conn = this.globalSalesforceConnection;
-    if (!conn) {
-      conn = new jsforce.Connection({
-        oauth2: req.session.oauth2,
-        accessToken: req.session.salesforce.accessToken,
-        instanceUrl: req.session.salesforce.instanceUrl
-      });
-    }
-    return conn;
+    return new jsforce.Connection({
+      oauth2: req.session.oauth2,
+      accessToken: req.session.salesforce.accessToken,
+      instanceUrl: req.session.salesforce.instanceUrl
+    });
   }
 
   /**

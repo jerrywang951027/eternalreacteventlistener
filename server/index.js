@@ -75,24 +75,12 @@ const activeConnections = new Map();
 const platformEventSubscriptions = new Map();
 let reactProcess = null;
 
-// Global subscription management
-let globalSalesforceConnection = null;
-
-// Helper function to sync global connection across modules
-function syncGlobalConnection(connection) {
-  globalSalesforceConnection = connection;
-  platformEventsModule.setGlobalConnection(connection);
-  sObjectsModule.setGlobalConnection(connection);
-  orderManagementModule.setGlobalConnection(connection);
-  omnistudioModule.setGlobalConnection(connection);
-}
-
-// Initialize modules
-const loginModule = new LoginModule(syncGlobalConnection);
+// Initialize modules (no more global connection sharing)
+const loginModule = new LoginModule();
 const platformEventsModule = new PlatformEventsModule(io, platformEventSubscriptions);
 const sObjectsModule = new SObjectsModule();
 const orderManagementModule = new OrderManagementModule();
-const omnistudioModule = new OmnistudioModule(globalSalesforceConnection);
+const omnistudioModule = new OmnistudioModule();
 
 // Auto-start React development server in development mode
 function startReactDev() {
@@ -266,11 +254,12 @@ app.get('/api/omnistudio/global-data', loginModule.requireAuth, (req, res) => {
 });
 
 app.get('/api/omnistudio/global-summary', loginModule.requireAuth, (req, res) => {
-  const globalData = omnistudioModule.getGlobalComponentData();
+  const orgId = req.session.salesforce.organizationId;
+  const globalData = omnistudioModule.getOrgComponentData(orgId);
   if (!globalData) {
     return res.status(404).json({
       success: false,
-      message: 'No global component data loaded. Please call /api/omnistudio/load-all first.'
+      message: 'No global component data loaded for this org. Please call /api/omnistudio/load-all first.'
     });
   }
   
@@ -327,6 +316,10 @@ app.get('/api/omnistudio/global-summary', loginModule.requireAuth, (req, res) =>
 
 app.get('/api/omnistudio/instances', loginModule.requireAuth, (req, res) => {
   omnistudioModule.getInstances(req, res);
+});
+
+app.get('/api/omnistudio/search', loginModule.requireAuth, (req, res) => {
+  omnistudioModule.searchComponents(req, res);
 });
 
 app.get('/api/omnistudio/:componentType/:instanceName/details', loginModule.requireAuth, (req, res) => {
