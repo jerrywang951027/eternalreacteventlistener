@@ -281,7 +281,7 @@ class OmnistudioModule {
               name: childComponent.name,
               componentType: childComponent.componentType,
               uniqueId: childComponent.uniqueId,
-              steps: childComponent.steps,
+              stepsCount: childComponent.steps ? childComponent.steps.length : 0,
               level: currentLevel + 1
             };
             
