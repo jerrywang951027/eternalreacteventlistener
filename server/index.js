@@ -235,6 +235,10 @@ app.get('/api/sobjects/:sobjectName/describe', loginModule.requireAuth, (req, re
   sObjectsModule.describeSObject(req, res);
 });
 
+app.get('/api/sobjects/:sobjectName/query', loginModule.requireAuth, (req, res) => {
+  sObjectsModule.querySObjectRecords(req, res);
+});
+
 // Order Management Routes
 app.get('/api/orders/search', loginModule.requireAuth, (req, res) => {
   orderManagementModule.searchOrders(req, res);

@@ -1,0 +1,369 @@
+/* SObjects Tab Layout Enhancements */
+
+/* Expanded layout for better space utilization */
+.sobjects-layout-expanded {
+  display: flex;
+  gap: 15px;
+  height: calc(100vh - 200px);
+  min-height: 600px;
+}
+
+/* Compact left panel */
+.sobjects-left-panel-compact {
+  flex: 0 0 320px;
+  min-width: 320px;
+  max-width: 320px;
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow-y: auto;
+}
+
+/* Expanded right panel */
+.sobjects-right-panel-expanded {
+  flex: 1;
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sub-tabs Navigation */
+.sobject-subtabs {
+  display: flex;
+  border-bottom: 2px solid #e5e7eb;
+  margin-bottom: 20px;
+  gap: 2px;
+}
+
+.subtab-button {
+  background: #f9fafb;
+  border: none;
+  padding: 12px 20px;
+  cursor: pointer;
+  font-weight: 500;
+  color: #6b7280;
+  border-radius: 6px 6px 0 0;
+  transition: all 0.2s ease;
+  border-bottom: 3px solid transparent;
+}
+
+.subtab-button:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.subtab-button.active {
+  background: white;
+  color: #1f2937;
+  border-bottom-color: #3b82f6;
+  font-weight: 600;
+}
+
+/* Sub-tab Content */
+.subtab-content {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* SOQL Query Styles */
+.soql-query-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 20px;
+}
+
+.query-section {
+  flex-shrink: 0;
+  background: #f8fafc;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.query-section h4 {
+  margin: 0 0 15px 0;
+  color: #1e293b;
+  font-size: 1.1em;
+}
+
+.query-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.condition-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.condition-input-group label {
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.9em;
+}
+
+.condition-input {
+  padding: 10px 12px;
+  border: 2px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.95em;
+  transition: border-color 0.2s ease;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.condition-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.condition-input:disabled {
+  background-color: #f3f4f6;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+.condition-help {
+  margin-top: 5px;
+}
+
+.condition-help small {
+  color: #6b7280;
+  font-size: 0.8em;
+  line-height: 1.4;
+}
+
+.condition-help code {
+  background: #e5e7eb;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-size: 0.85em;
+  color: #374151;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.query-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.query-button {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.query-button:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.query-button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+.clear-condition-button {
+  background: #6b7280;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.clear-condition-button:hover:not(:disabled) {
+  background: #4b5563;
+}
+
+.clear-condition-button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* Query Results Section */
+.query-results-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.loading-query, .error-query {
+  text-align: center;
+  padding: 40px;
+  font-size: 1.1em;
+}
+
+.error-query {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #dc2626;
+}
+
+.error-query p {
+  margin: 5px 0;
+}
+
+.query-results {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.results-header {
+  flex-shrink: 0;
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.results-header h5 {
+  margin: 0 0 10px 0;
+  color: #1e293b;
+  font-size: 1.1em;
+}
+
+.results-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.9em;
+}
+
+.results-count {
+  color: #059669;
+  font-weight: 600;
+}
+
+.executed-soql {
+  color: #6b7280;
+}
+
+.executed-soql code {
+  background: #f3f4f6;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  color: #374151;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  word-break: break-all;
+}
+
+.results-table-container {
+  flex: 1;
+  overflow: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+
+.results-table th {
+  background: #f8fafc;
+  border-bottom: 2px solid #e5e7eb;
+  padding: 12px 8px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.results-table td {
+  border-bottom: 1px solid #f3f4f6;
+  padding: 10px 8px;
+  color: #1f2937;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.results-table tr:hover {
+  background: #f9fafb;
+}
+
+.results-table td:first-child {
+  font-weight: 500;
+  color: #3b82f6;
+}
+
+.no-results {
+  text-align: center;
+  padding: 60px 20px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .sobjects-left-panel-compact {
+    flex: 0 0 280px;
+    min-width: 280px;
+    max-width: 280px;
+  }
+}
+
+@media (max-width: 992px) {
+  .sobjects-layout-expanded {
+    flex-direction: column;
+    height: auto;
+  }
+  
+  .sobjects-left-panel-compact {
+    flex: none;
+    max-width: none;
+    width: 100%;
+  }
+  
+  .sobjects-right-panel-expanded {
+    min-height: 600px;
+  }
+}
+
+/* Enhanced Details Tab - Improve existing table styling when in compact mode */
+.sobject-details .fields-table table {
+  font-size: 0.85em;
+}
+
+.sobject-details .fields-table th,
+.sobject-details .fields-table td {
+  padding: 8px 6px;
+}
+
+/* Improved compact spacing for better space utilization */
+.sobject-details .object-properties .properties-grid,
+.sobject-details .object-properties .permissions-grid {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.sobject-details .object-properties .property,
+.sobject-details .object-properties .permission {
+  padding: 8px 10px;
+}

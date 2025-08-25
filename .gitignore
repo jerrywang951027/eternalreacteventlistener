@@ -8,6 +8,8 @@ node_modules/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.backup
+**/fix-env-manual.js
 
 # Logs
 npm-debug.log*
@@ -114,3 +116,6 @@ Thumbs.db
 
 #prompt related files
 work/*.*
+server/.env.backup
+
+/tests/*.*

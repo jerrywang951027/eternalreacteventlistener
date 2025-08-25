@@ -124,6 +124,91 @@ class SObjectsModule {
   }
 
   /**
+   * Query SObject records with optional conditions
+   */
+  async querySObjectRecords(req, res) {
+    try {
+      const { sobjectName } = req.params;
+      const { condition } = req.query;
+
+      const conn = this.createConnection(req);
+      
+      // Build SOQL query
+      let soql = `SELECT Id`;
+      
+      // First get the SObject description to determine what fields to select
+      const describe = await conn.sobject(sobjectName).describe();
+      
+      // Select common fields (Name, CreatedDate, LastModifiedDate) plus a few more
+      const fieldsToSelect = ['Id'];
+      
+      // Add Name field if it exists
+      const nameField = describe.fields.find(f => f.nameField || f.name === 'Name');
+      if (nameField) {
+        fieldsToSelect.push(nameField.name);
+      }
+      
+      // Add common timestamp fields
+      if (describe.fields.find(f => f.name === 'CreatedDate')) {
+        fieldsToSelect.push('CreatedDate');
+      }
+      if (describe.fields.find(f => f.name === 'LastModifiedDate')) {
+        fieldsToSelect.push('LastModifiedDate');
+      }
+      
+      // Add the first few visible/queryable fields (up to 10 total)
+      const additionalFields = describe.fields
+        .filter(f => f.name !== 'Id' && !fieldsToSelect.includes(f.name) && 
+                     f.type !== 'base64' && // Skip binary fields
+                     !f.name.endsWith('__c') || // Skip most custom fields initially
+                     (f.custom && f.name.endsWith('__c'))) // But include some custom fields
+        .slice(0, 7); // Limit additional fields
+        
+      additionalFields.forEach(field => {
+        if (!fieldsToSelect.includes(field.name)) {
+          fieldsToSelect.push(field.name);
+        }
+      });
+      
+      soql = `SELECT ${fieldsToSelect.join(', ')} FROM ${sobjectName}`;
+      
+      // Add WHERE clause if condition is provided
+      if (condition && condition.trim()) {
+        soql += ` WHERE ${condition.trim()}`;
+      }
+      
+      // Add ORDER BY for consistent results (most recent first if possible)
+      if (fieldsToSelect.includes('CreatedDate')) {
+        soql += ` ORDER BY CreatedDate DESC`;
+      } else if (fieldsToSelect.includes('LastModifiedDate')) {
+        soql += ` ORDER BY LastModifiedDate DESC`;
+      }
+      
+      // Limit results
+      soql += ` LIMIT 20`;
+      
+      console.log(`🔍 [SOBJECTS] Executing SOQL: ${soql}`);
+      
+      const queryResult = await conn.query(soql);
+      
+      res.json({
+        success: true,
+        soql: soql,
+        records: queryResult.records,
+        totalSize: queryResult.totalSize,
+        fields: fieldsToSelect
+      });
+    } catch (error) {
+      console.error(`❌ [SOBJECTS] Error querying SObject ${req.params.sobjectName}:`, error);
+      res.status(500).json({ 
+        success: false, 
+        message: `Failed to query SObject: ${error.message}`,
+        soql: req.query.soql || 'N/A'
+      });
+    }
+  }
+
+  /**
    * Describe a specific SObject
    */
   async describeSObject(req, res) {
