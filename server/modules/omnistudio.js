@@ -417,6 +417,7 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
       const step = {
         name: child.name || 'Unnamed Step',
         type: child.type,
+        blockType: blockType,
         hasChildren: child.children && child.children.length > 0
       };
 
