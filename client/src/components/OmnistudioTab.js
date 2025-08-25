@@ -295,27 +295,7 @@ const OmnistudioTab = () => {
 
 
 
-  const loadGlobalComponentsData = async () => {
-    try {
-      setLoadingGlobalData(true);
-      setGlobalDataError('');
-      
-      const response = await axios.get('/api/omnistudio/global-data');
-      
-      if (response.data.success) {
-        setGlobalComponentsData(response.data.data);
-        console.log('✅ [OMNISTUDIO] Global components data loaded:', response.data.data.totalComponents, 'components');
-      } else {
-        setGlobalDataError('Global data not available - using fallback API calls');
-        console.warn('⚠️ [OMNISTUDIO] No global data available, falling back to individual API calls:', response.data.message);
-      }
-    } catch (error) {
-      setGlobalDataError('Global data unavailable - using fallback API calls');
-      console.warn('⚠️ [OMNISTUDIO] Global data not available, falling back to individual API calls:', error.response?.data?.message || error.message);
-    } finally {
-      setLoadingGlobalData(false);
-    }
-  };
+
 
   const fetchInstancesFromAPI = async () => {
     try {
@@ -480,12 +460,7 @@ const OmnistudioTab = () => {
               </h4>
             </div>
 
-            {/* Global data loading info (non-blocking) */}
-            {loadingGlobalData && (
-              <div className="info-message">
-                <span>🔄 Loading enhanced hierarchy features...</span>
-              </div>
-            )}
+
 
 
 
