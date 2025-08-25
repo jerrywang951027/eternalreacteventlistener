@@ -291,63 +291,64 @@ class OmnistudioModule {
             // Check for circular references - prevent adding child if it's already in the path
             if (fullPath.includes(childComponent.uniqueId)) {
               console.log(`    🔄 [CYCLE-DETECTED] Skipping circular reference: "${childComponent.name}" already exists in path [${fullPath.join(' => ')}]`);
-              return; // Skip this reference to prevent infinite loops
-            }
-            
-            const pathString = fullPath.length > 1 
-              ? fullPath.slice(0, -1).map(id => {
-                  const comp = componentsByUniqueId.get(id);
-                  if (!comp) return id;
-                  const prefix = comp.componentType === 'integration-procedure' ? 'IP-' : 
-                                comp.componentType === 'omniscript' ? 'OS-' : '';
-                  return prefix + comp.name;
-                }).join(' => ') + ' => ' + this.getComponentPrefix(parentComponent.componentType) + parentComponent.name
-              : this.getComponentPrefix(parentComponent.componentType) + parentComponent.name;
-            
-            console.log(`    🔗 [CHILD-IP] Step "${step.name}" references child IP "${childComponent.name}" with ${childComponent.steps.length} steps (Path: ${pathString})`);
-            
-            // Add to parent's child components list
-            if (!parentComponent.childComponents.find(cc => cc.uniqueId === childComponent.uniqueId)) {
-              parentComponent.childComponents.push({
-                uniqueId: childComponent.uniqueId,
-                name: childComponent.name,
-                componentType: childComponent.componentType,
-                referencedInStep: step.name,
-                level: currentLevel + 1,
+              // Don't return here - we still want to process other aspects of this step (like conditional blocks)
+            } else {
+              // Only process the child component reference if no circular reference is detected
+              const pathString = fullPath.length > 1 
+                ? fullPath.slice(0, -1).map(id => {
+                    const comp = componentsByUniqueId.get(id);
+                    if (!comp) return id;
+                    const prefix = comp.componentType === 'integration-procedure' ? 'IP-' : 
+                                  comp.componentType === 'omniscript' ? 'OS-' : '';
+                    return prefix + comp.name;
+                  }).join(' => ') + ' => ' + this.getComponentPrefix(parentComponent.componentType) + parentComponent.name
+                : this.getComponentPrefix(parentComponent.componentType) + parentComponent.name;
+              
+              console.log(`    🔗 [CHILD-IP] Step "${step.name}" references child IP "${childComponent.name}" with ${childComponent.steps.length} steps (Path: ${pathString})`);
+              
+              // Add to parent's child components list
+              if (!parentComponent.childComponents.find(cc => cc.uniqueId === childComponent.uniqueId)) {
+                parentComponent.childComponents.push({
+                  uniqueId: childComponent.uniqueId,
+                  name: childComponent.name,
+                  componentType: childComponent.componentType,
+                  referencedInStep: step.name,
+                  level: currentLevel + 1,
+                  hierarchicalPath: fullPath,
+                  pathString: pathString
+                });
+              }
+              
+              // Add to child component's referencedBy array (enhanced hierarchical tracking)
+              if (!childComponent.referencedBy) {
+                childComponent.referencedBy = [];
+              }
+              
+              const referenceEntry = {
+                parentUniqueId: parentComponent.uniqueId,
+                parentName: parentComponent.name,
+                parentComponentType: parentComponent.componentType,
+                stepName: step.name,
                 hierarchicalPath: fullPath,
-                pathString: pathString
-              });
-            }
-            
-            // Add to child component's referencedBy array (enhanced hierarchical tracking)
-            if (!childComponent.referencedBy) {
-              childComponent.referencedBy = [];
-            }
-            
-            const referenceEntry = {
-              parentUniqueId: parentComponent.uniqueId,
-              parentName: parentComponent.name,
-              parentComponentType: parentComponent.componentType,
-              stepName: step.name,
-              hierarchicalPath: fullPath,
-              pathString: pathString,
-              level: currentLevel + 1
-            };
-            
-            // Check if this reference already exists
-            const existingRef = childComponent.referencedBy.find(ref => 
-              ref.parentUniqueId === parentComponent.uniqueId && ref.stepName === step.name
-            );
-            
-            if (!existingRef) {
-              childComponent.referencedBy.push(referenceEntry);
-              console.log(`    📈 [REFERENCE-ADDED] "${childComponent.name}" now referenced by "${parentComponent.name}" via step "${step.name}" (Path: ${pathString})`);
-            }
-            
-            // Recursively process child component steps with updated path
-            if (childComponent.steps && childComponent.steps.length > 0) {
-              const newPath = [...fullPath, childComponent.uniqueId];
-              processSteps(childComponent.steps, currentLevel + 1, newPath);
+                pathString: pathString,
+                level: currentLevel + 1
+              };
+              
+              // Check if this reference already exists
+              const existingRef = childComponent.referencedBy.find(ref => 
+                ref.parentUniqueId === parentComponent.uniqueId && ref.stepName === step.name
+              );
+              
+              if (!existingRef) {
+                childComponent.referencedBy.push(referenceEntry);
+                console.log(`    📈 [REFERENCE-ADDED] "${childComponent.name}" now referenced by "${parentComponent.name}" via step "${step.name}" (Path: ${pathString})`);
+              }
+              
+              // Recursively process child component steps with updated path
+              if (childComponent.steps && childComponent.steps.length > 0) {
+                const newPath = [...fullPath, childComponent.uniqueId];
+                processSteps(childComponent.steps, currentLevel + 1, newPath);
+              }
             }
           }
         }
