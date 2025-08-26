@@ -367,3 +367,121 @@
 .sobject-details .object-properties .permission {
   padding: 8px 10px;
 }
+
+/* ====== SOBJECTS TAB DARK MODE ====== */
+.dashboard.dark-mode .sobjects-content,
+.dashboard.dark-mode .sobjects-left-panel-compact,
+.dashboard.dark-mode .sobjects-right-panel-expanded {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
+  border-color: #2d3748 !important;
+}
+
+.dashboard.dark-mode .sobjects-content *,
+.dashboard.dark-mode .sobjects-left-panel-compact *,
+.dashboard.dark-mode .sobjects-right-panel-expanded * {
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .sobject-list-item,
+.dashboard.dark-mode .sobject-item {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .sobject-list-item:hover,
+.dashboard.dark-mode .sobject-item:hover {
+  background: #374151 !important;
+  border-color: #63b3ed !important;
+}
+
+.dashboard.dark-mode .sobject-list-item.selected {
+  background: #2b6cb0 !important;
+  color: white !important;
+}
+
+.dashboard.dark-mode .sobject-search,
+.dashboard.dark-mode .sobject-filter,
+.dashboard.dark-mode .search-input {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .sobject-details,
+.dashboard.dark-mode .field-list,
+.dashboard.dark-mode .relationship-list,
+.dashboard.dark-mode .fields-table,
+.dashboard.dark-mode .permissions-grid {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .field-item,
+.dashboard.dark-mode .relationship-item,
+.dashboard.dark-mode .property,
+.dashboard.dark-mode .permission {
+  background: #374151 !important;
+  border: 1px solid #4a5568 !important;
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .sobject-header,
+.dashboard.dark-mode .section-header {
+  background: #2d3748 !important;
+  color: #f7fafc !important;
+  border-bottom: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .fields-table table,
+.dashboard.dark-mode .fields-table th,
+.dashboard.dark-mode .fields-table td {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border-color: #4a5568 !important;
+}
+
+.dashboard.dark-mode .object-properties,
+.dashboard.dark-mode .properties-grid {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+}
+
+/* ====== FIX SPECIFIC WHITE SECTIONS IN SOBJECTS ====== */
+.dashboard.dark-mode .query-section,
+.dashboard.dark-mode .query-results,
+.dashboard.dark-mode .sql-output,
+.dashboard.dark-mode .results-table-container,
+.dashboard.dark-mode .query-input-area {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .query-textarea,
+.dashboard.dark-mode .sql-textarea,
+.dashboard.dark-mode .condition-input {
+  background: #374151 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .example-buttons,
+.dashboard.dark-mode .example-button {
+  background: #4a5568 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #718096 !important;
+}
+
+.dashboard.dark-mode .example-button:hover {
+  background: #63b3ed !important;
+  color: white !important;
+}
+
+.dashboard.dark-mode .query-results-header,
+.dashboard.dark-mode .results-header {
+  background: #374151 !important;
+  color: #f7fafc !important;
+  border-bottom: 1px solid #4a5568 !important;
+}

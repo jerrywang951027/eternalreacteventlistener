@@ -39,6 +39,8 @@ const PlatformEventsModule = require('./modules/platformEvents');
 const SObjectsModule = require('./modules/sobjects');
 const OrderManagementModule = require('./modules/orderManagement');
 const OmnistudioModule = require('./modules/omnistudio');
+const AdminModule = require('./modules/admin');
+const RedisModule = require('./modules/redis');
 
 const PORT = process.env.PORT || 5000;
 const CLIENT_PORT = process.env.CLIENT_PORT || 3000;
@@ -76,11 +78,13 @@ const platformEventSubscriptions = new Map();
 let reactProcess = null;
 
 // Initialize modules (no more global connection sharing)
+const redisModule = new RedisModule();
 const loginModule = new LoginModule();
 const platformEventsModule = new PlatformEventsModule(io, platformEventSubscriptions);
 const sObjectsModule = new SObjectsModule();
 const orderManagementModule = new OrderManagementModule();
-const omnistudioModule = new OmnistudioModule();
+const omnistudioModule = new OmnistudioModule(redisModule);
+const adminModule = new AdminModule(omnistudioModule);
 
 // Auto-start React development server in development mode
 function startReactDev() {
@@ -253,15 +257,16 @@ app.get('/api/omnistudio/global-data', loginModule.requireAuth, (req, res) => {
   omnistudioModule.getGlobalComponentData(req, res);
 });
 
-app.get('/api/omnistudio/global-summary', loginModule.requireAuth, (req, res) => {
-  const orgId = req.session.salesforce.organizationId;
-  const globalData = omnistudioModule.getOrgComponentData(orgId);
-  if (!globalData) {
-    return res.status(404).json({
-      success: false,
-      message: 'No global component data loaded for this org. Please call /api/omnistudio/load-all first.'
-    });
-  }
+app.get('/api/omnistudio/global-summary', loginModule.requireAuth, async (req, res) => {
+  try {
+    const orgId = req.session.salesforce.organizationId;
+    const globalData = await omnistudioModule.getOrgComponentData(orgId);
+    if (!globalData) {
+      return res.status(404).json({
+        success: false,
+        message: 'No global component data loaded for this org. Please call /api/omnistudio/load-all first.'
+      });
+    }
   
   // Create a comprehensive summary
   const summary = {
@@ -307,11 +312,19 @@ app.get('/api/omnistudio/global-summary', loginModule.requireAuth, (req, res) =>
     }
   };
   
-  res.json({
-    success: true,
-    summary,
-    timestamp: new Date().toISOString()
-  });
+    res.json({
+      success: true,
+      summary,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ [GLOBAL-SUMMARY] Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve global component summary',
+      error: error.message
+    });
+  }
 });
 
 app.get('/api/omnistudio/instances', loginModule.requireAuth, (req, res) => {
@@ -324,6 +337,476 @@ app.get('/api/omnistudio/search', loginModule.requireAuth, (req, res) => {
 
 app.get('/api/omnistudio/:componentType/:instanceName/details', loginModule.requireAuth, (req, res) => {
   omnistudioModule.getInstanceDetails(req, res);
+});
+
+// 📦 Get component from cached data (avoiding SOQL queries) - PREFERRED METHOD
+app.get('/api/omnistudio/:componentType/:instanceName/cached', loginModule.requireAuth, (req, res) => {
+  omnistudioModule.getCachedComponent(req, res);
+});
+
+// 🔗 API endpoint to load child IP hierarchy for expandable IP references
+app.get('/api/omnistudio/ip-reference/:ipName/hierarchy', loginModule.requireAuth, (req, res) => {
+  omnistudioModule.getChildIPHierarchy(req, res);
+});
+
+// 🧪 DEBUG: Force clear cache and reload 
+app.post('/api/omnistudio/force-reload', loginModule.requireAuth, (req, res) => {
+  console.log(`🔄 [FORCE-RELOAD] Clearing cache and forcing reload for org ${req.session.salesforce.organizationId}`);
+  omnistudioModule.clearCache(req.session.salesforce.organizationId);
+  omnistudioModule.loadAllComponents(req, res);
+});
+
+// 🔍 DEBUG: Inspect CustInfoBlock structure  
+app.get('/api/debug/custinfoblock', async (req, res) => {
+  try {
+    console.log('🔥🔥🔥 [CUSTINFOBLOCK-DEBUG] === COMPREHENSIVE CUSTINFOBLOCK ANALYSIS ===');
+    
+    // Check all available org caches
+    const cacheKeys = Array.from(omnistudioModule.orgComponentsDataCache.keys());
+    console.log('🔍 [DEBUG] Available org caches:', cacheKeys);
+    
+    // Use the first available org or a default
+    const orgId = cacheKeys.length > 0 ? cacheKeys[0] : 'debug-org';
+    
+    // Try to find Partner Initiate Selling Motion in cache
+    if (omnistudioModule.orgComponentsDataCache.has(orgId)) {
+      const cache = omnistudioModule.orgComponentsDataCache.get(orgId);
+      const component = cache.omniscripts.find(os => 
+        os.Name === 'Partner Initiate Selling Motion' || 
+        os.UniqueId === 'Partner Initiate Selling Motion'
+      );
+      
+      if (component && component.vlocity_cmt__Definition__c) {
+        const definition = JSON.parse(component.vlocity_cmt__Definition__c.vlocity_cmt__Content__c);
+        
+        // Find AccountCapture step
+        const accountCapture = definition.children?.find(child => child.name === 'AccountCapture');
+        if (accountCapture) {
+          // Find CustInfoBlock within AccountCapture
+          let custInfoBlock = null;
+          
+          // Look in different possible locations
+          if (accountCapture.children) {
+            accountCapture.children.forEach((child, idx) => {
+              if (child.eleArray) {
+                child.eleArray.forEach((subChild, subIdx) => {
+                  if (subChild.name === 'CustInfoBlock') {
+                    custInfoBlock = {
+                      location: `children[${idx}].eleArray[${subIdx}]`,
+                      data: subChild
+                    };
+                  }
+                });
+              }
+              if (child.name === 'CustInfoBlock') {
+                custInfoBlock = {
+                  location: `children[${idx}]`,
+                  data: child
+                };
+              }
+            });
+          }
+          
+          if (custInfoBlock) {
+            return res.json({
+              success: true,
+              custInfoBlock: custInfoBlock,
+              structure: {
+                type: custInfoBlock.data.type,
+                name: custInfoBlock.data.name,
+                hasChildren: !!custInfoBlock.data.children,
+                childrenCount: custInfoBlock.data.children ? custInfoBlock.data.children.length : 0,
+                hasEleArray: custInfoBlock.data.children && custInfoBlock.data.children[0] && !!custInfoBlock.data.children[0].eleArray,
+                eleArrayCount: custInfoBlock.data.children && custInfoBlock.data.children[0] && custInfoBlock.data.children[0].eleArray 
+                  ? custInfoBlock.data.children[0].eleArray.length : 0,
+                firstLevelChildren: custInfoBlock.data.children 
+                  ? custInfoBlock.data.children.map(c => ({ name: c.name, type: c.type }))
+                  : [],
+                eleArrayChildren: custInfoBlock.data.children && custInfoBlock.data.children[0] && custInfoBlock.data.children[0].eleArray
+                  ? custInfoBlock.data.children[0].eleArray.map(c => ({ name: c.name, type: c.type }))
+                  : []
+              }
+            });
+          } else {
+            return res.json({ success: false, message: 'CustInfoBlock not found in AccountCapture' });
+          }
+        } else {
+          return res.json({ success: false, message: 'AccountCapture not found' });
+        }
+      } else {
+        return res.json({ success: false, message: 'Partner Initiate Selling Motion not found in cache' });
+      }
+    } else {
+      return res.json({ success: false, message: 'No cache found for org' });
+    }
+  } catch (error) {
+    console.error('❌ [DEBUG-CUSTINFOBLOCK] Error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// 🔍 DEBUG: Check Partner_SalesOrder fields directly
+app.get('/api/debug/partner-salesorder', loginModule.requireAuth, async (req, res) => {
+  try {
+    const connection = omnistudioModule.createConnection(req);
+    const query = `
+      SELECT Id, Name, vlocity_cmt__Type__c, vlocity_cmt__SubType__c, vlocity_cmt__Version__c,
+             vlocity_cmt__ProcedureKey__c, vlocity_cmt__IsActive__c, vlocity_cmt__IsProcedure__c
+      FROM vlocity_cmt__OmniScript__c 
+      WHERE Name = 'Partner_SalesOrder'
+      ORDER BY vlocity_cmt__Version__c DESC
+    `;
+    const result = await connection.query(query);
+    res.json({
+      success: true,
+      query: query,
+      count: result.records.length,
+      records: result.records.map(r => ({
+        Id: r.Id,
+        Name: r.Name,
+        Type: r.vlocity_cmt__Type__c,
+        SubType: r.vlocity_cmt__SubType__c,
+        Version: r.vlocity_cmt__Version__c,
+        ProcedureKey: r.vlocity_cmt__ProcedureKey__c,
+        IsActive: r.vlocity_cmt__IsActive__c,
+        IsProcedure: r.vlocity_cmt__IsProcedure__c,
+        MeetsLoadAllCriteria: r.vlocity_cmt__IsProcedure__c && r.vlocity_cmt__IsActive__c
+      }))
+    });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
+});
+
+// Admin Console API routes
+app.get('/api/admin/system-overview', loginModule.requireAuth, (req, res) => {
+  adminModule.getSystemOverview(req, res);
+});
+
+app.get('/api/admin/component-data-status', loginModule.requireAuth, (req, res) => {
+  adminModule.getComponentDataStatus(req, res);
+});
+
+app.get('/api/admin/session-info', loginModule.requireAuth, (req, res) => {
+  adminModule.getSessionInfo(req, res);
+});
+
+app.get('/api/admin/environment-info', loginModule.requireAuth, (req, res) => {
+  adminModule.getEnvironmentInfo(req, res);
+});
+
+app.get('/api/admin/server-logs', loginModule.requireAuth, (req, res) => {
+  adminModule.getServerLogs(req, res);
+});
+
+app.delete('/api/admin/cache/:orgId', loginModule.requireAuth, (req, res) => {
+  adminModule.clearOrgCache(req, res);
+});
+
+app.delete('/api/admin/cache-all', loginModule.requireAuth, (req, res) => {
+  adminModule.clearAllCaches(req, res);
+});
+
+// Redis Cache API routes
+app.get('/api/redis/status', loginModule.requireAuth, async (req, res) => {
+  try {
+    const status = await redisModule.getStatus();
+    res.json({
+      success: true,
+      redis: status,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get Redis status',
+      error: error.message
+    });
+  }
+});
+
+// Get cached component data by org ID
+app.get('/api/redis/component-data/:orgId', loginModule.requireAuth, async (req, res) => {
+  try {
+    const { orgId } = req.params;
+    const cachedData = await redisModule.getCachedComponentData(orgId);
+    
+    if (cachedData) {
+      res.json({
+        success: true,
+        data: cachedData,
+        orgId: orgId,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: `No cached component data found for org ${orgId}`,
+        orgId: orgId
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve cached component data',
+      error: error.message
+    });
+  }
+});
+
+// Get all cached component data
+app.get('/api/redis/component-data', loginModule.requireAuth, async (req, res) => {
+  try {
+    const allCachedData = await redisModule.getAllCachedComponentData();
+    
+    res.json({
+      success: true,
+      data: allCachedData,
+      orgCount: Object.keys(allCachedData).length,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve all cached component data',
+      error: error.message
+    });
+  }
+});
+
+// Clear cached component data for specific org
+app.delete('/api/redis/component-data/:orgId', loginModule.requireAuth, async (req, res) => {
+  try {
+    const { orgId } = req.params;
+    const result = await redisModule.clearCachedComponentData(orgId);
+    
+    res.json({
+      success: result,
+      message: `Cached component data cleared for org ${orgId}`,
+      orgId: orgId,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to clear cached component data',
+      error: error.message
+    });
+  }
+});
+
+// Clear all cached component data
+app.delete('/api/redis/component-data', loginModule.requireAuth, async (req, res) => {
+  try {
+    const result = await redisModule.clearCachedComponentData();
+    
+    res.json({
+      success: result,
+      message: 'All cached component data cleared',
+      orgId: 'all',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to clear cached component data',
+      error: error.message
+    });
+  }
+});
+
+// Set key-value pair in Redis
+app.post('/api/redis/kv', loginModule.requireAuth, async (req, res) => {
+  try {
+    const { key, value, expireSeconds } = req.body;
+    
+    if (!key) {
+      return res.status(400).json({
+        success: false,
+        message: 'Key is required'
+      });
+    }
+    
+    const result = await redisModule.set(key, value, expireSeconds);
+    
+    res.json({
+      success: result,
+      message: result ? 'Key-value pair stored successfully' : 'Failed to store key-value pair',
+      key: key,
+      hasExpiration: !!expireSeconds,
+      expirationSeconds: expireSeconds,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to store key-value pair',
+      error: error.message
+    });
+  }
+});
+
+// Get value by key from Redis
+app.get('/api/redis/kv/:key', loginModule.requireAuth, async (req, res) => {
+  try {
+    const { key } = req.params;
+    const parseJson = req.query.parseJson === 'true';
+    
+    const value = await redisModule.get(key, parseJson);
+    
+    if (value !== null) {
+      res.json({
+        success: true,
+        key: key,
+        value: value,
+        parsed: parseJson,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: `Key '${key}' not found`,
+        key: key
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve value',
+      error: error.message
+    });
+  }
+});
+
+// Delete key from Redis
+app.delete('/api/redis/kv/:key', loginModule.requireAuth, async (req, res) => {
+  try {
+    const { key } = req.params;
+    const result = await redisModule.delete(key);
+    
+    res.json({
+      success: result,
+      message: result ? `Key '${key}' deleted successfully` : `Key '${key}' not found`,
+      key: key,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete key',
+      error: error.message
+    });
+  }
+});
+
+// Org-level settings
+app.post('/api/redis/settings/org/:orgId/:settingName', loginModule.requireAuth, async (req, res) => {
+  try {
+    const { orgId, settingName } = req.params;
+    const { value } = req.body;
+    
+    const result = await redisModule.setOrgSetting(orgId, settingName, value);
+    
+    res.json({
+      success: result,
+      message: result ? 'Org setting saved successfully' : 'Failed to save org setting',
+      orgId: orgId,
+      settingName: settingName,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to save org setting',
+      error: error.message
+    });
+  }
+});
+
+app.get('/api/redis/settings/org/:orgId/:settingName', loginModule.requireAuth, async (req, res) => {
+  try {
+    const { orgId, settingName } = req.params;
+    
+    const value = await redisModule.getOrgSetting(orgId, settingName);
+    
+    if (value !== null) {
+      res.json({
+        success: true,
+        orgId: orgId,
+        settingName: settingName,
+        value: value,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: `Org setting '${settingName}' not found for org '${orgId}'`,
+        orgId: orgId,
+        settingName: settingName
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve org setting',
+      error: error.message
+    });
+  }
+});
+
+// User-level settings
+app.post('/api/redis/settings/user/:userId/:settingName', loginModule.requireAuth, async (req, res) => {
+  try {
+    const { userId, settingName } = req.params;
+    const { value } = req.body;
+    
+    const result = await redisModule.setUserSetting(userId, settingName, value);
+    
+    res.json({
+      success: result,
+      message: result ? 'User setting saved successfully' : 'Failed to save user setting',
+      userId: userId,
+      settingName: settingName,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to save user setting',
+      error: error.message
+    });
+  }
+});
+
+app.get('/api/redis/settings/user/:userId/:settingName', loginModule.requireAuth, async (req, res) => {
+  try {
+    const { userId, settingName } = req.params;
+    
+    const value = await redisModule.getUserSetting(userId, settingName);
+    
+    if (value !== null) {
+      res.json({
+        success: true,
+        userId: userId,
+        settingName: settingName,
+        value: value,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        message: `User setting '${settingName}' not found for user '${userId}'`,
+        userId: userId,
+        settingName: settingName
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve user setting',
+      error: error.message
+    });
+  }
 });
 
 // Sample event listener endpoint
@@ -370,6 +853,89 @@ app.get('/api/events', (req, res) => {
   });
 });
 
+// Debug: Cache clearing endpoint for omnistudio
+app.post('/api/debug/clear-omnistudio-cache', (req, res) => {
+  try {
+    omnistudioModule.clearAllCaches();
+    res.json({
+      success: true,
+      message: 'Omnistudio caches cleared successfully'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Failed to clear caches',
+      error: error.message
+    });
+  }
+});
+
+// 🧪 DEBUG: Inspect cache contents (no auth required for debugging)
+const handleCacheContents = (req, res) => {
+  try {
+    const { componentType, searchTerm } = req.params;
+    
+    // Get all cache data
+    const allCacheData = {};
+    for (const [orgId, data] of omnistudioModule.orgComponentsDataCache.entries()) {
+      allCacheData[orgId] = {
+        totalComponents: data.totalComponents || 0,
+        ipCount: data.integrationProcedures?.length || 0,
+        osCount: data.omniscripts?.length || 0,
+        dmCount: data.dataMappers?.length || 0,
+        loadedAt: data.loadedAt,
+        orgName: data.orgName
+      };
+      
+      // Add component search if requested
+      if (componentType && searchTerm) {
+        let components = [];
+        switch (componentType.toLowerCase()) {
+          case 'integration-procedure':
+          case 'ip':
+            components = data.integrationProcedures || [];
+            break;
+          case 'omniscript':
+          case 'os':
+            components = data.omniscripts || [];
+            break;
+        }
+        
+        const matches = components.filter(comp => 
+          comp.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        
+        allCacheData[orgId].searchResults = matches.map(comp => ({
+          name: comp.name,
+          type: comp.type,
+          subType: comp.subType,
+          stepsCount: comp.steps?.length || 0,
+          hasExpandedChildren: comp.steps?.some(step => 
+            step.blockType === 'ip-reference' && step.hasExpandedStructure
+          ) || false
+        }));
+      }
+    }
+    
+    res.json({
+      success: true,
+      cacheData: allCacheData,
+      totalOrgs: Object.keys(allCacheData).length
+    });
+    
+  } catch (error) {
+    res.json({
+      success: false,
+      message: error.message,
+      stack: error.stack
+    });
+  }
+};
+
+app.get('/api/debug/cache-contents/:componentType/:searchTerm', handleCacheContents);
+app.get('/api/debug/cache-contents/:componentType', handleCacheContents);
+app.get('/api/debug/cache-contents', handleCacheContents);
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
@@ -409,6 +975,13 @@ const cleanup = async () => {
   console.log('🛑 [SERVER] Shutdown signal received, cleaning up...');
   try {
     await platformEventsModule.cleanupSubscriptions();
+    
+    // Disconnect Redis
+    if (redisModule && redisModule.isAvailable()) {
+      console.log('🔌 [REDIS] Disconnecting Redis client...');
+      await redisModule.disconnect();
+    }
+    
     console.log('📝 [LOGGING] Closing log file...');
     logStream.end();
   } catch (error) {
@@ -430,6 +1003,9 @@ server.listen(PORT, () => {
   console.log(`   📡 PlatformEventsModule initialized`);
   console.log(`   📊 SObjectsModule initialized`);
   console.log(`   ⚙️ OrderManagementModule initialized`);
+  console.log(`   🔗 OmnistudioModule initialized (with Redis integration)`);
+  console.log(`   🔌 RedisModule initialized (${redisModule.isAvailable() ? 'Connected' : 'Offline'})`);
+  console.log(`   👑 AdminModule initialized`);
   
   // Start React development server automatically in development mode
   if (NODE_ENV === 'development') {

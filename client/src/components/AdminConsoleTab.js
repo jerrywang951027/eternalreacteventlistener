@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './AdminConsoleTab.css';
 
-const AdminConsoleTab = () => {
+const AdminConsoleTab = ({ onTabLoad }) => {
   // State management
   const [selectedSection, setSelectedSection] = useState('system-overview');
   const [sectionData, setSectionData] = useState(null);
@@ -54,6 +54,13 @@ const AdminConsoleTab = () => {
       loadSectionData(selectedSection);
     }
   }, [selectedSection]);
+
+  // Load global data on mount
+  useEffect(() => {
+    if (onTabLoad) {
+      onTabLoad();
+    }
+  }, [onTabLoad]);
 
   const loadSectionData = async (sectionId) => {
     const section = adminSections.find(s => s.id === sectionId);
@@ -217,7 +224,10 @@ const AdminConsoleTab = () => {
           {Object.entries(data.cacheStatus).map(([orgId, cacheInfo]) => (
             <div key={orgId} className="cache-org-card">
               <div className="cache-org-header">
-                <h4>Organization: {orgId}</h4>
+                <h4>Organization: {cacheInfo.orgName || orgId}</h4>
+                {cacheInfo.orgName && (
+                  <div className="org-id-subtitle">ID: {orgId}</div>
+                )}
                 <button 
                   onClick={() => clearOrgCache(orgId)}
                   className="clear-cache-btn"
@@ -251,6 +261,10 @@ const AdminConsoleTab = () => {
                 <div className="info-item">
                   <label>Hierarchy Items:</label>
                   <span>{cacheInfo.hierarchySize}</span>
+                </div>
+                <div className="info-item">
+                  <label>Cache Size:</label>
+                  <span>{cacheInfo.cacheSize?.formatted || 'Unknown'}</span>
                 </div>
                 {cacheInfo.timing && (
                   <div className="info-item">

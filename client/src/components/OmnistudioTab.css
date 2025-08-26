@@ -508,7 +508,7 @@
 .steps-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px; /* Reduced gap for tighter spacing */
   max-height: 500px;
   overflow-y: auto;
   overflow-x: hidden;
@@ -521,7 +521,7 @@
   border-radius: 6px;
   border-left: 3px solid #0176D3;
   overflow: hidden;
-  min-height: 44px; /* Minimum height to prevent collapse */
+  min-height: 36px; /* Reduced minimum height for tighter spacing */
   flex-shrink: 0; /* Prevent items from shrinking */
 }
 
@@ -529,17 +529,106 @@
   margin-left: 20px;
   border-left-color: #64748b;
   background: #f1f5f9;
-  min-height: 40px;
+  min-height: 32px; /* Reduced minimum height for sub-steps */
+  font-size: 0.95em; /* Sub-steps are slightly smaller */
+}
+
+/* Fix child component alignment and positioning 
+ *
+ * Strategy: Use container padding for base indentation, then allow normal
+ * level-based margins within containers for proper hierarchical display.
+ * This prevents double indentation while maintaining visual hierarchy.
+ */
+
+/* Child components should align with siblings, not get extra indentation */
+.child-component-steps {
+  margin-left: 0; /* No extra margin for the container */
+  padding-left: 20px; /* Provide indentation via padding instead */
+}
+
+.ip-reference-steps {
+  margin-left: 0; /* No extra margin for the container */
+  padding-left: 20px; /* Provide indentation via padding instead */
+}
+
+.step-block-steps {
+  margin-left: 0; /* No extra margin for the container */
+  padding-left: 32px; /* Increased indentation for block steps */
+}
+
+/* Reset only sub-step margins within these containers, not level margins */
+.child-component-steps .step-item.sub-step {
+  margin-left: 0; /* Child components provide their own spacing */
+}
+
+.ip-reference-steps .step-item.sub-step {
+  margin-left: 0; /* IP references provide their own spacing */
+}
+
+.step-block-steps .step-item.sub-step {
+  margin-left: 0; /* Block steps provide their own spacing */
+}
+
+/* Allow normal level-based indentation within child components */
+.child-component-steps .step-item.level-1 {
+  margin-left: 20px; /* Restore normal level indentation */
+}
+
+.child-component-steps .step-item.level-2 {
+  margin-left: 40px;
+}
+
+.child-component-steps .step-item.level-3 {
+  margin-left: 60px;
+}
+
+.child-component-steps .step-item.level-4 {
+  margin-left: 80px;
+}
+
+/* Same for IP references */
+.ip-reference-steps .step-item.level-1 {
+  margin-left: 20px;
+}
+
+.ip-reference-steps .step-item.level-2 {
+  margin-left: 40px;
+}
+
+.ip-reference-steps .step-item.level-3 {
+  margin-left: 60px;
+}
+
+.ip-reference-steps .step-item.level-4 {
+  margin-left: 80px;
+}
+
+/* Same for block steps */
+.step-block-steps .step-item.level-1 {
+  margin-left: 20px;
+}
+
+.step-block-steps .step-item.level-2 {
+  margin-left: 40px;
+}
+
+.step-block-steps .step-item.level-3 {
+  margin-left: 60px;
+}
+
+.step-block-steps .step-item.level-4 {
+  margin-left: 80px;
 }
 
 .step-header {
   display: flex;
   align-items: flex-start;
-  padding: 12px;
+  padding: 8px 12px 8px 42px; /* Reduced top/bottom padding for tighter spacing */
   gap: 10px;
-  min-height: 44px;
+  min-height: 36px; /* Reduced minimum height */
   word-wrap: break-word;
   overflow-wrap: break-word;
+  position: relative; /* For absolute positioning of toggles */
 }
 
 .step-accordion-toggle {
@@ -556,6 +645,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  position: absolute;
+  left: 12px;
+  top: 8px; /* Adjusted for reduced header padding */
 }
 
 .step-accordion-toggle:hover {
@@ -564,6 +656,43 @@
 
 .step-accordion-toggle.expanded {
   transform: rotate(90deg);
+}
+
+/* IP Reference Toggle - absolutely positioned for perfect alignment */
+.ip-reference-toggle {
+  background: none;
+  border: none;
+  color: #0176D3;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px;
+  border-radius: 2px;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  left: 12px;
+  top: 8px; /* Adjusted for reduced header padding */
+}
+
+.ip-reference-toggle:hover {
+  background-color: rgba(1, 118, 211, 0.1);
+}
+
+.ip-reference-toggle.expanded {
+  transform: rotate(90deg);
+}
+
+.ip-reference-toggle.loading {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 .step-main-info {
@@ -660,10 +789,29 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  font-size: 0.95em; /* Sub-steps container is smaller */
+}
+
+/* Header for OmniScript sub-steps */
+.sub-steps-header {
+  font-size: 0.875rem;
+  margin-bottom: 8px;
+  color: #4b5563;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 4px;
+  font-weight: 600;
+  border-left: 3px solid #0176D3;
 }
 
 .step-sub-steps .step-item {
   margin-bottom: 0;
+  font-size: inherit; /* Inherit the reduced size from sub-steps container */
+}
+
+/* For deeply nested omniscript steps */
+.step-sub-steps .step-item.sub-step {
+  font-size: 0.95em; /* Additional reduction for sub-steps within sub-steps */
 }
 
 @keyframes slideDown {
@@ -864,25 +1012,93 @@
   color: #c2185b;
 }
 
-/* Hierarchical Level Styling */
+/* Hierarchical Level Styling with Progressive Font Size Reduction 
+ * 
+ * This system provides visual hierarchy by making nested steps progressively smaller:
+ * - Level 0 (root): 100% (base font size ~16px)
+ * - Level 1: 95% (15.2px) 
+ * - Level 2: 90% (14.4px)
+ * - Level 3: 85% (13.6px)
+ * - Level 4: 80% (12.8px)
+ * 
+ * Applied to all nested structures:
+ * - OmniScript steps and sub-steps
+ * - Integration Procedure steps and nested blocks
+ * - Conditional/Loop/Cache block contents
+ * - Child Integration Procedure references
+ * - IP Reference expansions
+ */
+.step-item.level-0 {
+  margin-left: 0 !important; /* Main steps should never be indented - force override */
+  /* font-size: 1em; Default size */
+}
+
+/* Ensure IP reference steps at main level look identical to other steps */
+.step-item.level-0.block-ip-reference {
+  margin-left: 0 !important; /* Force alignment for IP reference steps at main level */
+  background: #f8f9fa !important; /* Same background as regular steps */
+  border-left: 3px solid #0176D3 !important; /* Same border as regular steps */
+}
+
+/* Ensure IP reference headers at main level don't have extra spacing */
+.step-item.level-0.block-ip-reference .step-header {
+  padding: 12px; /* Same padding as regular steps */
+  gap: 10px; /* Same gap as regular steps */
+}
+
+/* Override any block-type specific margins for main level steps */
+.step-item.level-0[class*="block-"] {
+  margin-left: 0 !important; /* All block-type steps at main level should align */
+}
+
+/* AGGRESSIVE FIX: Force all main-level steps to have no margin regardless of any other classes */
+.steps-list > .step-item,
+.steps-list .step-item.level-0,
+.steps-list .step-item[class*="level-0"],
+.steps-list .step-item.block-ip-reference,
+.steps-list .step-item[class*="block-"],
+.steps-list .step-item.sub-step.level-0 {
+  margin-left: 0 !important;
+  background: #f8f9fa !important;
+  border-left: 3px solid #0176D3 !important;
+}
+
+/* Ensure direct children of steps-list never have margin */
+.steps-list > * {
+  margin-left: 0 !important;
+}
+
+/* Clean main-level step alignment - Final solution */
+.step-item.force-alignment,
+.step-item.main-level-step {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  background: #f8f9fa !important;
+  border-left: 3px solid #0176D3 !important;
+}
+
 .step-item.level-1 {
   margin-left: 20px;
   border-left-color: #64748b;
+  font-size: 0.95em; /* 5% smaller than parent */
 }
 
 .step-item.level-2 {
   margin-left: 40px;
   border-left-color: #94a3b8;
+  font-size: 0.90em; /* 10% smaller than root */
 }
 
 .step-item.level-3 {
   margin-left: 60px;
   border-left-color: #cbd5e1;
+  font-size: 0.85em; /* 15% smaller than root */
 }
 
 .step-item.level-4 {
   margin-left: 80px;
   border-left-color: #e2e8f0;
+  font-size: 0.80em; /* 20% smaller than root */
 }
 
 /* Block Type Step Styling */
@@ -908,13 +1124,54 @@
   margin-top: 8px;
   padding-top: 12px;
   animation: slideDown 0.3s ease-out;
+  font-size: 0.95em; /* Nested content is slightly smaller */
 }
 
 .step-block-steps {
   background: rgba(0, 0, 0, 0.02);
   border-radius: 6px;
-  padding: 12px;
+  padding: 12px 12px 12px 20px; /* Extra left padding for better indentation */
   margin: 8px 0;
+}
+
+/* Ensure nested elements within blocks maintain progressive sizing */
+.step-block-steps .step-item,
+.child-component-steps .step-item {
+  font-size: inherit; /* Inherit the reduced size from parent container */
+}
+
+/* Additional nesting: sub-steps within block steps get further reduction */
+.step-block-steps .step-item.sub-step,
+.child-component-steps .step-item.sub-step {
+  font-size: 0.95em; /* Even smaller for deeply nested items */
+}
+
+/* IP Reference Steps - also get progressive sizing */
+.ip-reference-steps {
+  font-size: 0.95em; /* IP reference content is smaller */
+  border-top: 1px solid #e2e8f0;
+  margin-top: 8px;
+  padding-top: 12px;
+  animation: slideDown 0.3s ease-out;
+}
+
+.ip-reference-header {
+  font-size: 0.875rem; /* Header is proportionally smaller */
+  margin-bottom: 8px;
+  color: #4b5563;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 4px;
+  font-weight: 600;
+  border-left: 3px solid #0176D3;
+}
+
+.ip-reference-steps .step-item {
+  font-size: inherit; /* Inherit the reduced size from IP reference container */
+}
+
+.ip-reference-steps .step-item.sub-step {
+  font-size: 0.95em; /* Additional reduction for nested items within IP references */
 }
 
 .block-steps-header,
@@ -1187,4 +1444,344 @@
   background: #f9fafb;
   border-radius: 6px;
   border: 1px dashed #d1d5db;
+}
+
+/* ====== DARK MODE STYLES FOR OMNISTUDIO ====== */
+.dashboard.dark-mode .omnistudio-content,
+.dashboard.dark-mode .component-details {
+  background: #1a202c;
+  color: #e1e7ef;
+  border: 1px solid #2d3748;
+}
+
+.dashboard.dark-mode .omnistudio-content *,
+.dashboard.dark-mode .component-details * {
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .component-name {
+  color: #f7fafc !important;
+}
+
+.dashboard.dark-mode .component-version {
+  color: #a0aec0 !important;
+}
+
+.dashboard.dark-mode .steps-count {
+  color: #cbd5e0 !important;
+}
+
+.dashboard.dark-mode .component-selector {
+  background: #2d3748;
+  color: #e1e7ef;
+  border: 1px solid #4a5568;
+}
+
+.dashboard.dark-mode .component-selector option {
+  background: #2d3748;
+  color: #e1e7ef;
+}
+
+.dashboard.dark-mode .component-list-item {
+  background: #2d3748;
+  color: #e1e7ef;
+  border: 1px solid #4a5568;
+}
+
+.dashboard.dark-mode .component-list-item:hover {
+  background: #374151;
+  border-color: #63b3ed;
+}
+
+.dashboard.dark-mode .component-list-item.selected {
+  background: #2b6cb0;
+  border-color: #63b3ed;
+  color: white;
+}
+
+.dashboard.dark-mode .step-item {
+  background: #2d3748;
+  color: #e1e7ef;
+  border: 1px solid #4a5568;
+}
+
+.dashboard.dark-mode .step-item:hover {
+  background: #374151;
+  border-color: #63b3ed;
+}
+
+.dashboard.dark-mode .step-header {
+  color: #e1e7ef;
+}
+
+.dashboard.dark-mode .step-accordion-toggle,
+.dashboard.dark-mode .ip-reference-toggle,
+.dashboard.dark-mode .child-component-toggle {
+  background: #4a5568;
+  color: #e1e7ef;
+  border: 1px solid #718096;
+}
+
+.dashboard.dark-mode .step-accordion-toggle:hover,
+.dashboard.dark-mode .ip-reference-toggle:hover,
+.dashboard.dark-mode .child-component-toggle:hover {
+  background: #63b3ed;
+  color: white;
+}
+
+.dashboard.dark-mode .step-block-steps,
+.dashboard.dark-mode .child-component-steps,
+.dashboard.dark-mode .ip-reference-steps {
+  background: rgba(45, 55, 72, 0.5);
+  border: 1px solid #4a5568;
+}
+
+.dashboard.dark-mode .component-tag {
+  background: #2b6cb0;
+  color: white;
+}
+
+.dashboard.dark-mode .step-type-tag {
+  background: #38a169;
+  color: white;
+}
+
+.dashboard.dark-mode .loading-spinner {
+  border-color: #4a5568;
+  border-top-color: #63b3ed;
+}
+
+.dashboard.dark-mode .no-results-message {
+  background: #2d3748;
+  color: #a0aec0 !important;
+  border: 1px dashed #4a5568;
+}
+
+.dashboard.dark-mode .step-name,
+.dashboard.dark-mode .step-type,
+.dashboard.dark-mode .block-type {
+  color: #f7fafc !important;
+}
+
+.dashboard.dark-mode .reference-level {
+  color: #a0aec0 !important;
+}
+
+.dashboard.dark-mode .no-references {
+  background: #2d3748;
+  color: #a0aec0 !important;
+  border: 1px dashed #4a5568;
+}
+
+.dashboard.dark-mode .component-filter input {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .component-filter input::placeholder {
+  color: #a0aec0 !important;
+}
+
+.dashboard.dark-mode .loading-text {
+  color: #a0aec0 !important;
+}
+
+.dashboard.dark-mode .error-message {
+  color: #fc8181 !important;
+  background: rgba(254, 178, 178, 0.1) !important;
+  border: 1px solid rgba(254, 178, 178, 0.3) !important;
+}
+
+.dashboard.dark-mode .section-title {
+  color: #f7fafc !important;
+}
+
+/* ====== STEP ITEMS - COMPLETE DARK MODE OVERHAUL ====== */
+.dashboard.dark-mode .step-item,
+.dashboard.dark-mode .step-item.sub-step,
+.dashboard.dark-mode .step-item.level-0,
+.dashboard.dark-mode .step-item.level-1,
+.dashboard.dark-mode .step-item.level-2,
+.dashboard.dark-mode .step-item.level-3,
+.dashboard.dark-mode .step-item.level-4 {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .step-item:hover {
+  background: #374151 !important;
+  border-color: #63b3ed !important;
+}
+
+.dashboard.dark-mode .omnistudio-left-panel {
+  background: #1a202c !important;
+  border-right: 1px solid #2d3748 !important;
+}
+
+.dashboard.dark-mode .omnistudio-right-panel {
+  background: #1a202c !important;
+}
+
+.dashboard.dark-mode .component-list {
+  background: #1a202c !important;
+}
+
+.dashboard.dark-mode .steps-container,
+.dashboard.dark-mode .steps-list {
+  background: transparent !important;
+}
+
+.dashboard.dark-mode .step-content,
+.dashboard.dark-mode .step-details {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .component-header {
+  background: #2d3748 !important;
+  color: #f7fafc !important;
+  border-bottom: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .component-info-card {
+  background: #2d3748 !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .filter-section {
+  background: #2d3748 !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .search-box,
+.dashboard.dark-mode .filter-input {
+  background: #374151 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+/* ====== BUTTONS AND INTERACTIVE ELEMENTS ====== */
+.dashboard.dark-mode button {
+  background: #4a5568 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #718096 !important;
+}
+
+.dashboard.dark-mode button:hover {
+  background: #63b3ed !important;
+  color: white !important;
+}
+
+.dashboard.dark-mode .btn-primary {
+  background: #3182ce !important;
+  border-color: #2c5aa0 !important;
+}
+
+.dashboard.dark-mode .btn-secondary {
+  background: #4a5568 !important;
+  border-color: #718096 !important;
+}
+
+/* ====== CONTAINERS AND WRAPPERS ====== */
+.dashboard.dark-mode .container,
+.dashboard.dark-mode .wrapper,
+.dashboard.dark-mode .content-wrapper {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .sidebar,
+.dashboard.dark-mode .nav-panel {
+  background: #1a202c !important;
+  border-right: 1px solid #2d3748 !important;
+}
+
+.dashboard.dark-mode .main-panel {
+  background: #1a202c !important;
+}
+
+.dashboard.dark-mode .component-grid,
+.dashboard.dark-mode .grid-container {
+  background: transparent !important;
+}
+
+.dashboard.dark-mode .grid-item,
+.dashboard.dark-mode .list-item {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .grid-item:hover,
+.dashboard.dark-mode .list-item:hover {
+  background: #374151 !important;
+  border-color: #63b3ed !important;
+}
+
+/* ====== TEXT AND TYPOGRAPHY ====== */
+.dashboard.dark-mode .text-primary {
+  color: #63b3ed !important;
+}
+
+.dashboard.dark-mode .text-secondary {
+  color: #a0aec0 !important;
+}
+
+.dashboard.dark-mode .text-muted {
+  color: #718096 !important;
+}
+
+.dashboard.dark-mode .badge,
+.dashboard.dark-mode .tag,
+.dashboard.dark-mode .chip {
+  background: #4a5568 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #718096 !important;
+}
+
+/* ====== AGGRESSIVE OMNISTUDIO DARK MODE - CATCH EVERYTHING ====== */
+.dashboard.dark-mode .omnistudio-content,
+.dashboard.dark-mode .omnistudio-content *:not(button):not(input):not(select):not(textarea) {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .omnistudio-content input,
+.dashboard.dark-mode .omnistudio-content select,
+.dashboard.dark-mode .omnistudio-content textarea {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+/* Fix those white input boxes next to steps */
+.dashboard.dark-mode .step-item input,
+.dashboard.dark-mode .step-item select,
+.dashboard.dark-mode .step-item textarea {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+/* Component instances area */
+.dashboard.dark-mode .component-instances,
+.dashboard.dark-mode .component-instances * {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .component-instances .component-list-item {
+  background: #2d3748 !important;
+  border: 1px solid #4a5568 !important;
+}
+
+/* Any remaining white boxes */
+.dashboard.dark-mode div[style*="background: white"],
+.dashboard.dark-mode div[style*="background-color: white"],
+.dashboard.dark-mode div[style*="background: #fff"],
+.dashboard.dark-mode div[style*="background-color: #ffffff"] {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
 }

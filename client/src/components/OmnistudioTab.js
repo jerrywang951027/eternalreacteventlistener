@@ -24,10 +24,13 @@ const ConditionTooltip = ({ condition, isVisible, position }) => {
 };
 
 // Steps Section Component
-const StepsSection = ({ steps, componentType, hierarchy = [], blockStructure = null }) => {
+const StepsSection = ({ steps, componentType, hierarchy = [], blockStructure = null, instanceDetails = null }) => {
   const [expandedSteps, setExpandedSteps] = useState({});
   const [expandedBlocks, setExpandedBlocks] = useState({});
   const [expandedChildren, setExpandedChildren] = useState({});
+  const [expandedIPReferences, setExpandedIPReferences] = useState({});
+  const [loadedIPHierarchies, setLoadedIPHierarchies] = useState({});
+  const [loadingIPReferences, setLoadingIPReferences] = useState({});
   const [hoveredCondition, setHoveredCondition] = useState({ show: false, condition: '', position: { x: 0, y: 0 } });
 
   const toggleStepExpansion = (stepIndex) => {
@@ -49,6 +52,88 @@ const StepsSection = ({ steps, componentType, hierarchy = [], blockStructure = n
       ...prev,
       [stepIndex]: !prev[stepIndex]
     }));
+  };
+
+  const toggleIPReferenceExpansion = async (stepIndex, ipName) => {
+    const isCurrentlyExpanded = expandedIPReferences[stepIndex];
+    
+    // Toggle expansion state
+    setExpandedIPReferences(prev => ({
+      ...prev,
+      [stepIndex]: !prev[stepIndex]
+    }));
+    
+    // If expanding and we haven't loaded the hierarchy yet, load it
+    if (!isCurrentlyExpanded && !loadedIPHierarchies[ipName]) {
+      setLoadingIPReferences(prev => ({ ...prev, [stepIndex]: true }));
+      
+      try {
+        // First check if we have the expanded structure in our current instance details
+        let foundExpandedStructure = false;
+        
+        if (instanceDetails && instanceDetails.steps) {
+          const findExpandedIP = (steps, stepPath = '') => {
+            for (let i = 0; i < steps.length; i++) {
+              const step = steps[i];
+              const currentPath = stepPath ? `${stepPath}.${i}` : `${i}`;
+              
+              if (step.blockType === 'ip-reference' && step.referencedIP === ipName) {
+                // Check if this step has pre-expanded structure
+                if (step.hasExpandedStructure && step.childIPStructure && step.childIPStructure.steps) {
+                  console.log(`📦 [FRONTEND] Found pre-expanded child IP: ${ipName} with ${step.childIPStructure.steps.length} steps at path: ${currentPath}`);
+                  return step.childIPStructure.steps;
+                } else {
+                  console.log(`🔍 [FRONTEND] Found IP reference ${ipName} but no expanded structure at path: ${currentPath}`);
+                }
+              }
+              
+              // Recursively search in sub-steps and block steps
+              if (step.subSteps && step.subSteps.length > 0) {
+                const found = findExpandedIP(step.subSteps, `${currentPath}.subSteps`);
+                if (found) return found;
+              }
+              if (step.blockSteps && step.blockSteps.length > 0) {
+                const found = findExpandedIP(step.blockSteps, `${currentPath}.blockSteps`);
+                if (found) return found;
+              }
+            }
+            return null;
+          };
+
+          const expandedSteps = findExpandedIP(instanceDetails.steps);
+          if (expandedSteps && expandedSteps.length > 0) {
+            setLoadedIPHierarchies(prev => ({
+              ...prev,
+              [ipName]: expandedSteps
+            }));
+            foundExpandedStructure = true;
+            console.log(`✅ [FRONTEND] Using pre-expanded structure for ${ipName} with ${expandedSteps.length} steps`);
+          } else {
+            console.log(`⚠️ [FRONTEND] No pre-expanded structure found for ${ipName} in instance details`);
+          }
+        }
+        
+        // Fallback to API call if not in expanded cache
+        if (!foundExpandedStructure) {
+          console.log(`🔄 [FRONTEND] Fallback: Loading child IP from API: ${ipName}`);
+          const response = await axios.get(`/api/omnistudio/ip-reference/${encodeURIComponent(ipName)}/hierarchy`);
+          
+          if (response.data.success) {
+            setLoadedIPHierarchies(prev => ({
+              ...prev,
+              [ipName]: response.data.hierarchy
+            }));
+            console.log(`🔗 [IP-REFERENCE] Loaded hierarchy for "${ipName}":`, response.data.hierarchy);
+          } else {
+            console.error(`❌ [IP-REFERENCE] Failed to load hierarchy for "${ipName}"`);
+          }
+        }
+      } catch (error) {
+        console.error(`❌ [IP-REFERENCE] Error loading hierarchy for "${ipName}":`, error);
+      } finally {
+        setLoadingIPReferences(prev => ({ ...prev, [stepIndex]: false }));
+      }
+    }
   };
 
   const handleConditionHover = (e, condition) => {
@@ -79,21 +164,44 @@ const StepsSection = ({ steps, componentType, hierarchy = [], blockStructure = n
     const hasBlockSteps = step.blockSteps && step.blockSteps.length > 0;
     const isBlockExpanded = expandedBlocks[`${index}-${step.name}`];
     
+    // IP Reference handling
+    const isIPReference = step.blockType === 'ip-reference';
+    const ipReferenceKey = `${index}-${step.name}`;
+    const isIPReferenceExpanded = expandedIPReferences[ipReferenceKey];
+    const isLoadingIPReference = loadingIPReferences[ipReferenceKey];
+    const ipReferenceHierarchy = isIPReference ? loadedIPHierarchies[step.referencedIP] : null;
+    
     // Determine block type styling
     const blockTypeClass = step.blockType ? `block-${step.blockType}` : '';
-    const levelClass = `level-${Math.min(level, 4)}`; // Max 4 levels
+    const levelClass = level > 0 ? `level-${Math.min(level, 4)}` : ''; // Only add level class if level > 0
+    
+    // FORCE MAIN LEVEL ALIGNMENT: For main-level steps, remove problematic classes
+    let finalClassName = `step-item ${isSubStep ? 'sub-step' : ''}`;
+    let inlineStyle = {};
+    
+    if (level === 0 && !isSubStep) {
+      // Main level steps - force consistent styling
+      finalClassName = 'step-item main-level-step force-alignment'; // Clean classes with force flag
+      inlineStyle = {
+        marginLeft: '0px',
+        background: '#f8f9fa',
+        borderLeft: '3px solid #0176D3',
+        position: 'relative' // Ensure proper positioning
+      };
+      // Main level alignment fix applied successfully
+    } else {
+      // Nested steps - preserve original logic
+      finalClassName += ` ${blockTypeClass} ${levelClass}`;
+    }
 
     return (
-      <div key={`${index}-${step.name}`} className={`step-item ${isSubStep ? 'sub-step' : ''} ${blockTypeClass} ${levelClass}`}>
+      <div 
+        key={`${index}-${step.name}`} 
+        className={finalClassName}
+        style={inlineStyle}
+      >
         <div className="step-header">
-          {/* Block type indicator */}
-          {step.blockType && (
-            <div className="block-type-indicator">
-              {step.blockType === 'conditional' && '🔀'}
-              {step.blockType === 'loop' && '🔄'}
-              {step.blockType === 'cache' && '💾'}
-            </div>
-          )}
+          {/* Block type indicator - REMOVED for cleaner UI */}
           
           {/* Block toggle for Conditional/Loop/Cache blocks */}
           {hasBlockSteps && (
@@ -125,6 +233,18 @@ const StepsSection = ({ steps, componentType, hierarchy = [], blockStructure = n
               title={isChildExpanded ? 'Collapse child component' : 'Expand child component'}
             >
               📁
+            </button>
+          )}
+
+          {/* IP Reference toggle */}
+          {isIPReference && (
+            <button 
+              className={`ip-reference-toggle ${isIPReferenceExpanded ? 'expanded' : ''} ${isLoadingIPReference ? 'loading' : ''}`}
+              onClick={() => toggleIPReferenceExpansion(ipReferenceKey, step.referencedIP)}
+              title={isIPReferenceExpanded ? `Collapse IP: ${step.referencedIP}` : `Expand IP: ${step.referencedIP}`}
+              disabled={isLoadingIPReference}
+            >
+              {isLoadingIPReference ? '⏳' : '▶'}
             </button>
           )}
           
@@ -192,6 +312,9 @@ const StepsSection = ({ steps, componentType, hierarchy = [], blockStructure = n
         {/* Sub-steps for Omniscript Steps (accordion content) */}
         {isOmniscriptStep && step.subSteps && step.subSteps.length > 0 && isExpanded && (
           <div className="step-sub-steps">
+            <div className="sub-steps-header">
+              <strong>📋 Elements ({step.subSteps.length}):</strong>
+            </div>
             {step.subSteps.map((subStep, subIndex) => 
               renderStep(subStep, `${index}-${subIndex}`, true, level + 1)
             )}
@@ -202,7 +325,7 @@ const StepsSection = ({ steps, componentType, hierarchy = [], blockStructure = n
         {hasBlockSteps && isBlockExpanded && (
           <div className="step-block-steps">
             <div className="block-steps-header">
-              <strong>🎛️ {step.blockType} block steps ({step.blockSteps.length}):</strong>
+              <strong>📋 Steps ({step.blockSteps.length}):</strong>
             </div>
             {step.blockSteps.map((blockStep, blockIndex) => 
               renderStep(blockStep, `${index}-block-${blockIndex}`, true, level + 1)
@@ -214,10 +337,28 @@ const StepsSection = ({ steps, componentType, hierarchy = [], blockStructure = n
         {hasChildComponent && isChildExpanded && (
           <div className="child-component-steps">
             <div className="child-steps-header">
-              <strong>🔗 {step.childComponent.name} ({step.childComponent.componentType}) steps:</strong>
+              <strong>📋 Steps ({step.childComponent.steps.length}):</strong>
             </div>
             {step.childComponent.steps.map((childStep, childIndex) => 
               renderStep(childStep, `${index}-child-${childIndex}`, true, level + 1)
+            )}
+          </div>
+        )}
+
+        {/* IP Reference steps (on-demand loaded) */}
+        {isIPReference && isIPReferenceExpanded && (
+          <div className="ip-reference-steps">
+            <div className="ip-reference-header">
+              <strong>📋 Steps ({ipReferenceHierarchy ? ipReferenceHierarchy.length : 0}):</strong>
+            </div>
+            {isLoadingIPReference ? (
+              <div className="loading-message">⏳ Loading IP hierarchy...</div>
+            ) : ipReferenceHierarchy && ipReferenceHierarchy.length > 0 ? (
+              ipReferenceHierarchy.map((ipStep, ipIndex) => 
+                renderStep(ipStep, `${index}-ip-${ipIndex}`, true, level + 1)
+              )
+            ) : (
+              <div className="no-steps-message">No steps found for this IP reference</div>
             )}
           </div>
         )}
@@ -230,7 +371,7 @@ const StepsSection = ({ steps, componentType, hierarchy = [], blockStructure = n
       <h5>📋 Steps ({steps.length})</h5>
       
       <div className="steps-list">
-        {steps.map((step, index) => renderStep(step, index))}
+        {steps.map((step, index) => renderStep(step, index, false, 0))}
       </div>
       
       {/* Condition Tooltip */}
@@ -243,7 +384,7 @@ const StepsSection = ({ steps, componentType, hierarchy = [], blockStructure = n
   );
 };
 
-const OmnistudioTab = () => {
+const OmnistudioTab = ({ onTabLoad }) => {
   // Hard-coded component types (no need to fetch from server)
   const componentTypes = [
     {
@@ -285,6 +426,13 @@ const OmnistudioTab = () => {
   useEffect(() => {
     fetchInstancesFromAPI();
   }, [selectedComponentType, searchTerm]);
+
+  // Separate effect for one-time global data loading
+  useEffect(() => {
+    if (onTabLoad) {
+      onTabLoad();
+    }
+  }, [onTabLoad]);
 
   // Clear selected instance when component type changes
   useEffect(() => {
@@ -343,6 +491,31 @@ const OmnistudioTab = () => {
       setLoadingDetails(true);
       setDetailError('');
       
+      // TRY CACHED DATA FIRST (preferred method - no SOQL queries)
+      try {
+        console.log(`📦 [CACHED] Attempting to load ${componentType} "${instanceName}" from cache...`);
+        const cachedResponse = await axios.get(`/api/omnistudio/${componentType}/${encodeURIComponent(instanceName)}/cached`);
+        
+        if (cachedResponse.data.success) {
+          const details = cachedResponse.data.component;
+          console.log(`✅ [CACHED] Loaded component from cache:`, {
+            name: details.name,
+            type: details.type,
+            subType: details.subType,
+            stepsCount: details.steps ? details.steps.length : 0,
+            fullyExpanded: cachedResponse.data.fullyExpanded,
+            expandedChildrenCount: cachedResponse.data.expandedChildrenCount
+          });
+          
+          setInstanceDetails(details);
+          return; // Success with cached data, no need for SOQL query
+        }
+      } catch (cacheError) {
+        console.warn(`⚠️ [CACHED] Cache miss for ${componentType} "${instanceName}":`, cacheError.response?.data?.message || cacheError.message);
+      }
+      
+      // FALLBACK TO SOQL QUERY (only if cache fails)
+      console.log(`🔄 [FALLBACK] Loading ${componentType} "${instanceName}" via SOQL query...`);
       const response = await axios.get(`/api/omnistudio/${componentType}/${encodeURIComponent(instanceName)}/details`);
       
       if (response.data.success) {
@@ -579,6 +752,7 @@ const OmnistudioTab = () => {
                           steps={instanceDetails.summary.steps}
                           componentType={instanceDetails.componentType}
                           hierarchy={instanceDetails.summary.hierarchy || []}
+                          instanceDetails={instanceDetails}
                           blockStructure={instanceDetails.summary.blockStructure || null}
                         />
                       )}

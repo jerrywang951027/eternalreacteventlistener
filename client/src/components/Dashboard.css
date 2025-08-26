@@ -67,13 +67,560 @@
   background: rgba(255, 255, 255, 0.3);
 }
 
+.dark-mode-toggle {
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+}
+
+.dark-mode-toggle:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+/* ====== DARK MODE STYLES ====== */
+.dashboard.dark-mode {
+  background: #0a0e16;
+  color: #e1e7ef;
+}
+
+.dashboard.dark-mode * {
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode h1,
+.dashboard.dark-mode h2, 
+.dashboard.dark-mode h3,
+.dashboard.dark-mode h4,
+.dashboard.dark-mode h5,
+.dashboard.dark-mode h6 {
+  color: #f7fafc !important;
+}
+
+.dashboard.dark-mode .header-content h1 {
+  color: white !important;
+}
+
+.dashboard.dark-mode .dashboard-header {
+  background: linear-gradient(135deg, #1a1d29 0%, #2d3748 100%);
+  border-bottom: 1px solid #374151;
+}
+
+.dashboard.dark-mode .control-panel,
+.dashboard.dark-mode .main-content {
+  background: #1a202c;
+  color: #e1e7ef;
+  border: 1px solid #2d3748;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.dashboard.dark-mode .tabs-nav {
+  background: #2d3748;
+  border-bottom: 1px solid #4a5568;
+}
+
+.dashboard.dark-mode .tab-btn {
+  background: transparent;
+  color: #a0aec0;
+  border-bottom: 2px solid transparent;
+}
+
+.dashboard.dark-mode .tab-btn:hover {
+  background: rgba(74, 85, 104, 0.3);
+  color: #e1e7ef;
+}
+
+.dashboard.dark-mode .tab-btn.active {
+  background: #1a202c;
+  color: #63b3ed;
+  border-bottom-color: #63b3ed;
+}
+
+.dashboard.dark-mode .subscribe-btn {
+  background: linear-gradient(135deg, #4299e1 0%, #553c9a 100%);
+  color: white;
+}
+
+.dashboard.dark-mode .subscribe-btn:hover:not(:disabled) {
+  box-shadow: 0 8px 25px rgba(66, 153, 225, 0.4);
+}
+
+.dashboard.dark-mode .event-item {
+  background: #2d3748;
+  color: #e1e7ef;
+  border: 1px solid #4a5568;
+}
+
+.dashboard.dark-mode .event-item strong {
+  color: #63b3ed;
+}
+
+.dashboard.dark-mode .no-events {
+  color: #a0aec0;
+}
+
+.dashboard.dark-mode .listening-indicator {
+  background: rgba(72, 187, 120, 0.2);
+  color: #68d391 !important;
+  border: 1px solid rgba(72, 187, 120, 0.3);
+}
+
+.dashboard.dark-mode input,
+.dashboard.dark-mode textarea,
+.dashboard.dark-mode select {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode input::placeholder,
+.dashboard.dark-mode textarea::placeholder {
+  color: #a0aec0 !important;
+}
+
+.dashboard.dark-mode label {
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .component-name,
+.dashboard.dark-mode .component-version,
+.dashboard.dark-mode .component-info {
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .connection-status {
+  color: white !important;
+}
+
+/* ====== COMPREHENSIVE DARK MODE - ALL UI ELEMENTS ====== */
+.dashboard.dark-mode .tabs-container {
+  background: #1a202c !important;
+  border: 1px solid #2d3748 !important;
+}
+
+.dashboard.dark-mode .tab-content {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .main-content,
+.dashboard.dark-mode .content-area {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
+  border: 1px solid #2d3748 !important;
+}
+
+.dashboard.dark-mode .left-panel,
+.dashboard.dark-mode .right-panel {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .card,
+.dashboard.dark-mode .panel,
+.dashboard.dark-mode .section {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+/* ====== ADDITIONAL TAB-SPECIFIC DARK MODE ====== */
+.dashboard.dark-mode .platform-events-content,
+.dashboard.dark-mode .sobjects-content,
+.dashboard.dark-mode .om-content,
+.dashboard.dark-mode .admin-content {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .left-panel,
+.dashboard.dark-mode .right-panel,
+.dashboard.dark-mode .content-panel {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
+  border: 1px solid #2d3748 !important;
+}
+
+.dashboard.dark-mode .table,
+.dashboard.dark-mode .data-table {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .table th,
+.dashboard.dark-mode .table td {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border-color: #4a5568 !important;
+}
+
+.dashboard.dark-mode .table-header {
+  background: #374151 !important;
+  color: #f7fafc !important;
+}
+
+.dashboard.dark-mode .table-row:hover {
+  background: #374151 !important;
+}
+
+.dashboard.dark-mode .form-group,
+.dashboard.dark-mode .form-field {
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .form-control {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .dropdown,
+.dashboard.dark-mode .select-wrapper {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .dropdown-menu {
+  background: #2d3748 !important;
+  border: 1px solid #4a5568 !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5) !important;
+}
+
+.dashboard.dark-mode .dropdown-item {
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .dropdown-item:hover {
+  background: #4a5568 !important;
+  color: #f7fafc !important;
+}
+
+/* ====== NUCLEAR OPTION - CATCH ALL WHITE BACKGROUNDS ====== */
+.dashboard.dark-mode div,
+.dashboard.dark-mode section,
+.dashboard.dark-mode article,
+.dashboard.dark-mode aside,
+.dashboard.dark-mode main {
+  background-color: transparent !important;
+}
+
+.dashboard.dark-mode div[style*="background: white"],
+.dashboard.dark-mode div[style*="background-color: white"],
+.dashboard.dark-mode div[style*="background: #fff"],
+.dashboard.dark-mode div[style*="background-color: #ffffff"],
+.dashboard.dark-mode [style*="background: white"],
+.dashboard.dark-mode [style*="background-color: white"] {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+}
+
+/* Ensure all text is readable */
+.dashboard.dark-mode span,
+.dashboard.dark-mode p,
+.dashboard.dark-mode div,
+.dashboard.dark-mode li,
+.dashboard.dark-mode td,
+.dashboard.dark-mode th {
+  color: #e1e7ef !important;
+}
+
+/* ====== PLATFORM EVENTS TAB DARK MODE ====== */
+.dashboard.dark-mode .platform-events-content,
+.dashboard.dark-mode .events-list,
+.dashboard.dark-mode .event-details {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .platform-events-content *,
+.dashboard.dark-mode .events-list *,
+.dashboard.dark-mode .event-details * {
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .event-item,
+.dashboard.dark-mode .platform-event-item {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .event-item:hover,
+.dashboard.dark-mode .platform-event-item:hover {
+  background: #374151 !important;
+  border-color: #63b3ed !important;
+}
+
+.dashboard.dark-mode .event-checkbox,
+.dashboard.dark-mode .event-selector {
+  background: #2d3748 !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .event-header,
+.dashboard.dark-mode .platform-events-header {
+  background: #2d3748 !important;
+  color: #f7fafc !important;
+  border-bottom: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .subscribe-btn,
+.dashboard.dark-mode .event-action-btn {
+  background: linear-gradient(135deg, #4299e1 0%, #553c9a 100%) !important;
+  color: white !important;
+}
+
+.dashboard.dark-mode .listening-indicator {
+  background: rgba(72, 187, 120, 0.2) !important;
+  color: #68d391 !important;
+  border: 1px solid rgba(72, 187, 120, 0.3) !important;
+}
+
+/* ====== FIX PLATFORM EVENTS WHITE SECTIONS ====== */
+.dashboard.dark-mode .received-events-section,
+.dashboard.dark-mode .event-details-section,
+.dashboard.dark-mode .event-payload-container,
+.dashboard.dark-mode .event-content-area {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .event-payload,
+.dashboard.dark-mode .event-data-display,
+.dashboard.dark-mode .event-json,
+.dashboard.dark-mode .received-event-item {
+  background: #374151 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .event-payload textarea,
+.dashboard.dark-mode .event-data-display textarea,
+.dashboard.dark-mode .event-json pre {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
+  border: 1px solid #2d3748 !important;
+}
+
+.dashboard.dark-mode .clear-events-btn,
+.dashboard.dark-mode .event-action-button {
+  background: #e53e3e !important;
+  color: white !important;
+  border: 1px solid #c53030 !important;
+}
+
+.dashboard.dark-mode .clear-events-btn:hover,
+.dashboard.dark-mode .event-action-button:hover {
+  background: #fc8181 !important;
+}
+
+/* ====== OM TAB DARK MODE (in Dashboard.css since no separate file) ====== */
+.dashboard.dark-mode .om-content,
+.dashboard.dark-mode .om-left-panel,
+.dashboard.dark-mode .om-right-panel {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
+  border-color: #2d3748 !important;
+}
+
+.dashboard.dark-mode .om-content *,
+.dashboard.dark-mode .om-left-panel *,
+.dashboard.dark-mode .om-right-panel * {
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .order-search-section,
+.dashboard.dark-mode .order-actions-section,
+.dashboard.dark-mode .order-results-section,
+.dashboard.dark-mode .order-details-section {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .order-search-input,
+.dashboard.dark-mode .order-filter-input,
+.dashboard.dark-mode .order-input {
+  background: #374151 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .order-search-btn,
+.dashboard.dark-mode .order-action-btn,
+.dashboard.dark-mode .order-btn {
+  background: #4a5568 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #718096 !important;
+}
+
+.dashboard.dark-mode .order-search-btn:hover,
+.dashboard.dark-mode .order-action-btn:hover,
+.dashboard.dark-mode .order-btn:hover {
+  background: #63b3ed !important;
+  color: white !important;
+}
+
+.dashboard.dark-mode .order-item,
+.dashboard.dark-mode .order-details-item,
+.dashboard.dark-mode .order-list-item {
+  background: #374151 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .order-item:hover,
+.dashboard.dark-mode .order-details-item:hover,
+.dashboard.dark-mode .order-list-item:hover {
+  background: #4a5568 !important;
+  border-color: #63b3ed !important;
+}
+
+.dashboard.dark-mode .order-table,
+.dashboard.dark-mode .order-details-table,
+.dashboard.dark-mode .results-table {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .order-table th,
+.dashboard.dark-mode .order-table td,
+.dashboard.dark-mode .order-details-table th,
+.dashboard.dark-mode .order-details-table td,
+.dashboard.dark-mode .results-table th,
+.dashboard.dark-mode .results-table td {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border-color: #4a5568 !important;
+}
+
+.dashboard.dark-mode .order-header,
+.dashboard.dark-mode .om-section-title,
+.dashboard.dark-mode .om-panel-header {
+  background: #2d3748 !important;
+  color: #f7fafc !important;
+  border-bottom: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .status-badge,
+.dashboard.dark-mode .order-status {
+  background: #4a5568 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #718096 !important;
+}
+
+/* ====== ORDER STATUS COLOR CODING ====== */
+/* CORRECT SELECTORS - Based on actual OM tab implementation */
+.dashboard.dark-mode .order-status.status-in-progress,
+.dashboard.dark-mode .status-badge.status-in-progress {
+  background: #d69e2e !important; /* Alarming yellow */
+  color: #1a202c !important; /* Dark text for contrast */
+  border: 1px solid #b7791f !important;
+  font-weight: 600 !important;
+}
+
+.dashboard.dark-mode .order-status.status-activated,
+.dashboard.dark-mode .status-badge.status-activated {
+  background: #38a169 !important; /* Pleasant green */
+  color: white !important;
+  border: 1px solid #2f855a !important;
+  font-weight: 600 !important;
+}
+
+.dashboard.dark-mode .order-status.status-completed {
+  background: #4299e1 !important; /* Blue for completed */
+  color: white !important;
+  border: 1px solid #3182ce !important;
+  font-weight: 600 !important;
+}
+
+.dashboard.dark-mode .order-status.status-draft {
+  background: #a0aec0 !important; /* Gray for draft */
+  color: #1a202c !important;
+  border: 1px solid #718096 !important;
+  font-weight: 600 !important;
+}
+
+.dashboard.dark-mode .order-status.status-cancelled {
+  background: #e53e3e !important; /* Red for cancelled */
+  color: white !important;
+  border: 1px solid #c53030 !important;
+  font-weight: 600 !important;
+}
+
+/* ====== AGGRESSIVE FIX FOR REMAINING WHITE SPOTS ====== */
+.dashboard.dark-mode textarea,
+.dashboard.dark-mode pre,
+.dashboard.dark-mode code,
+.dashboard.dark-mode .code-block,
+.dashboard.dark-mode .text-area,
+.dashboard.dark-mode .query-result,
+.dashboard.dark-mode .result-area {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+/* Platform Events - Fix white received events boxes */
+.dashboard.dark-mode .received-events,
+.dashboard.dark-mode .event-payload,
+.dashboard.dark-mode .event-content,
+.dashboard.dark-mode .event-data {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+/* SObjects - Fix white query results and SQL areas */
+.dashboard.dark-mode .query-results,
+.dashboard.dark-mode .sql-query,
+.dashboard.dark-mode .query-area,
+.dashboard.dark-mode .results-container {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+/* Any white containers or panels */
+.dashboard.dark-mode .white,
+.dashboard.dark-mode .bg-white,
+.dashboard.dark-mode [class*="white"],
+.dashboard.dark-mode [class*="light"] {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+}
+
+/* Ultra-aggressive catch for inline styles */
+.dashboard.dark-mode [style*="background:#fff"],
+.dashboard.dark-mode [style*="background:#ffffff"],
+.dashboard.dark-mode [style*="background:white"],
+.dashboard.dark-mode [style*="background-color:#fff"],
+.dashboard.dark-mode [style*="background-color:#ffffff"],
+.dashboard.dark-mode [style*="background-color:white"] {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+}
+
 .dashboard-content {
-  max-width: 1600px;
+  max-width: 2200px;
   margin: 0 auto;
   padding: 30px 20px;
   display: grid;
-  grid-template-columns: 350px 1fr;
-  gap: 30px;
+  grid-template-columns: 320px 1fr;
+  gap: 20px;
   align-items: start;
 }
 
@@ -462,7 +1009,7 @@
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   min-height: 600px;
   width: 100%;
-  max-width: 1600px;
+  max-width: 2200px;
   margin: 0 auto;
 }
 
@@ -711,7 +1258,7 @@
 /* SObjects Tab Styles */
 .sobjects-content {
   height: 100%;
-  max-width: 1600px;
+  max-width: 2200px;
   margin: 0 auto;
   padding: 20px;
 }
@@ -1318,7 +1865,7 @@
 /* OM Tab Styles */
 .om-content {
   height: 100%;
-  max-width: 1600px;
+  max-width: 2200px;
   margin: 0 auto;
   padding: 20px;
 }

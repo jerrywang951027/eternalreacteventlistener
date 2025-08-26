@@ -5,17 +5,61 @@ import PlatformEventsTab from './PlatformEventsTab';
 import SObjectsTab from './SObjectsTab';
 import OMTab from './OMTab';
 import OmnistudioTab from './OmnistudioTab';
+import AdminConsoleTab from './AdminConsoleTab';
 import UserInfoPopup from './UserInfoPopup';
 import './Dashboard.css';
 
 const Dashboard = ({ user, onLogout }) => {
-  const [activeTab, setActiveTab] = useState('platform-events');
+  // Initialize activeTab from localStorage or default to 'platform-events'
+  const [activeTab, setActiveTab] = useState(() => {
+    const savedTab = localStorage.getItem('dashboard-active-tab');
+    return savedTab || 'platform-events';
+  });
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  
+  // Dark mode state - initialize from localStorage or default to false
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const savedDarkMode = localStorage.getItem('dashboard-dark-mode');
+    return savedDarkMode === 'true';
+  });
+
+  // Toggle dark mode
+  const toggleDarkMode = () => {
+    const newDarkMode = !isDarkMode;
+    setIsDarkMode(newDarkMode);
+    localStorage.setItem('dashboard-dark-mode', newDarkMode.toString());
+  };
   
   // User info popup state
   const [showUserPopup, setShowUserPopup] = useState(false);
   const [userPopupPosition, setUserPopupPosition] = useState({ x: 0, y: 0 });
   const [userPopupTimeout, setUserPopupTimeout] = useState(null);
+  
+  // Global data loading state
+  const [globalDataLoaded, setGlobalDataLoaded] = useState(false);
+
+  // Load OmniStudio global data (only once per session)
+  const loadOmnistudioGlobalData = async () => {
+    if (globalDataLoaded) return; // Already loaded
+    
+    try {
+      console.log('🔄 Loading OmniStudio global data (first time only)...');
+      const response = await fetch('/api/omnistudio/global-data', {
+        method: 'GET',
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ OmniStudio global data loaded:', data);
+        setGlobalDataLoaded(true);
+      } else {
+        console.warn('⚠️ Failed to load OmniStudio global data:', response.statusText);
+      }
+    } catch (error) {
+      console.error('❌ Error loading OmniStudio global data:', error);
+    }
+  };
   
   // Platform Events Tab State (lifted up to preserve across tab switches)
   const [platformEventsState, setPlatformEventsState] = useState({
@@ -630,7 +674,8 @@ const Dashboard = ({ user, onLogout }) => {
     { id: 'platform-events', label: 'Explore Platform Events', icon: '📨' },
     { id: 'sobjects', label: 'Explore SObjects', icon: '🗃️' },
     { id: 'om', label: 'Explore OM', icon: '⚙️' },
-    { id: 'omnistudio', label: 'Explore Omnistudio(MP)', icon: '🔧' }
+    { id: 'omnistudio', label: 'Explore Omnistudio(MP)', icon: '🔧' },
+    { id: 'admin-console', label: 'Admin Console', icon: '🛠️' }
   ];
 
   const renderTabContent = () => {
@@ -694,14 +739,16 @@ const Dashboard = ({ user, onLogout }) => {
           />
         );
       case 'omnistudio':
-        return <OmnistudioTab />;
+        return <OmnistudioTab onTabLoad={loadOmnistudioGlobalData} />;
+      case 'admin-console':
+        return <AdminConsoleTab onTabLoad={loadOmnistudioGlobalData} />;
       default:
         return <div>Tab not found</div>;
     }
   };
 
   return (
-    <div className="dashboard">
+    <div className={`dashboard ${isDarkMode ? 'dark-mode' : ''}`}>
       <header className="dashboard-header">
         <div className="header-content">
           <h1>🔗 Salesforce Explorer</h1>
@@ -709,6 +756,13 @@ const Dashboard = ({ user, onLogout }) => {
             <span className={`connection-status ${connectionStatus}`}>
               {connectionStatus === 'connected' ? '🟢' : '🔴'} {connectionStatus}
             </span>
+            <button 
+              onClick={toggleDarkMode}
+              className="dark-mode-toggle"
+              title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {isDarkMode ? '☀️' : '🌙'}
+            </button>
             <button 
               onClick={handleLogout} 
               className="logout-btn"
@@ -728,7 +782,10 @@ const Dashboard = ({ user, onLogout }) => {
             <button
               key={tab.id}
               className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id);
+                localStorage.setItem('dashboard-active-tab', tab.id);
+              }}
             >
               <span className="tab-icon">{tab.icon}</span>
               <span className="tab-label">{tab.label}</span>
