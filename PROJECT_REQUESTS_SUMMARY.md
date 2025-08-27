@@ -1,6 +1,6 @@
-# EternalReactEventListener - Project Requests & Solutions Summary
+# Salesforce Industries Explorer - Project Requests # EternalReactEventListener - Project Requests & Solutions Summary Solutions Summary
 
-This document tracks all user requests, issues reported, and solutions implemented for the EternalReactEventListener project.
+This document tracks all user requests, issues reported, and solutions implemented for the Salesforce Industries Explorer project.
 
 ## 📋 Request History
 

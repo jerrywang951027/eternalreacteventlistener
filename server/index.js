@@ -163,7 +163,7 @@ if (NODE_ENV === 'production') {
 // Routes
 app.get('/', (req, res) => {
   res.json({ 
-    message: 'Welcome to EternalReactEventListener API',
+    message: 'Welcome to Salesforce Industries Explorer API',
     timestamp: new Date().toISOString(),
     status: 'Server is running successfully!'
   });
@@ -743,15 +743,11 @@ app.get('/api/sobjects/:sobjectName/query', loginModule.requireAuth, (req, res) 
  *       - sessionAuth: []
  *     parameters:
  *       - in: query
- *         name: q
+ *         name: query
  *         schema:
  *           type: string
  *         description: Search query
- *       - in: query
- *         name: status
- *         schema:
- *           type: string
- *         description: Order status filter
+ *     
  *       - in: query
  *         name: limit
  *         schema:
@@ -1980,7 +1976,7 @@ io.on('connection', (socket) => {
 // Serve Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
   customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'EternalReactEventListener API Documentation',
+  customSiteTitle: 'Salesforce Industries Explorer API Documentation',
   customfavIcon: '/favicon.ico',
   swaggerOptions: {
     tryItOutEnabled: true,

@@ -4,7 +4,7 @@ const options = {
   definition: {
     openapi: '3.0.3',
     info: {
-      title: 'EternalReactEventListener API',
+      title: 'Salesforce Industries Explorer API',
       description: 'Comprehensive API for Salesforce integration, OmniStudio components, Redis caching, and system administration',
       version: '1.0.0',
       contact: {

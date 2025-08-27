@@ -1,11 +1,11 @@
-# Eternal React Event Listener
+# Salesforce Industries Explorer
 
-A full stack React and Node.js application for eternal event listening.
+A full stack React and Node.js application for exploring Salesforce Industries (OmniStudio) components and platform events.
 
 ## Project Structure
 
 ```
-eternalreacteventlistener/
+salesforceIndustriesExplorer/
 ├── client/          # React frontend
 ├── server/          # Express.js backend
 ├── package.json     # Root package.json with unified scripts
