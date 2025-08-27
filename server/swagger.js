@@ -1,5 +1,33 @@
 const swaggerJsdoc = require('swagger-jsdoc');
 
+// Dynamically determine server URLs based on environment
+const getServerUrls = () => {
+  const servers = [];
+  
+  // Production server (Heroku)
+  if (process.env.NODE_ENV === 'production') {
+    // Try multiple ways to get the Heroku URL
+    const herokuUrl = process.env.HEROKU_APP_URL || 
+                     (process.env.HEROKU_APP_NAME ? `https://${process.env.HEROKU_APP_NAME}.herokuapp.com` : null) ||
+                     'https://eternalreacteventlistener-e56f201dd67b.herokuapp.com';
+    
+    servers.push({
+      url: herokuUrl,
+      description: 'Production server (Heroku)'
+    });
+  }
+  
+  // Development server (always include for testing)
+  if (process.env.NODE_ENV !== 'production') {
+    servers.push({
+      url: 'http://localhost:5000',
+      description: 'Development server'
+    });
+  }
+  
+  return servers;
+};
+
 const options = {
   definition: {
     openapi: '3.0.3',
@@ -11,12 +39,7 @@ const options = {
         name: 'API Support',
         email: 'support@example.com'
       },
-      servers: [
-        {
-          url: 'http://localhost:5000',
-          description: 'Development server'
-        }
-      ]
+      servers: getServerUrls()
     },
     components: {
       securitySchemes: {

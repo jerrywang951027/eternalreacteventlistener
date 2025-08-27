@@ -767,7 +767,7 @@ const Dashboard = ({ user, onLogout }) => {
               {isDarkMode ? '☀️' : '🌙'}
             </button>
                         <a
-              href="http://localhost:5000/api-docs"
+              href={process.env.NODE_ENV === "production" ? "/api-docs" : "http://localhost:5000/api-docs"}
               target="_blank"
               rel="noopener noreferrer"
               className="api-docs-link"
