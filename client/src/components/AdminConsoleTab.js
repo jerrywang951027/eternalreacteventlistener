@@ -400,19 +400,19 @@ const AdminConsoleTab = ({ onTabLoad }) => {
       <div className="logs-summary">
         <div className="summary-stat">
           <span className="stat-label">Log File:</span>
-          <span className="stat-value">{data.logFile}</span>
+          <span className="stat-value">{data?.logFile || 'N/A'}</span>
         </div>
         <div className="summary-stat">
           <span className="stat-label">Total Files:</span>
-          <span className="stat-value">{data.totalLogFiles}</span>
+          <span className="stat-value">{data?.totalLogFiles || 'N/A'}</span>
         </div>
         <div className="summary-stat">
           <span className="stat-label">Total Lines:</span>
-          <span className="stat-value">{data.totalLines}</span>
+          <span className="stat-value">{data?.totalLines || 'N/A'}</span>
         </div>
         <div className="summary-stat">
           <span className="stat-label">Showing:</span>
-          <span className="stat-value">{data.recentLines} recent lines</span>
+          <span className="stat-value">{data?.recentLines || 'N/A'} recent lines</span>
         </div>
         
         <button 
@@ -425,7 +425,7 @@ const AdminConsoleTab = ({ onTabLoad }) => {
       </div>
 
       <div className="logs-container">
-        {data.logs.length > 0 ? (
+        {data?.logs && data.logs.length > 0 ? (
           data.logs.map((logLine, index) => (
             <div key={index} className="log-line">
               {logLine}

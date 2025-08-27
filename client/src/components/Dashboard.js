@@ -775,7 +775,12 @@ const Dashboard = ({ user, onLogout }) => {
             >
               📚 API Docs
             </a>
-            <button className="logout-btn" onClick={handleLogout}>
+            <button 
+              className="logout-btn" 
+              onClick={handleLogout}
+              onMouseEnter={handleLogoutMouseEnter}
+              onMouseLeave={handleLogoutMouseLeave}
+            >
               🚪 Logout
             </button>
           </div>
