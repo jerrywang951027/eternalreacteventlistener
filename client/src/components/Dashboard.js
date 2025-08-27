@@ -6,6 +6,7 @@ import SObjectsTab from './SObjectsTab';
 import OMTab from './OMTab';
 import OmnistudioTab from './OmnistudioTab';
 import AdminConsoleTab from './AdminConsoleTab';
+import SwaggerTab from './SwaggerTab';
 import UserInfoPopup from './UserInfoPopup';
 import './Dashboard.css';
 
@@ -673,9 +674,10 @@ const Dashboard = ({ user, onLogout }) => {
   const tabs = [
     { id: 'platform-events', label: 'Explore Platform Events', icon: '📨' },
     { id: 'sobjects', label: 'Explore SObjects', icon: '🗃️' },
-    { id: 'om', label: 'Explore OM', icon: '⚙️' },
-    { id: 'omnistudio', label: 'Explore Omnistudio(MP)', icon: '🔧' },
-    { id: 'admin-console', label: 'Admin Console', icon: '🛠️' }
+                { id: 'om', label: 'Explore OM', icon: '⚙️' },
+            { id: 'omnistudio', label: 'Explore Omnistudio(MP)', icon: '🔧' },
+            { id: 'admin-console', label: 'Admin Console', icon: '🛠️' },
+            { id: 'swagger', label: 'API Documentation', icon: '📚' }
   ];
 
   const renderTabContent = () => {
@@ -740,10 +742,12 @@ const Dashboard = ({ user, onLogout }) => {
         );
       case 'omnistudio':
         return <OmnistudioTab onTabLoad={loadOmnistudioGlobalData} />;
-      case 'admin-console':
-        return <AdminConsoleTab onTabLoad={loadOmnistudioGlobalData} />;
-      default:
-        return <div>Tab not found</div>;
+              case 'admin-console':
+          return <AdminConsoleTab onTabLoad={loadOmnistudioGlobalData} />;
+        case 'swagger':
+          return <SwaggerTab />;
+        default:
+          return <div>Tab not found</div>;
     }
   };
 
@@ -752,24 +756,26 @@ const Dashboard = ({ user, onLogout }) => {
       <header className="dashboard-header">
         <div className="header-content">
           <h1>🔗 Salesforce Explorer</h1>
-          <div className="header-info">
-            <span className={`connection-status ${connectionStatus}`}>
-              {connectionStatus === 'connected' ? '🟢' : '🔴'} {connectionStatus}
-            </span>
-            <button 
-              onClick={toggleDarkMode}
-              className="dark-mode-toggle"
-              title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
+          <div className="header-right">
+            <div className="connection-status">
+              <span className={`status-indicator ${connectionStatus}`}>
+                {connectionStatus === 'connected' ? '🟢' : '🔴'}
+              </span>
+              <span className="status-text">{connectionStatus}</span>
+            </div>
+            <button className="theme-toggle" onClick={toggleDarkMode}>
               {isDarkMode ? '☀️' : '🌙'}
             </button>
-            <button 
-              onClick={handleLogout} 
-              className="logout-btn"
-              onMouseEnter={handleLogoutMouseEnter}
-              onMouseLeave={handleLogoutMouseLeave}
-              title="Click to logout or hover for account info"
+                        <a
+              href="http://localhost:5000/api-docs"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="api-docs-link"
+              title="View API Documentation"
             >
+              📚 API Docs
+            </a>
+            <button className="logout-btn" onClick={handleLogout}>
               🚪 Logout
             </button>
           </div>

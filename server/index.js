@@ -7,6 +7,8 @@ const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
 require('dotenv').config();
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpecs = require('./swagger');
 
 // Setup file logging
 const logsDir = path.join(__dirname, 'logs');
@@ -177,65 +179,665 @@ app.get('/api/health', (req, res) => {
 });
 
 // Authentication Routes
+/**
+ * @swagger
+ * /api/auth/orgs:
+ *   get:
+ *     summary: Get list of available Salesforce organizations
+ *     description: Retrieve the list of configured Salesforce organizations for authentication
+ *     tags: [Authentication]
+ *     responses:
+ *       200:
+ *         description: List of available organizations
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                     description: Organization ID
+ *                   name:
+ *                     type: string
+ *                     description: Organization name
+ *                   url:
+ *                     type: string
+ *                     description: Salesforce instance URL
+ *       500:
+ *         description: Server error
+ */
 app.get('/api/auth/orgs', (req, res) => {
   loginModule.getOrgsList(req, res);
 });
 
+/**
+ * @swagger
+ * /api/auth/salesforce/login:
+ *   post:
+ *     summary: Initiate Salesforce OAuth login
+ *     description: Start the Salesforce OAuth authentication flow
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - orgId
+ *             properties:
+ *               orgId:
+ *                 type: string
+ *                 description: Salesforce organization ID
+ *     responses:
+ *       200:
+ *         description: OAuth login initiated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 authUrl:
+ *                   type: string
+ *                   description: Salesforce OAuth authorization URL
+ *       400:
+ *         description: Bad request - missing orgId
+ *       500:
+ *         description: Server error
+ */
 app.post('/api/auth/salesforce/login', (req, res) => {
   loginModule.handleSalesforceLogin(req, res);
 });
 
+/**
+ * @swagger
+ * /api/auth/salesforce/callback:
+ *   get:
+ *     summary: Handle Salesforce OAuth callback
+ *     description: Process the OAuth callback from Salesforce and complete authentication
+ *     tags: [Authentication]
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: OAuth authorization code from Salesforce
+ *       - in: query
+ *         name: state
+ *         schema:
+ *           type: string
+ *         description: OAuth state parameter
+ *     responses:
+ *       200:
+ *         description: Authentication successful
+ *       400:
+ *         description: Bad request - invalid callback parameters
+ *       401:
+ *         description: Authentication failed
+ *       500:
+ *         description: Server error
+ */
 app.get('/api/auth/salesforce/callback', (req, res) => {
   loginModule.handleSalesforceCallback(req, res);
 });
 
+/**
+ * @swagger
+ * /api/auth/user:
+ *   get:
+ *     summary: Get current authenticated user information
+ *     description: Retrieve information about the currently authenticated user
+ *     tags: [Authentication]
+ *     security:
+ *       - sessionAuth: []
+ *     responses:
+ *       200:
+ *         description: User information retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   type: object
+ *                   description: User information
+ *                 org:
+ *                   type: object
+ *                   description: Organization information
+ *                 authenticated:
+ *                   type: boolean
+ *                   description: Authentication status
+ *       401:
+ *         description: Not authenticated
+ *       500:
+ *         description: Server error
+ */
 app.get('/api/auth/user', (req, res) => {
   loginModule.getCurrentUser(req, res);
 });
 
+/**
+ * @swagger
+ * /api/auth/logout:
+ *   post:
+ *     summary: Logout user and destroy session
+ *     description: End user session and clear authentication
+ *     tags: [Authentication]
+ *     security:
+ *       - sessionAuth: []
+ *     responses:
+ *       200:
+ *         description: Logout successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   description: Success status
+ *                 message:
+ *                   type: string
+ *                   description: Success message
+ *       500:
+ *         description: Server error
+ */
 app.post('/api/auth/logout', (req, res) => {
   loginModule.handleLogout(req, res, platformEventsModule.cleanupSubscriptions.bind(platformEventsModule));
 });
 
 // Platform Events Routes
+/**
+ * @swagger
+ * /api/platform-events:
+ *   get:
+ *     summary: Get available platform events
+ *     description: Retrieve list of available Salesforce platform events
+ *     tags: [Platform Events]
+ *     security:
+ *       - sessionAuth: []
+ *     responses:
+ *       200:
+ *         description: Platform events retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 events:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       name:
+ *                         type: string
+ *                         description: Event name
+ *                       label:
+ *                         type: string
+ *                         description: Event label
+ *                       description:
+ *                         type: string
+ *                         description: Event description
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
 app.get('/api/platform-events', loginModule.requireAuth, (req, res) => {
   platformEventsModule.fetchPlatformEvents(req, res);
 });
 
+/**
+ * @swagger
+ * /api/platform-events/subscribe:
+ *   post:
+ *     summary: Subscribe to platform events
+ *     description: Subscribe to one or more Salesforce platform events
+ *     tags: [Platform Events]
+ *     security:
+ *       - sessionAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - events
+ *             properties:
+ *               events:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Array of platform event names to subscribe to
+ *     responses:
+ *       200:
+ *         description: Subscription successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 subscriptions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       event:
+ *                         type: string
+ *                       status:
+ *                         type: string
+ *       400:
+ *         description: Bad request - invalid event names
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
 app.post('/api/platform-events/subscribe', loginModule.requireAuth, (req, res) => {
   platformEventsModule.subscribeToPlatformEvents(req, res);
 });
 
+/**
+ * @swagger
+ * /api/platform-events/cleanup:
+ *   post:
+ *     summary: Cleanup platform event subscriptions
+ *     description: Manually cleanup and unsubscribe from all platform event subscriptions
+ *     tags: [Platform Events]
+ *     security:
+ *       - sessionAuth: []
+ *     responses:
+ *       200:
+ *         description: Cleanup successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 cleanedCount:
+ *                   type: number
+ *                   description: Number of subscriptions cleaned up
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
 app.post('/api/platform-events/cleanup', loginModule.requireAuth, (req, res) => {
   platformEventsModule.manualCleanup(req, res);
 });
 
+/**
+ * @swagger
+ * /api/platform-events/status:
+ *   get:
+ *     summary: Get platform event subscription status
+ *     description: Retrieve the status of all active platform event subscriptions
+ *     tags: [Platform Events]
+ *     security:
+ *       - sessionAuth: []
+ *     responses:
+ *       200:
+ *         description: Subscription status retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 subscriptions:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       event:
+ *                         type: string
+ *                       status:
+ *                         type: string
+ *                       subscribedAt:
+ *                         type: string
+ *                         format: date-time
+ *                 totalCount:
+ *                   type: number
+ *                   description: Total number of active subscriptions
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
 app.get('/api/platform-events/status', loginModule.requireAuth, (req, res) => {
   platformEventsModule.getSubscriptionStatus(req, res);
 });
 
 // SObjects Routes
+/**
+ * @swagger
+ * /api/sobjects/search:
+ *   get:
+ *     summary: Search Salesforce SObjects
+ *     description: Search for Salesforce SObjects by name or label
+ *     tags: [SObjects]
+ *     security:
+ *       - sessionAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Search query
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Maximum number of results to return
+ *     responses:
+ *       200:
+ *         description: Search results retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 results:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       name:
+ *                         type: string
+ *                       label:
+ *                         type: string
+ *                       keyPrefix:
+ *                         type: string
+ *       400:
+ *         description: Bad request - missing search query
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
 app.get('/api/sobjects/search', loginModule.requireAuth, (req, res) => {
   sObjectsModule.searchSObjects(req, res);
 });
 
+/**
+ * @swagger
+ * /api/sobjects/all:
+ *   get:
+ *     summary: Get all Salesforce SObjects
+ *     description: Retrieve list of all available Salesforce SObjects
+ *     tags: [SObjects]
+ *     security:
+ *       - sessionAuth: []
+ *     responses:
+ *       200:
+ *         description: SObjects retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 sobjects:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       name:
+ *                         type: string
+ *                       label:
+ *                         type: string
+ *                       keyPrefix:
+ *                         type: string
+ *                       custom:
+ *                         type: boolean
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
 app.get('/api/sobjects/all', loginModule.requireAuth, (req, res) => {
   sObjectsModule.fetchAllSObjects(req, res);
 });
 
+/**
+ * @swagger
+ * /api/sobjects/{sobjectName}/describe:
+ *   get:
+ *     summary: Describe a Salesforce SObject
+ *     description: Get detailed metadata and field information for a specific SObject
+ *     tags: [SObjects]
+ *     security:
+ *       - sessionAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sobjectName
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Name of the SObject to describe
+ *     responses:
+ *       200:
+ *         description: SObject description retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 describe:
+ *                   type: object
+ *                   properties:
+ *                     name:
+ *                       type: string
+ *                     label:
+ *                       type: string
+ *                     fields:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           name:
+ *                             type: string
+ *                           label:
+ *                             type: string
+ *                           type:
+ *                             type: string
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       404:
+ *         description: SObject not found
+ *       500:
+ *         description: Server error
+ */
 app.get('/api/sobjects/:sobjectName/describe', loginModule.requireAuth, (req, res) => {
   sObjectsModule.describeSObject(req, res);
 });
 
+/**
+ * @swagger
+ * /api/sobjects/{sobjectName}/query:
+ *   get:
+ *     summary: Query records from a Salesforce SObject
+ *     description: Execute SOQL query to retrieve records from a specific SObject
+ *     tags: [SObjects]
+ *     security:
+ *       - sessionAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sobjectName
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Name of the SObject to query
+ *       - in: query
+ *         name: fields
+ *         schema:
+ *           type: string
+ *         description: Comma-separated list of fields to retrieve
+ *       - in: query
+ *         name: where
+ *         schema:
+ *           type: string
+ *         description: WHERE clause for the SOQL query
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 100
+ *         description: Maximum number of records to return
+ *     responses:
+ *       200:
+ *         description: Query executed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 records:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                 totalSize:
+ *                   type: number
+ *       400:
+ *         description: Bad request - invalid query parameters
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
 app.get('/api/sobjects/:sobjectName/query', loginModule.requireAuth, (req, res) => {
   sObjectsModule.querySObjectRecords(req, res);
 });
 
 // Order Management Routes
+/**
+ * @swagger
+ * /api/orders/search:
+ *   get:
+ *     summary: Search orders
+ *     description: Search for orders using various criteria
+ *     tags: [Order Management]
+ *     security:
+ *       - sessionAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         schema:
+ *           type: string
+ *         description: Search query
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: Order status filter
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: Maximum number of results to return
+ *     responses:
+ *       200:
+ *         description: Orders retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 orders:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       orderNumber:
+ *                         type: string
+ *                       status:
+ *                         type: string
+ *                       totalAmount:
+ *                         type: number
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
 app.get('/api/orders/search', loginModule.requireAuth, (req, res) => {
   orderManagementModule.searchOrders(req, res);
 });
 
+/**
+ * @swagger
+ * /api/orders/{orderId}/items:
+ *   get:
+ *     summary: Get order items
+ *     description: Retrieve all items for a specific order
+ *     tags: [Order Management]
+ *     security:
+ *       - sessionAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Order ID
+ *     responses:
+ *       200:
+ *         description: Order items retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 items:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       productName:
+ *                         type: string
+ *                       quantity:
+ *                         type: number
+ *                       unitPrice:
+ *                         type: number
+ *                       totalPrice:
+ *                         type: number
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       404:
+ *         description: Order not found
+ *       500:
+ *         description: Server error
+ */
 app.get('/api/orders/:orderId/items', loginModule.requireAuth, (req, res) => {
   orderManagementModule.getOrderItems(req, res);
 });
@@ -249,10 +851,71 @@ app.get('/api/orders/:orderId/orchestration-status', loginModule.requireAuth, (r
 });
 
 // Omnistudio API routes
+/**
+ * @swagger
+ * /api/omnistudio/load-all:
+ *   post:
+ *     summary: Load all OmniStudio components
+ *     description: Load and cache all OmniStudio components from Salesforce
+ *     tags: [OmniStudio]
+ *     security:
+ *       - sessionAuth: []
+ *     responses:
+ *       200:
+ *         description: Components loaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   description: Success status
+ *                 message:
+ *                   type: string
+ *                   description: Success message
+ *                 componentCount:
+ *                   type: number
+ *                   description: Number of components loaded
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
 app.post('/api/omnistudio/load-all', loginModule.requireAuth, (req, res) => {
   omnistudioModule.loadAllComponents(req, res);
 });
 
+/**
+ * @swagger
+ * /api/omnistudio/global-data:
+ *   get:
+ *     summary: Get global OmniStudio component data
+ *     description: Retrieve all cached OmniStudio component data
+ *     tags: [OmniStudio]
+ *     security:
+ *       - sessionAuth: []
+ *     responses:
+ *       200:
+ *         description: Global component data retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   description: Component data organized by type
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
 app.get('/api/omnistudio/global-data', loginModule.requireAuth, (req, res) => {
   omnistudioModule.getGlobalComponentData(req, res);
 });
@@ -327,10 +990,100 @@ app.get('/api/omnistudio/global-summary', loginModule.requireAuth, async (req, r
   }
 });
 
+/**
+ * @swagger
+ * /api/omnistudio/instances:
+ *   get:
+ *     summary: Get OmniStudio component instances
+ *     description: Retrieve list of OmniStudio component instances
+ *     tags: [OmniStudio]
+ *     security:
+ *       - sessionAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *         description: Component type filter (optional)
+ *     responses:
+ *       200:
+ *         description: Component instances retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 instances:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       name:
+ *                         type: string
+ *                       type:
+ *                         type: string
+ *                       version:
+ *                         type: string
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
 app.get('/api/omnistudio/instances', loginModule.requireAuth, (req, res) => {
   omnistudioModule.getInstances(req, res);
 });
 
+/**
+ * @swagger
+ * /api/omnistudio/search:
+ *   get:
+ *     summary: Search OmniStudio components
+ *     description: Search for OmniStudio components by name or type
+ *     tags: [OmniStudio]
+ *     security:
+ *       - sessionAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Search query
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *         description: Component type filter (optional)
+ *     responses:
+ *       200:
+ *         description: Search results retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 results:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       name:
+ *                         type: string
+ *                       type:
+ *                         type: string
+ *                       score:
+ *                         type: number
+ *       400:
+ *         description: Bad request - missing search query
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
 app.get('/api/omnistudio/search', loginModule.requireAuth, (req, res) => {
   omnistudioModule.searchComponents(req, res);
 });
@@ -479,10 +1232,79 @@ app.get('/api/debug/partner-salesorder', loginModule.requireAuth, async (req, re
 });
 
 // Admin Console API routes
+/**
+ * @swagger
+ * /api/admin/system-overview:
+ *   get:
+ *     summary: Get system overview
+ *     description: Retrieve comprehensive system overview including performance metrics
+ *     tags: [Admin]
+ *     security:
+ *       - sessionAuth: []
+ *     responses:
+ *       200:
+ *         description: System overview retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 system:
+ *                   type: object
+ *                   properties:
+ *                     uptime:
+ *                       type: string
+ *                     memory:
+ *                       type: object
+ *                     cpu:
+ *                       type: object
+ *                     connections:
+ *                       type: number
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
 app.get('/api/admin/system-overview', loginModule.requireAuth, (req, res) => {
   adminModule.getSystemOverview(req, res);
 });
 
+/**
+ * @swagger
+ * /api/admin/component-data-status:
+ *   get:
+ *     summary: Get component data status
+ *     description: Retrieve status information about cached component data
+ *     tags: [Admin]
+ *     security:
+ *       - sessionAuth: []
+ *     responses:
+ *       200:
+ *         description: Component data status retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 status:
+ *                   type: object
+ *                   properties:
+ *                     totalComponents:
+ *                       type: number
+ *                     lastUpdated:
+ *                       type: string
+ *                       format: date-time
+ *                     cacheSize:
+ *                       type: string
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
 app.get('/api/admin/component-data-status', loginModule.requireAuth, (req, res) => {
   adminModule.getComponentDataStatus(req, res);
 });
@@ -499,15 +1321,108 @@ app.get('/api/admin/server-logs', loginModule.requireAuth, (req, res) => {
   adminModule.getServerLogs(req, res);
 });
 
+/**
+ * @swagger
+ * /api/admin/cache/{orgId}:
+ *   delete:
+ *     summary: Clear organization cache
+ *     description: Clear all cached data for a specific organization
+ *     tags: [Admin]
+ *     security:
+ *       - sessionAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: orgId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Organization ID
+ *     responses:
+ *       200:
+ *         description: Cache cleared successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
 app.delete('/api/admin/cache/:orgId', loginModule.requireAuth, (req, res) => {
   adminModule.clearOrgCache(req, res);
 });
 
+/**
+ * @swagger
+ * /api/admin/cache-all:
+ *   delete:
+ *     summary: Clear all caches
+ *     description: Clear all cached data for all organizations
+ *     tags: [Admin]
+ *     security:
+ *       - sessionAuth: []
+ *     responses:
+ *       200:
+ *         description: All caches cleared successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 clearedCount:
+ *                   type: number
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
 app.delete('/api/admin/cache-all', loginModule.requireAuth, (req, res) => {
   adminModule.clearAllCaches(req, res);
 });
 
 // Redis Cache API routes
+/**
+ * @swagger
+ * /api/redis/status:
+ *   get:
+ *     summary: Get Redis connection status
+ *     description: Check if Redis server is connected and available
+ *     tags: [Redis]
+ *     security:
+ *       - sessionAuth: []
+ *     responses:
+ *       200:
+ *         description: Redis status information
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   description: Success status
+ *                 redis:
+ *                   type: object
+ *                   description: Redis connection details
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                   description: Response timestamp
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
 app.get('/api/redis/status', loginModule.requireAuth, async (req, res) => {
   try {
     const status = await redisModule.getStatus();
@@ -525,6 +1440,46 @@ app.get('/api/redis/status', loginModule.requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/redis/component-data/{orgId}:
+ *   get:
+ *     summary: Get cached component data for a specific org
+ *     description: Retrieve cached OmniStudio component data for a specific Salesforce org
+ *     tags: [Redis]
+ *     security:
+ *       - sessionAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: orgId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Salesforce org ID
+ *     responses:
+ *       200:
+ *         description: Cached component data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                 orgId:
+ *                   type: string
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       404:
+ *         description: No cached data found for the org
+ *       500:
+ *         description: Server error
+ */
 // Get cached component data by org ID
 app.get('/api/redis/component-data/:orgId', loginModule.requireAuth, async (req, res) => {
   try {
@@ -615,6 +1570,58 @@ app.delete('/api/redis/component-data', loginModule.requireAuth, async (req, res
   }
 });
 
+/**
+ * @swagger
+ * /api/redis/kv:
+ *   post:
+ *     summary: Set a key-value pair in Redis
+ *     description: Store a key-value pair in Redis with optional expiration
+ *     tags: [Redis]
+ *     security:
+ *       - sessionAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - key
+ *               - value
+ *             properties:
+ *               key:
+ *                 type: string
+ *                 description: Redis key
+ *               value:
+ *                 type: string
+ *                 description: Value to store
+ *               expireSeconds:
+ *                 type: number
+ *                 description: Expiration time in seconds (optional)
+ *     responses:
+ *       200:
+ *         description: Key-value pair stored successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 key:
+ *                   type: string
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *       400:
+ *         description: Bad request - missing required fields
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
 // Set key-value pair in Redis
 app.post('/api/redis/kv', loginModule.requireAuth, async (req, res) => {
   try {
@@ -969,6 +1976,21 @@ io.on('connection', (socket) => {
     socket.emit('pong');
   });
 });
+
+// Serve Swagger UI
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpecs, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'EternalReactEventListener API Documentation',
+  customfavIcon: '/favicon.ico',
+  swaggerOptions: {
+    tryItOutEnabled: true,
+    requestInterceptor: (request) => {
+      // Add credentials for authenticated requests
+      request.credentials = 'include';
+      return request;
+    }
+  }
+}));
 
 // Cleanup function for platform event subscriptions
 const cleanup = async () => {

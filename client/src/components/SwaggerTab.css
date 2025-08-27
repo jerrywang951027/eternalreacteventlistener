@@ -1,0 +1,41 @@
+.swagger-tab {
+  height: 100vh;
+  width: 100%;
+  background: var(--bg-color);
+  position: relative;
+  overflow: hidden;
+}
+
+.swagger-content {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.swagger-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: white;
+  display: block;
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .swagger-iframe {
+  background: #1a1a1a;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .swagger-header {
+    padding: 15px;
+  }
+  
+  .swagger-header h2 {
+    font-size: 20px;
+  }
+  
+  .swagger-footer {
+    padding: 10px 15px;
+  }
+}
