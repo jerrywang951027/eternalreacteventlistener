@@ -9,6 +9,7 @@ const TalkToSFDCAgentTab = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [currentSessionId, setCurrentSessionId] = useState('');
 
   // Load available agents when component mounts
   useEffect(() => {
@@ -67,7 +68,7 @@ const TalkToSFDCAgentTab = () => {
       const response = await axios.post('/api/salesforce/agentforce/chat', {
         agentId: selectedAgent,
         message: userMessage.content,
-        timestamp: userMessage.timestamp
+        sessionId: currentSessionId
       });
       
       if (response.data.success) {
