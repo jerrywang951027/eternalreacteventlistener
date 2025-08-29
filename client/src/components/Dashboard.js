@@ -7,6 +7,7 @@ import OMTab from './OMTab';
 import OmnistudioTab from './OmnistudioTab';
 import AdminConsoleTab from './AdminConsoleTab';
 import SwaggerTab from './SwaggerTab';
+import TalkToSFDCAgentTab from './TalkToSFDCAgentTab';
 import UserInfoPopup from './UserInfoPopup';
 import './Dashboard.css';
 
@@ -674,10 +675,11 @@ const Dashboard = ({ user, onLogout }) => {
   const tabs = [
     { id: 'platform-events', label: 'Explore Platform Events', icon: '📨' },
     { id: 'sobjects', label: 'Explore SObjects', icon: '🗃️' },
-                { id: 'om', label: 'Explore OM', icon: '⚙️' },
-            { id: 'omnistudio', label: 'Explore Omnistudio(MP)', icon: '🔧' },
-            { id: 'admin-console', label: 'Admin Console', icon: '🛠️' },
-            { id: 'swagger', label: 'API Documentation', icon: '📚' }
+    { id: 'om', label: 'Explore OM', icon: '⚙️' },
+    { id: 'omnistudio', label: 'Explore Omnistudio(MP)', icon: '🔧' },
+    { id: 'talk-to-sfdc-agent', label: 'Talk to SFDC Agent', icon: '🤖' },
+    { id: 'admin-console', label: 'Admin Console', icon: '🛠️' },
+    { id: 'swagger', label: 'API Documentation', icon: '📚' }
   ];
 
   const renderTabContent = () => {
@@ -742,8 +744,10 @@ const Dashboard = ({ user, onLogout }) => {
         );
       case 'omnistudio':
         return <OmnistudioTab onTabLoad={loadOmnistudioGlobalData} />;
-              case 'admin-console':
-          return <AdminConsoleTab onTabLoad={loadOmnistudioGlobalData} />;
+      case 'talk-to-sfdc-agent':
+        return <TalkToSFDCAgentTab />;
+      case 'admin-console':
+        return <AdminConsoleTab onTabLoad={loadOmnistudioGlobalData} />;
         case 'swagger':
           return <SwaggerTab />;
         default:

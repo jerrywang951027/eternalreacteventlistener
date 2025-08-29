@@ -43,6 +43,7 @@ const OrderManagementModule = require('./modules/orderManagement');
 const OmnistudioModule = require('./modules/omnistudio');
 const AdminModule = require('./modules/admin');
 const RedisModule = require('./modules/redis');
+const AgentforceModule = require('./modules/agentforce');
 
 const PORT = process.env.PORT || 5000;
 const CLIENT_PORT = process.env.CLIENT_PORT || 3000;
@@ -87,6 +88,7 @@ const sObjectsModule = new SObjectsModule();
 const orderManagementModule = new OrderManagementModule();
 const omnistudioModule = new OmnistudioModule(redisModule);
 const adminModule = new AdminModule(omnistudioModule);
+const agentforceModule = new AgentforceModule();
 
 // Auto-start React development server in development mode
 function startReactDev() {
@@ -1287,6 +1289,15 @@ app.get('/api/omnistudio/:componentType/:instanceName/cached', loginModule.requi
 // 🔗 API endpoint to load child IP hierarchy for expandable IP references
 app.get('/api/omnistudio/ip-reference/:ipName/hierarchy', loginModule.requireAuth, (req, res) => {
   omnistudioModule.getChildIPHierarchy(req, res);
+});
+
+// 🤖 Agentforce API endpoints
+app.get('/api/salesforce/agentforce/agents', loginModule.requireAuth, (req, res) => {
+  agentforceModule.getAvailableAgents(req, res);
+});
+
+app.post('/api/salesforce/agentforce/chat', loginModule.requireAuth, (req, res) => {
+  agentforceModule.sendChatMessage(req, res);
 });
 
 // 🧪 DEBUG: Force clear cache and reload 
