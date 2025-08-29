@@ -731,6 +731,55 @@ app.get('/api/sobjects/:sobjectName/query', loginModule.requireAuth, (req, res) 
   sObjectsModule.querySObjectRecords(req, res);
 });
 
+/**
+ * @swagger
+ * /api/sobjects/execute-soql:
+ *   post:
+ *     summary: Execute free text SOQL query
+ *     description: Execute a custom SOQL query provided by the user
+ *     tags: [SObjects]
+ *     security:
+ *       - sessionAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               query:
+ *                 type: string
+ *                 description: The SOQL query to execute
+ *                 example: "SELECT Id, Name, CreatedDate FROM Account LIMIT 10"
+ *     responses:
+ *       200:
+ *         description: Query executed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 records:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                 totalSize:
+ *                   type: integer
+ *                 done:
+ *                   type: boolean
+ *       400:
+ *         description: Bad request - invalid SOQL query
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
+app.post('/api/sobjects/execute-soql', loginModule.requireAuth, (req, res) => {
+  sObjectsModule.executeFreeSOQLQuery(req, res);
+});
+
 // Order Management Routes
 /**
  * @swagger
@@ -884,6 +933,36 @@ app.post('/api/omnistudio/load-all', loginModule.requireAuth, (req, res) => {
 
 /**
  * @swagger
+ * /api/omnistudio/load-all-components:
+ *   post:
+ *     summary: Load all OmniStudio components (alias for load-all)
+ *     description: Load and cache all OmniStudio components from Salesforce
+ *     tags: [OmniStudio]
+ *     security:
+ *       - sessionAuth: []
+ *     responses:
+ *       200:
+ *         description: Components loaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
+app.post('/api/omnistudio/load-all-components', loginModule.requireAuth, (req, res) => {
+  omnistudioModule.loadAllComponents(req, res);
+});
+
+/**
+ * @swagger
  * /api/omnistudio/global-data:
  *   get:
  *     summary: Get global OmniStudio component data
@@ -914,6 +993,118 @@ app.post('/api/omnistudio/load-all', loginModule.requireAuth, (req, res) => {
  */
 app.get('/api/omnistudio/global-data', loginModule.requireAuth, (req, res) => {
   omnistudioModule.getGlobalComponentData(req, res);
+});
+
+/**
+ * @swagger
+ * /api/omnistudio/redis/toggle:
+ *   post:
+ *     summary: Toggle Redis functionality on/off
+ *     description: Enable or disable Redis caching for OmniStudio components
+ *     tags: [OmniStudio]
+ *     security:
+ *       - sessionAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               enabled:
+ *                 type: boolean
+ *                 description: Whether to enable Redis functionality
+ *     responses:
+ *       200:
+ *         description: Redis status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 redisStatus:
+ *                   type: object
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
+app.post('/api/omnistudio/redis/toggle', loginModule.requireAuth, (req, res) => {
+  try {
+    const { enabled } = req.body;
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'enabled parameter must be a boolean'
+      });
+    }
+    
+    const newStatus = omnistudioModule.toggleRedis(enabled);
+    const redisStatus = omnistudioModule.getRedisStatus();
+    
+    res.json({
+      success: true,
+      message: `Redis functionality ${enabled ? 'enabled' : 'disabled'} successfully`,
+      data: {
+        redisStatus
+      }
+    });
+  } catch (error) {
+    console.error('❌ [REDIS-TOGGLE] Error toggling Redis:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to toggle Redis: ' + error.message
+    });
+  }
+});
+
+/**
+ * @swagger
+ * /api/omnistudio/redis/status:
+ *   get:
+ *     summary: Get current Redis status
+ *     description: Get the current Redis functionality status and availability
+ *     tags: [OmniStudio]
+ *     security:
+ *       - sessionAuth: []
+ *     responses:
+ *       200:
+ *         description: Redis status retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 redisStatus:
+ *                   type: object
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
+app.get('/api/omnistudio/redis/status', loginModule.requireAuth, (req, res) => {
+  try {
+    const redisStatus = omnistudioModule.getRedisStatus();
+    
+    res.json({
+      success: true,
+      data: {
+        redisStatus
+      }
+    });
+  } catch (error) {
+    console.error('❌ [REDIS-STATUS] Error getting Redis status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get Redis status: ' + error.message
+    });
+  }
 });
 
 app.get('/api/omnistudio/global-summary', loginModule.requireAuth, async (req, res) => {
@@ -1904,9 +2095,18 @@ const handleCacheContents = (req, res) => {
             break;
         }
         
-        const matches = components.filter(comp => 
-          comp.name.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+        const matches = components.filter(comp => {
+          if (componentType.toLowerCase() === 'integration-procedure' || componentType.toLowerCase() === 'ip') {
+            // For IPs, search by BOTH name AND procedureKey for flexibility
+            const searchLower = searchTerm.toLowerCase();
+            const nameMatch = comp.name && comp.name.toLowerCase().includes(searchLower);
+            const procedureKeyMatch = comp.procedureKey && comp.procedureKey.toLowerCase().includes(searchLower);
+            return nameMatch || procedureKeyMatch;
+          } else {
+            // For other components, search by name
+            return comp.name.toLowerCase().includes(searchTerm.toLowerCase());
+          }
+        });
         
         allCacheData[orgId].searchResults = matches.map(comp => ({
           name: comp.name,

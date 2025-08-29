@@ -80,6 +80,269 @@
   gap: 20px;
 }
 
+/* Free SOQL Editor Tab Styles */
+.free-soql-editor-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 20px;
+}
+
+.soql-editor-section {
+  flex-shrink: 0;
+  background: #f8fafc;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.soql-editor-section h4 {
+  margin: 0 0 16px 0;
+  color: #1e293b;
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.editor-container {
+  margin-bottom: 16px;
+}
+
+.soql-editor {
+  width: 100%;
+  min-height: 200px;
+  padding: 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  background: #f7fafc;
+  color: #2d3748;
+  transition: border-color 0.2s ease;
+}
+
+.soql-editor:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.soql-editor:disabled {
+  background: #edf2f7;
+  color: #a0aec0;
+  cursor: not-allowed;
+}
+
+.editor-help {
+  margin-top: 8px;
+  color: #6b7280;
+  font-style: italic;
+  font-size: 0.85em;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.execute-button {
+  background: #38a169;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.execute-button:hover:not(:disabled) {
+  background: #2f855a;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(56, 161, 105, 0.3);
+}
+
+.execute-button:disabled {
+  background: #a0aec0;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.clear-button {
+  background: #e53e3e;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clear-button:hover:not(:disabled) {
+  background: #c53030;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(229, 62, 62, 0.3);
+}
+
+.clear-button:disabled {
+  background: #a0aec0;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.executed-query-info {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.executed-query-info h5 {
+  margin: 0 0 12px 0;
+  color: #1e293b;
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.query-results-section {
+  margin-top: 20px;
+  flex-grow: 1;
+  background: #f8fafc;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  overflow-y: auto;
+}
+
+.query-results-section h5 {
+  margin: 0 0 15px 0;
+  color: #1e293b;
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.results-meta {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+}
+
+.results-count {
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.batches-info {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.query-complete {
+  background: #38a169;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.field-value {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+/* Dark Mode Support for Free SOQL Editor */
+.dashboard.dark-mode .free-soql-editor-content {
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .soql-editor-section {
+  background: #2d3748 !important;
+  border-color: #4a5568 !important;
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .soql-editor-section h4 {
+  color: #63b3ed !important;
+}
+
+.dashboard.dark-mode .soql-editor {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
+  border-color: #4a5568 !important;
+}
+
+.dashboard.dark-mode .soql-editor:focus {
+  border-color: #63b3ed !important;
+  box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.2) !important;
+}
+
+.dashboard.dark-mode .soql-editor:disabled {
+  background: #374151 !important;
+  color: #a0aec0 !important;
+}
+
+.dashboard.dark-mode .editor-help {
+  color: #a0aec0 !important;
+}
+
+.dashboard.dark-mode .executed-query-info {
+  background: #2d3748 !important;
+  border-color: #4a5568 !important;
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .executed-query-info h5 {
+  color: #63b3ed !important;
+}
+
+.dashboard.dark-mode .query-display {
+  background: #1a202c !important;
+  color: #68d391 !important;
+  border: 1px solid #2d3748 !important;
+}
+
+.dashboard.dark-mode .query-complete {
+  background: #38a169 !important;
+  color: white !important;
+}
+
+.dashboard.dark-mode .batches-info {
+  background: #d69e2e !important;
+  color: #1a202c !important;
+}
+
+.dashboard.dark-mode .progress-bar {
+  background: #4a5568 !important;
+}
+
+.dashboard.dark-mode .progress-fill {
+  background: linear-gradient(90deg, #63b3ed, #3182ce) !important;
+}
+
+.dashboard.dark-mode .loading-note {
+  color: #a0aec0 !important;
+}
+
 .query-section {
   flex-shrink: 0;
   background: #f8fafc;
@@ -210,6 +473,39 @@
   text-align: center;
   padding: 40px;
   font-size: 1.1em;
+}
+
+.loading-note {
+  margin-top: 8px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.loading-progress {
+  margin-top: 16px;
+  text-align: center;
+}
+
+.progress-bar {
+  width: 200px;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  margin: 0 auto 8px auto;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+  border-radius: 4px;
+  animation: progress-animation 2s ease-in-out infinite;
+}
+
+@keyframes progress-animation {
+  0% { width: 0%; }
+  50% { width: 70%; }
+  100% { width: 0%; }
 }
 
 .error-query {
@@ -420,6 +716,52 @@
 
 .dashboard.dark-mode .field-item,
 .dashboard.dark-mode .relationship-item,
+
+/* Mobile Responsive Design */
+@media (max-width: 768px) {
+  .sobject-subtabs {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .subtab-button {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .soql-editor {
+    min-height: 150px;
+    font-size: 13px;
+  }
+  
+  .editor-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .execute-button,
+  .clear-button {
+    width: 100%;
+  }
+  
+  .query-results-section {
+    padding: 16px;
+  }
+  
+  .results-table-container {
+    overflow-x: auto;
+  }
+  
+  .results-table {
+    font-size: 0.85em;
+  }
+  
+  .results-table th,
+  .results-table td {
+    padding: 6px 8px;
+    min-width: 100px;
+  }
+}
 .dashboard.dark-mode .property,
 .dashboard.dark-mode .permission {
   background: #374151 !important;

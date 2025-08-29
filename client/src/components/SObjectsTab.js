@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './SObjectsTab.css';
 import SObjectDetailsTab from './SObjectDetailsTab';
 import SObjectQueryTab from './SObjectQueryTab';
+import FreeSOQLEditorTab from './FreeSOQLEditorTab';
 
 const SObjectsTab = ({
   // State props
@@ -23,7 +24,7 @@ const SObjectsTab = ({
   const [dropdownSelection, setDropdownSelection] = useState('');
   
   // Sub-tab state
-  const [activeSubTab, setActiveSubTab] = useState('details'); // 'details' or 'query'
+  const [activeSubTab, setActiveSubTab] = useState('details'); // 'details', 'query', or 'free-soql'
 
   // Debounced search
   useEffect(() => {
@@ -220,6 +221,12 @@ const SObjectsTab = ({
                   >
                     🔍 SOQL Query
                   </button>
+                  <button 
+                    className={`subtab-button ${activeSubTab === 'free-soql' ? 'active' : ''}`}
+                    onClick={() => setActiveSubTab('free-soql')}
+                  >
+                    ✏️ Free SOQL Editor
+                  </button>
                 </div>
 
                 {/* Sub-tab Content */}
@@ -239,6 +246,11 @@ const SObjectsTab = ({
                     <SObjectQueryTab
                       selectedSObject={selectedSObject}
                     />
+                  )}
+
+                  {/* Free SOQL Editor Tab Content */}
+                  {activeSubTab === 'free-soql' && (
+                    <FreeSOQLEditorTab />
                   )}
                 </div>
               </div>

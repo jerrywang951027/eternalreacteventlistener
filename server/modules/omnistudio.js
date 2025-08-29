@@ -5,6 +5,7 @@ class OmnistudioModule {
     this.orgComponentsDataCache = new Map(); // Store components per org: orgId -> componentData
     this.componentHierarchy = new Map(); // Store hierarchical relationships
     this.redisModule = redisModule; // Redis integration for persistent caching
+    this.redisEnabled = false; // Default to disabled
   }
 
   /**
@@ -23,6 +24,26 @@ class OmnistudioModule {
     console.log(`🧹 [CACHE-CLEAR-ALL] Clearing all caches`);
     this.orgComponentsDataCache.clear();
     this.componentHierarchy.clear();
+  }
+
+  /**
+   * Toggle Redis functionality on/off
+   */
+  toggleRedis(enabled) {
+    this.redisEnabled = enabled;
+    console.log(`🔄 [REDIS-TOGGLE] Redis functionality ${enabled ? 'ENABLED' : 'DISABLED'}`);
+    return this.redisEnabled;
+  }
+
+  /**
+   * Get current Redis status
+   */
+  getRedisStatus() {
+    return {
+      enabled: this.redisEnabled,
+      available: this.redisModule && this.redisModule.isAvailable(),
+      moduleExists: !!this.redisModule
+    };
   }
 
   /**
@@ -49,10 +70,12 @@ class OmnistudioModule {
       throw new Error('Not authenticated with Salesforce');
     }
 
+
+
     const orgId = req.session.salesforce.organizationId;
 
-    // 🔍 REDIS INTEGRATION: Check Redis cache first
-    if (this.redisModule && this.redisModule.isAvailable()) {
+    // 🔍 REDIS INTEGRATION: Check Redis cache first (only if enabled)
+    if (this.redisEnabled && this.redisModule && this.redisModule.isAvailable()) {
       console.log(`🔍 [REDIS-CHECK] Checking Redis cache for org ${orgId}...`);
       const cachedData = await this.redisModule.getCachedComponentData(orgId);
       
@@ -75,6 +98,8 @@ class OmnistudioModule {
       } else {
         console.log(`📭 [REDIS-MISS] No cached data found in Redis for org ${orgId}, will load from Salesforce...`);
       }
+    } else if (!this.redisEnabled) {
+      console.log('🚫 [REDIS-DISABLED] Redis functionality is disabled, loading directly from Salesforce...');
     } else {
       console.log('⚠️ [REDIS-UNAVAILABLE] Redis not available, loading directly from Salesforce...');
     }
@@ -86,18 +111,21 @@ class OmnistudioModule {
     const connection = this.createConnection(req);
     console.log(`🔄 [OMNISTUDIO] Starting component loading from Salesforce at ${startTimestamp}...`);
 
-    // Load all components in parallel
-    const [integrationProcedures, omniscripts, dataMappers] = await Promise.all([
-      this.loadAllIntegrationProcedures(connection),
-      this.loadAllOmniscripts(connection), 
-      this.loadAllDataMappers(connection)
-    ]);
+    // Load all components sequentially in specific order: Data Mapper → Integration Procedure → OmniScript
+    console.log('📋 [SEQUENCE] 1/3: Loading Data Mappers...');
+    const dataMappers = await this.loadAllDataMappers(connection);
+    console.log(`✅ [SEQUENCE] Step 1 Complete: Loaded ${dataMappers.length} Data Mappers.`);
+    
+    console.log('📋 [SEQUENCE] 2/3: Loading Integration Procedures...');
+    const integrationProcedures = await this.loadAllIntegrationProcedures(connection);
+    console.log(`✅ [SEQUENCE] Step 2 Complete: Loaded ${integrationProcedures.length} Integration Procedures.`);
+    
+    console.log('📋 [SEQUENCE] 3/3: Loading OmniScripts...');
+    const omniscripts = await this.loadAllOmniscripts(connection);
+    console.log(`✅ [SEQUENCE] Step 3 Complete: Loaded ${omniscripts.length} OmniScripts.`);
 
     console.log(`📊 [OMNISTUDIO] Loaded: ${integrationProcedures.length} IPs, ${omniscripts.length} Omniscripts, ${dataMappers.length} Data Mappers`);
-    console.log('🔗 [OMNISTUDIO] Building hierarchical relationships...');
-
-    // Build hierarchical relationships
-    this.buildHierarchicalRelationships(integrationProcedures, omniscripts);
+    console.log('🔗 [OMNISTUDIO] Using new recursive algorithm for hierarchy building...');
 
     // End timing
     const endTime = new Date();
@@ -124,14 +152,13 @@ class OmnistudioModule {
     // Get org name from session if available
     const orgName = req.session?.salesforce?.orgName || null;
 
-    // OPTIMAL LOADING SEQUENCE: Data Mappers → IPs → OmniScripts
-    console.log('🔄 [RECURSIVE-EXPANSION] Starting recursive expansion in optimal sequence...');
-    console.log('📋 [SEQUENCE] 1/3: Data Mappers loaded (no expansion needed)');
+    // RECURSIVE ALGORITHM: Build full IP hierarchy as instructed
+    console.log('🔄 [RECURSIVE-ALGORITHM] Starting recursive IP hierarchy building using new algorithm...');
     
-    // STEP 2: Fully expand all Integration Procedures first
-    console.log('📋 [SEQUENCE] 2/3: Expanding all Integration Procedures with full hierarchy...');
-    const expandedIntegrationProcedures = await this.recursivelyExpandChildIPs(integrationProcedures, req);
-    console.log(`✅ [SEQUENCE] Step 2 Complete: Expanded ${expandedIntegrationProcedures.length} IPs with full hierarchy.`);
+    // STEP 2: Build full hierarchy for all Integration Procedures
+    console.log('📋 [SEQUENCE] 2/3: Building full IP hierarchy for all Integration Procedures...');
+    const expandedIntegrationProcedures = this.buildFullIPHierarchy(integrationProcedures);
+    console.log(`✅ [SEQUENCE] Step 2 Complete: Built full hierarchy for ${expandedIntegrationProcedures.length} IPs.`);
 
     // Store expanded IPs in cache immediately for OmniScript reuse
     this.orgComponentsDataCache.set(orgId, {
@@ -150,19 +177,20 @@ class OmnistudioModule {
       }
     });
 
-    // STEP 3: Expand all OmniScripts (reusing already expanded IPs)
-    console.log('📋 [SEQUENCE] 3/3: Expanding all OmniScripts with child IP hierarchy...');
-    const expandedOmniScripts = await this.recursivelyExpandOmniScripts(omniscripts, req);
-    console.log(`✅ [SEQUENCE] Step 3 Complete: Expanded ${expandedOmniScripts.length} OmniScripts with full hierarchy.`);
+    // STEP 3: Process OmniScripts (no hierarchy building needed - they are not IPs)
+    console.log('📋 [SEQUENCE] 3/3: Processing OmniScripts (no IP hierarchy building needed)...');
+    // OmniScripts don't need IP hierarchy building - they are different component types
+    const processedOmniScripts = omniscripts; // Store as-is, no hierarchy processing
+    console.log(`✅ [SEQUENCE] Step 3 Complete: Processed ${processedOmniScripts.length} OmniScripts (no hierarchy building).`);
 
-    // Final cache update with both expanded IPs and OmniScripts
+    // Final cache update with both expanded IPs and processed OmniScripts
     const finalComponentData = {
       integrationProcedures: expandedIntegrationProcedures,
-      omniscripts: expandedOmniScripts,
+      omniscripts: processedOmniScripts,
       dataMappers,
       hierarchy: Object.fromEntries(this.componentHierarchy),
       loadedAt: endTimestamp,
-      totalComponents: expandedIntegrationProcedures.length + expandedOmniScripts.length + dataMappers.length,
+      totalComponents: expandedIntegrationProcedures.length + processedOmniScripts.length + dataMappers.length,
       orgName,
       timing: {
         startTime: startTimestamp,
@@ -174,8 +202,8 @@ class OmnistudioModule {
 
     this.orgComponentsDataCache.set(orgId, finalComponentData);
 
-    // 💾 REDIS INTEGRATION: Cache the component data in Redis with 2-day expiration
-    if (this.redisModule && this.redisModule.isAvailable()) {
+    // 💾 REDIS INTEGRATION: Cache the component data in Redis with 2-day expiration (only if enabled)
+    if (this.redisEnabled && this.redisModule && this.redisModule.isAvailable()) {
       console.log(`💾 [REDIS-CACHE] Saving component data to Redis for org ${orgId}...`);
       try {
         const redisCacheResult = await this.redisModule.setCachedComponentData(orgId, finalComponentData);
@@ -188,6 +216,8 @@ class OmnistudioModule {
         console.error('❌ [REDIS-CACHE] Error caching component data in Redis:', redisError.message);
         console.log('⚠️ [REDIS-CACHE] Application will continue without Redis caching...');
       }
+    } else if (!this.redisEnabled) {
+      console.log('🚫 [REDIS-DISABLED] Redis caching is disabled, skipping Redis save...');
     }
 
     console.log('🎉 [RECURSIVE-EXPANSION] Complete! All components have full recursive hierarchy.');
@@ -235,71 +265,94 @@ class OmnistudioModule {
   /**
    * Load all Integration Procedures with full details
    */
-  async loadAllIntegrationProcedures(connection) {
-    // 🛠️ CRITICAL FIX: Remove subquery that limits results to 125 instead of 536
-    // Make query identical to search query to get ALL Integration Procedures
+    async loadAllIntegrationProcedures(connection) {
+    // 🚀 ENHANCED: Use single subquery to get all Integration Procedures with definitions in one request
+    // This avoids Promise.all() failures and leverages enhanced SOQL pagination
     const query = `
       SELECT Id, Name, vlocity_cmt__Type__c, vlocity_cmt__SubType__c, vlocity_cmt__Version__c,
-             vlocity_cmt__ProcedureKey__c, vlocity_cmt__IsActive__c
+             vlocity_cmt__ProcedureKey__c, vlocity_cmt__IsActive__c,
+             (SELECT Id, Name, vlocity_cmt__Sequence__c, vlocity_cmt__Content__c
+              FROM vlocity_cmt__OmniScriptDefinitions__r
+              ORDER BY vlocity_cmt__Sequence__c ASC)
       FROM vlocity_cmt__OmniScript__c 
       WHERE vlocity_cmt__IsProcedure__c=true AND vlocity_cmt__IsActive__c=true
       ORDER BY Name ASC
     `;
 
-    const result = await connection.query(query);
+    console.log(`🔍 [ENHANCED-QUERY] Executing single subquery for all Integration Procedures with definitions`);
     
-    console.log(`🔍 [FIXED-QUERY] loadAllIntegrationProcedures returned ${result.records.length} records (removed problematic subquery)`);
+    const startTime = Date.now();
     
-    // 🔍 DEBUG: Check if Partner_SalesOrder is now found
-    const partnerVersions = result.records.filter(r => r.Name === 'Partner_SalesOrder');
+    // Execute initial query and handle pagination like executeFreeSOQLQuery
+    const allRecords = [];
+    let currentResult = await connection.query(query);
+    let totalRecords = 0;
+    let batchCount = 0;
+    
+    // Add first batch of records
+    allRecords.push(...currentResult.records);
+    totalRecords = currentResult.totalSize;
+    batchCount++;
+    
+    console.log(`📦 [ENHANCED-BATCH] Batch ${batchCount}: Retrieved ${currentResult.records.length} Integration Procedures`);
+    
+    // Continue fetching records if there are more
+    while (currentResult.done === false && currentResult.nextRecordsUrl) {
+      try {
+        batchCount++;
+        currentResult = await connection.queryMore(currentResult.nextRecordsUrl);
+        allRecords.push(...currentResult.records);
+        console.log(`📦 [ENHANCED-BATCH] Batch ${batchCount}: Retrieved ${currentResult.records.length} records (Total: ${allRecords.length}/${totalRecords})`);
+        
+        // Safety check to prevent infinite loops
+        if (batchCount > 100) {
+          console.warn(`⚠️ [ENHANCED-SAFETY] Safety limit reached (${batchCount} batches). Stopping pagination.`);
+          break;
+        }
+        
+        // Add a small delay between batches to prevent overwhelming the API
+        if (currentResult.nextRecordsUrl) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      } catch (error) {
+        console.error(`❌ [ENHANCED-BATCH-ERROR] Error fetching batch ${batchCount}:`, error);
+        break;
+      }
+    }
+    
+    const queryDuration = Date.now() - startTime;
+    console.log(`✅ [ENHANCED-QUERY] Pagination completed. Total batches: ${batchCount}, Total records: ${allRecords.length}/${totalRecords} in ${queryDuration}ms`);
+    
+    // 🔍 DEBUG: Check if Partner_SalesOrder is found
+    const partnerVersions = allRecords.filter(r => r.Name === 'Partner_SalesOrder');
     if (partnerVersions.length > 0) {
-      console.log(`✅ [FIXED-SUCCESS] Found ${partnerVersions.length} Partner_SalesOrder versions in loadAll:`, partnerVersions.map(p => ({ Version: p.vlocity_cmt__Version__c, Id: p.Id })));
+      console.log(`✅ [ENHANCED-SUCCESS] Found ${partnerVersions.length} Partner_SalesOrder versions:`, 
+        partnerVersions.map(p => ({ 
+          Version: p.vlocity_cmt__Version__c, 
+          Id: p.Id,
+          Definitions: p.vlocity_cmt__OmniScriptDefinitions__r?.records?.length || 0
+        }))
+      );
     } else {
-      console.log(`❌ [STILL-MISSING] Partner_SalesOrder still not found in ${result.records.length} records`);
-      const similarNames = result.records.filter(r => r.Name.toLowerCase().includes('partner') || r.Name.toLowerCase().includes('sales')).slice(0, 10).map(r => r.Name);
+      console.log(`❌ [ENHANCED-MISSING] Partner_SalesOrder not found in ${allRecords.length} records`);
+      const similarNames = allRecords.filter(r => 
+        r.Name.toLowerCase().includes('partner') || r.Name.toLowerCase().includes('sales')
+      ).slice(0, 10).map(r => r.Name);
       console.log(`🔍 [SIMILAR-NAMES] Components with partner or sales:`, similarNames);
     }
     
-    // 🔍 DEBUG: Check if Partner_SalesOrder is in the results
-    const partnerSalesOrder = result.records.find(r => r.Name === 'Partner_SalesOrder');
-    if (partnerSalesOrder) {
-      console.log(`✅ [DEBUG-LOAD] Partner_SalesOrder FOUND in loadAll query:`, {
-        Id: partnerSalesOrder.Id,
-        Name: partnerSalesOrder.Name,
-        Type: partnerSalesOrder.vlocity_cmt__Type__c,
-        SubType: partnerSalesOrder.vlocity_cmt__SubType__c,
-        Version: partnerSalesOrder.vlocity_cmt__Version__c,
-        IsActive: partnerSalesOrder.vlocity_cmt__IsActive__c,
-        IsProcedure: partnerSalesOrder.vlocity_cmt__IsProcedure__c,
-        HasDefinitions: partnerSalesOrder.vlocity_cmt__OmniScriptDefinitions__r?.records?.length || 0
-      });
-    } else {
-      console.log(`❌ [DEBUG-LOAD] Partner_SalesOrder NOT FOUND in loadAll query results (${result.records.length} total records)`);
-      console.log(`🔍 [DEBUG-LOAD] First 5 IP names:`, result.records.slice(0, 5).map(r => r.Name));
-    }
+    // Process records sequentially to ensure proper order for recursive algorithm
+    const processStartTime = Date.now();
+    const processedRecords = [];
     
-    // Process records and load definitions on-demand for better performance
-    const processedRecords = await Promise.all(result.records.map(async (record) => {
+    for (let i = 0; i < allRecords.length; i++) {
+      const record = allRecords[i];
       try {
-        // Load definitions on-demand to avoid subquery performance issues
-        const definitionsQuery = `
-          SELECT Id, Name, vlocity_cmt__Sequence__c, vlocity_cmt__Content__c
-          FROM vlocity_cmt__OmniScriptDefinition__c
-          WHERE vlocity_cmt__OmniScriptId__c = '${record.Id}'
-          ORDER BY vlocity_cmt__Sequence__c ASC
-          LIMIT 1
-        `;
-        const definitionsResult = await connection.query(definitionsQuery);
-        
-        // Simulate the original subquery structure
-        record.vlocity_cmt__OmniScriptDefinitions__r = {
-          records: definitionsResult.records || []
-        };
-        
+        // The subquery already provides the definitions, no need for additional queries
         const processed = this.processComponentRecord(record, 'integration-procedure');
         
         if (record.Name === 'Partner_SalesOrder') {
-          console.log(`✅ [FIXED-PROCESSING] Successfully processing Partner_SalesOrder:`, {
+          console.log(`✅ [ENHANCED-PROCESSING] Successfully processing Partner_SalesOrder:`, {
             originalRecord: {
               Id: record.Id,
               Name: record.Name,
@@ -318,16 +371,22 @@ class OmnistudioModule {
           });
         }
         
-        return processed;
+        processedRecords.push(processed);
       } catch (error) {
-        console.log(`⚠️ [PROCESSING-ERROR] Error processing ${record.Name}:`, error.message);
-        return null;
+        console.log(`⚠️ [ENHANCED-PROCESSING-ERROR] Error processing ${record.Name}:`, error.message);
+        processedRecords.push(null);
       }
-    }));
+    }
     
     const validRecords = processedRecords.filter(Boolean);
     const finalPartner = validRecords.find(p => p && p.name === 'Partner_SalesOrder');
-    console.log(`🎯 [FIXED-FINAL] Partner_SalesOrder in final processed array: ${finalPartner ? 'FOUND with ' + finalPartner.steps.length + ' steps' : 'NOT FOUND'}`);
+    console.log(`🎯 [ENHANCED-FINAL] Partner_SalesOrder in final processed array: ${finalPartner ? 'FOUND with ' + finalPartner.steps.length + ' steps' : 'NOT FOUND'}`);
+    
+    const processDuration = Date.now() - processStartTime;
+    const totalDuration = Date.now() - startTime;
+    
+    console.log(`✅ [ENHANCED-COMPLETE] Successfully processed ${validRecords.length}/${allRecords.length} Integration Procedures`);
+    console.log(`⏱️ [ENHANCED-TIMING] Query: ${queryDuration}ms, Processing: ${processDuration}ms, Total: ${totalDuration}ms`);
     
     return validRecords;
   }
@@ -347,8 +406,48 @@ class OmnistudioModule {
       ORDER BY Name ASC
     `;
 
-    const result = await connection.query(query);
-    return result.records.map(record => this.processComponentRecord(record, 'omniscript'));
+    console.log(`🔍 [OMNISCRIPTS] Executing query for all OmniScripts with definitions`);
+    
+    // Execute initial query and handle pagination like executeFreeSOQLQuery
+    const allRecords = [];
+    let currentResult = await connection.query(query);
+    let totalRecords = 0;
+    let batchCount = 0;
+    
+    // Add first batch of records
+    allRecords.push(...currentResult.records);
+    totalRecords = currentResult.totalSize;
+    batchCount++;
+    
+    console.log(`📦 [OMNISCRIPTS-BATCH] Batch ${batchCount}: Retrieved ${currentResult.records.length} OmniScripts`);
+    
+    // Continue fetching records if there are more
+    while (currentResult.done === false && currentResult.nextRecordsUrl) {
+      try {
+        batchCount++;
+        currentResult = await connection.queryMore(currentResult.nextRecordsUrl);
+        allRecords.push(...currentResult.records);
+        console.log(`📦 [OMNISCRIPTS-BATCH] Batch ${batchCount}: Retrieved ${currentResult.records.length} records (Total: ${allRecords.length}/${totalRecords})`);
+        
+        // Safety check to prevent infinite loops
+        if (batchCount > 100) {
+          console.warn(`⚠️ [OMNISCRIPTS-SAFETY] Safety limit reached (${batchCount} batches). Stopping pagination.`);
+          break;
+        }
+        
+        // Add a small delay between batches to prevent overwhelming the API
+        if (currentResult.nextRecordsUrl) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      } catch (error) {
+        console.error(`❌ [OMNISCRIPTS-BATCH-ERROR] Error fetching batch ${batchCount}:`, error);
+        break;
+      }
+    }
+    
+    console.log(`✅ [OMNISCRIPTS] Pagination completed. Total batches: ${batchCount}, Total records: ${allRecords.length}/${totalRecords}`);
+    
+    return allRecords.map(record => this.processComponentRecord(record, 'omniscript', record.vlocity_cmt__ProcedureKey__c));
   }
 
   /**
@@ -361,8 +460,48 @@ class OmnistudioModule {
       ORDER BY Name ASC
     `;
 
-    const result = await connection.query(query);
-    return result.records.map(record => ({
+    console.log(`🔍 [DATA-MAPPERS] Executing query for all Data Mappers`);
+    
+    // Execute initial query and handle pagination like executeFreeSOQLQuery
+    const allRecords = [];
+    let currentResult = await connection.query(query);
+    let totalRecords = 0;
+    let batchCount = 0;
+    
+    // Add first batch of records
+    allRecords.push(...currentResult.records);
+    totalRecords = currentResult.totalSize;
+    batchCount++;
+    
+    console.log(`📦 [DATA-MAPPERS-BATCH] Batch ${batchCount}: Retrieved ${currentResult.records.length} Data Mappers`);
+    
+    // Continue fetching records if there are more
+    while (currentResult.done === false && currentResult.nextRecordsUrl) {
+      try {
+        batchCount++;
+        currentResult = await connection.queryMore(currentResult.nextRecordsUrl);
+        allRecords.push(...currentResult.records);
+        console.log(`📦 [DATA-MAPPERS-BATCH] Batch ${batchCount}: Retrieved ${currentResult.records.length} records (Total: ${allRecords.length}/${totalRecords})`);
+        
+        // Safety check to prevent infinite loops
+        if (batchCount > 100) {
+          console.warn(`⚠️ [DATA-MAPPERS-SAFETY] Safety limit reached (${batchCount} batches). Stopping pagination.`);
+          break;
+        }
+        
+        // Add a small delay between batches to prevent overwhelming the API
+        if (currentResult.nextRecordsUrl) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      } catch (error) {
+        console.error(`❌ [DATA-MAPPERS-BATCH-ERROR] Error fetching batch ${batchCount}:`, error);
+        break;
+      }
+    }
+    
+    console.log(`✅ [DATA-MAPPERS] Pagination completed. Total batches: ${batchCount}, Total records: ${allRecords.length}/${totalRecords}`);
+    
+    return allRecords.map(record => ({
       id: record.Id,
       name: record.Name,
       componentType: 'data-mapper',
@@ -376,7 +515,7 @@ class OmnistudioModule {
   /**
    * Process component record with full details
    */
-  processComponentRecord(record, componentType) {
+  processComponentRecord(record, componentType, currentPath = null) {
     const component = {
       id: record.Id,
       name: record.Name,
@@ -392,6 +531,8 @@ class OmnistudioModule {
       childComponents: [], // References to child components
       referencedBy: [] // Enhanced hierarchical tracking - where this component is referenced from
     };
+
+
 
     console.log(`🔧 [OMNISTUDIO] Processing ${componentType}: "${record.Name}" (Type: ${record.vlocity_cmt__Type__c}, SubType: ${record.vlocity_cmt__SubType__c})
     📋 [COMPONENT-DETAILS] Full component info:
@@ -426,7 +567,7 @@ class OmnistudioModule {
           
           // Extract steps with hierarchical structure
           if (parsedContent.children && Array.isArray(parsedContent.children)) {
-            component.steps = this.extractHierarchicalSteps(parsedContent.children, componentType, record.Name);
+            component.steps = this.extractHierarchicalSteps(parsedContent.children, componentType, record.Name, record.vlocity_cmt__ProcedureKey__c);
             
             console.log(`✅ [CONTENT] Completed processing ${parsedContent.children.length} children for ${componentType}: "${record.Name}"`);
           } else {
@@ -446,8 +587,181 @@ class OmnistudioModule {
     return component;
   }
 
+
+
   /**
-   * Build hierarchical relationships between components
+   * Process single IP structure recursively as per the algorithm with path tracking
+   */
+  processSingleIPStructure(rootIP, originalIPArray, currentPath = '') {
+    // 🔥 SPECIAL DEBUG: Track V8_IP_OE_AddEnrichmentProduct specifically
+    const isTargetIP = rootIP.procedureKey === 'V8_IP_OE_AddEnrichmentProduct' || rootIP.name === 'V8_IP_OE_AddEnrichmentProduct';
+    if (isTargetIP) {
+      console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-DEBUG] ===============================================`);
+      console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-DEBUG] ENTERING processSingleIPStructure for V8_IP_OE_AddEnrichmentProduct`);
+      console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-DEBUG] rootIP.name: "${rootIP.name}"`);
+      console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-DEBUG] rootIP.procedureKey: "${rootIP.procedureKey}"`);
+      console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-DEBUG] currentPath: "${currentPath || 'ROOT'}"`);
+      console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-DEBUG] processedIPHierachyArray.length: ${this.processedIPHierachyArray.length}`);
+      console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-DEBUG] ===============================================`);
+    }
+    
+    console.log(`    🔍 [PROCESS] Processing IP: ${rootIP.name} with path: ${currentPath || 'ROOT'}`);
+    
+    // 1. Check if this IP is already processed - if so, just add current path to referencedBy and skip
+    if (isTargetIP) {
+      console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-DEBUG] 🔍 SEARCHING FOR EXISTING IP:`);
+      console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-DEBUG] Searching for procedureKey: "${rootIP.procedureKey}"`);
+      console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-DEBUG] Array length: ${this.processedIPHierachyArray.length}`);
+      console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-DEBUG] First few IPs in array:`);
+      this.processedIPHierachyArray.slice(0, 5).forEach((ip, index) => {
+        console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-DEBUG]   [${index}] ${ip.name} -> procedureKey: "${ip.procedureKey}"`);
+      });
+    }
+    
+    const existingIPIndex = this.processedIPHierachyArray.findIndex(ip => ip.procedureKey === rootIP.procedureKey);
+    if (existingIPIndex !== -1) {
+      if (isTargetIP) {
+        console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-DEBUG] ⏭️ V8_IP_OE_AddEnrichmentProduct already exists at index ${existingIPIndex}`);
+        console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-DEBUG] Current referencedBy: ${JSON.stringify(this.processedIPHierachyArray[existingIPIndex].referencedBy)}`);
+      }
+      
+      console.log(`        ⏭️ [PROCESS] IP ${rootIP.name} already exists in processedIPHierachyArray, adding current path to referencedBy`);
+      
+      // Add current path to the existing IP's referencedBy array
+      if (!this.processedIPHierachyArray[existingIPIndex].referencedBy) {
+        this.processedIPHierachyArray[existingIPIndex].referencedBy = [];
+      }
+      
+      // 🔧 NEW: No referencedBy logic during hierarchy building - this will be handled in Phase 3 & 4
+      // Just return the existing IP, references will be stamped separately
+      
+      // Return the existing processed IP
+      return this.processedIPHierachyArray[existingIPIndex];
+    }
+    
+    // Clone the root IP to avoid modifying the original
+    const processedIP = JSON.parse(JSON.stringify(rootIP));
+    
+    // Initialize referencedBy array if it doesn't exist
+    if (!processedIP.referencedBy) {
+      processedIP.referencedBy = [];
+    }
+    
+    // 🔧 NEW: No referencedBy logic during hierarchy building - this will be handled in Phase 3 & 4
+    // Just build the structure, references will be stamped separately
+    
+    // If this IP has steps, process them recursively with updated path
+    if (processedIP.steps && processedIP.steps.length > 0) {
+      // Build the new path for child IPs: currentPath + current IP
+      const newPath = currentPath ? `${currentPath}-${rootIP.procedureKey}` : rootIP.procedureKey;
+      processedIP.steps = this.processStepsRecursively(processedIP.steps, originalIPArray, newPath);
+    }
+    
+    // Mark as fully processed
+    processedIP.fullyExpanded = true;
+    
+    // 🔧 FIX: Add this processed IP to the global array immediately
+    // This ensures child IPs are available for lookup in subsequent processing
+    this.processedIPHierachyArray.push(processedIP);
+    
+    return processedIP;
+  }
+
+  /**
+   * Process steps recursively, handling child steps and grandchild steps with path tracking
+   */
+  processStepsRecursively(steps, originalIPArray, currentPath = '') {
+    const processedSteps = [];
+    
+    for (const step of steps) {
+      const processedStep = JSON.parse(JSON.stringify(step));
+      
+      // Handle child step which may contain grandchild steps like "Conditional block", "Cached Block", "Integration Procedure"
+      if (step.integrationProcedureKey && step.integrationProcedureKey !== 'undefined' && step.integrationProcedureKey !== '') {
+        const childIPName = step.integrationProcedureKey;
+        
+        // 🔥 SPECIAL DEBUG: Track when V8_IP_OE_AddEnrichmentProduct is referenced
+        const isReferencingTargetIP = childIPName === 'V8_IP_OE_AddEnrichmentProduct';
+        if (isReferencingTargetIP) {
+          console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-REFERENCE-DEBUG] ===============================================`);
+          console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-REFERENCE-DEBUG] V8_IP_OE_AddEnrichmentProduct is being referenced!`);
+          console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-REFERENCE-DEBUG] Step name: "${step.name}"`);
+          console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-REFERENCE-DEBUG] Step type: "${step.type}"`);
+          console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-REFERENCE-DEBUG] Current path: "${currentPath}"`);
+          console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-REFERENCE-DEBUG] ===============================================`);
+        }
+        
+        // Check processedIPHierachyArray to see if entry for child IP already exists
+        // IMPORTANT: Search by procedureKey since that's what steps reference
+        let existingChildIP = this.processedIPHierachyArray.find(ip => ip.procedureKey === childIPName);
+        
+        if (existingChildIP) {
+          // If exists, then just copy its entire structure under rootIP
+          console.log(`        📋 [PROCESS] Found existing child IP: ${childIPName} (procedureKey: ${existingChildIP.procedureKey}), copying structure`);
+          processedStep.childIPStructure = existingChildIP;
+          processedStep.hasExpandedStructure = true;
+          
+          if (isReferencingTargetIP) {
+            console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-REFERENCE-DEBUG] 📋 V8_IP_OE_AddEnrichmentProduct already exists in processedIPHierachyArray`);
+            console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-REFERENCE-DEBUG] Current referencedBy: ${JSON.stringify(existingChildIP.referencedBy)}`);
+          }
+          
+          // 🔧 NEW: No referencedBy logic during hierarchy building - this will be handled in Phase 3 & 4
+          // Just copy the structure, references will be stamped separately
+        } else {
+          // If it does not exist, then recursively invoke processSingleIPStructure on such child IP
+          console.log(`        🔄 [PROCESS] Child IP not found: ${childIPName}, processing recursively with path: ${currentPath}`);
+          
+          if (isReferencingTargetIP) {
+            console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-REFERENCE-DEBUG] 🔄 V8_IP_OE_AddEnrichmentProduct not found, will process recursively`);
+          }
+          
+          // Find the child IP in the original array by procedureKey
+          const childIP = originalIPArray.find(ip => ip.procedureKey === childIPName);
+          
+          if (childIP) {
+            // Recursively process the child IP with the current path
+            const processedChildIP = this.processSingleIPStructure(childIP, originalIPArray, currentPath);
+            
+            // 🔧 FIX: Use the returned object (which may be from global array) instead of creating new
+            // This ensures we're working with the same object that has the updated referencedBy
+            processedStep.childIPStructure = processedChildIP;
+            processedStep.hasExpandedStructure = true;
+            
+            console.log(`        ✅ [PROCESS] Successfully processed child IP: ${childIPName} with ${processedChildIP.steps?.length || 0} steps`);
+            
+            if (isReferencingTargetIP) {
+              console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-REFERENCE-DEBUG] ✅ V8_IP_OE_AddEnrichmentProduct processed recursively`);
+              console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-REFERENCE-DEBUG] Final referencedBy: ${JSON.stringify(processedChildIP.referencedBy)}`);
+            }
+            
+
+          } else {
+            console.warn(`        ⚠️ [PROCESS] Child IP not found in original array: ${childIPName}`);
+            console.warn(`        🔍 [PROCESS] Available IPs in array: ${originalIPArray.slice(0, 5).map(ip => `${ip.name}(${ip.procedureKey})`).join(', ')}...`);
+          }
+        }
+        
+
+      }
+      
+      // Recursively process sub-steps and block steps if they exist with the same path
+      if (step.subSteps && step.subSteps.length > 0) {
+        processedStep.subSteps = this.processStepsRecursively(step.subSteps, originalIPArray, currentPath);
+      }
+      
+      if (step.blockSteps && step.blockSteps.length > 0) {
+        processedStep.blockSteps = this.processStepsRecursively(step.blockSteps, originalIPArray, currentPath);
+      }
+      
+      processedSteps.push(processedStep);
+    }
+    
+    return processedSteps;
+  }
+
+  /**
+   * Build hierarchical relationships between components (legacy method - kept for compatibility)
    */
   buildHierarchicalRelationships(allComponents) {
     console.log('🔗 [OMNISTUDIO] Building hierarchical relationships...');
@@ -579,9 +893,9 @@ class OmnistudioModule {
   }
 
   /**
-   * Extract hierarchical steps with block support
+   * Extract hierarchical steps with block support and IP reference path tracking
    */
-  extractHierarchicalSteps(children, componentType, containerName = 'Unknown') {
+  extractHierarchicalSteps(children, componentType, containerName = 'Unknown', currentProcedureKey = '') {
     const steps = [];
 
     const processStep = (child, parentLevel = 0, parentBlockType = null, childIndex = -1) => {
@@ -636,6 +950,11 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
         hasChildren: child.children && child.children.length > 0
       };
 
+      // 🔧 FIX: Preserve the entire propSetMap for frontend access
+      if (child.propSetMap) {
+        step.propSetMap = child.propSetMap;
+      }
+
       // Extract conditions
       if (child.propSetMap) {
         if (child.propSetMap.executionConditionalFormula) {
@@ -653,6 +972,23 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
         
         if (step.integrationProcedureKey && step.integrationProcedureKey !== 'undefined' && step.integrationProcedureKey !== '') {
           console.log(`    🔑 [IP-KEY] Step "${step.name}" has integrationProcedureKey: "${step.integrationProcedureKey}"`);
+          
+          // 🔧 NEW: Add referencedBy path tracking for IP references
+          if (currentProcedureKey) {
+            if (!step.referencedBy) {
+              step.referencedBy = [];
+            }
+            const referencePath = `${currentProcedureKey}-${step.integrationProcedureKey}`;
+            step.referencedBy.push({
+              path: referencePath,
+              timestamp: new Date().toISOString(),
+              type: 'ip-reference-path',
+              parentIP: currentProcedureKey,
+              childIP: step.integrationProcedureKey
+            });
+            console.log(`    ➕ [REFERENCED-BY] Added reference path "${referencePath}" to step "${step.name}"`);
+          }
+          
           // 🔧 FIX: Mark IP reference steps as expandable (only if not already a block)
           if (!step.blockType || step.blockType === 'None') {
             step.hasChildren = true;
@@ -1209,7 +1545,7 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
   }
 
   /**
-   * Search for omnistudio components by name (real-time API endpoint)
+   * Search for omnistudio components by name (using cached data - PREFERRED METHOD)
    */
   async searchComponents(req, res) {
     try {
@@ -1220,7 +1556,6 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
         });
       }
 
-      const connection = this.createConnection(req);
       const { componentType, searchTerm = '' } = req.query;
 
       if (!componentType) {
@@ -1230,73 +1565,72 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
         });
       }
 
+      // Get cached data instead of making real-time SOQL queries
+      const orgId = req.session.salesforce.organizationId;
+      const cachedData = this.orgComponentsDataCache.get(orgId);
+      
+      if (!cachedData) {
+        return res.status(404).json({
+          success: false,
+          message: 'No cached component data found. Please load components first.'
+        });
+      }
+
       let instances = [];
 
       switch (componentType) {
         case 'integration-procedure':
-          const ipQuery = `SELECT Id,Name,vlocity_cmt__Type__c,vlocity_cmt__SubType__c,vlocity_cmt__IsProcedure__c,vlocity_cmt__ProcedureKey__c,vlocity_cmt__Version__c
-                          FROM vlocity_cmt__OmniScript__c 
-                          WHERE vlocity_cmt__IsProcedure__c=true AND vlocity_cmt__IsActive__c=true ${searchTerm ? `AND Name LIKE '%${searchTerm}%'` : ''}
-                          ORDER BY Name ASC LIMIT 1000`;
-          
-          console.log(`🔍 [OMNISTUDIO] Executing search query: ${ipQuery}`);
-          const ipResult = await connection.query(ipQuery);
-          
-          instances = ipResult.records.map(record => {
-            const uniqueId = `${record.vlocity_cmt__Type__c}_${record.vlocity_cmt__SubType__c}`;
-            return {
-              id: record.Id,
-              name: record.Name,
-              uniqueId: uniqueId,
-              type: record.vlocity_cmt__Type__c,
-              subtype: record.vlocity_cmt__SubType__c,
-              procedureKey: record.vlocity_cmt__ProcedureKey__c,
-              version: record.vlocity_cmt__Version__c,
+          // Search in cached integration procedures by BOTH name AND procedureKey for flexibility
+          instances = cachedData.integrationProcedures
+            .filter(ip => {
+              if (!searchTerm) return true;
+              const searchLower = searchTerm.toLowerCase();
+              const nameMatch = ip.name && ip.name.toLowerCase().includes(searchLower);
+              const procedureKeyMatch = ip.procedureKey && ip.procedureKey.toLowerCase().includes(searchLower);
+              return nameMatch || procedureKeyMatch;
+            })
+            .map(ip => ({
+              id: ip.id,
+              name: ip.name,
+              uniqueId: ip.uniqueId,
+              type: ip.type,
+              subtype: ip.subType,
+              procedureKey: ip.procedureKey,
+              version: ip.version,
               componentType: 'integration-procedure'
-            };
-          });
+            }))
+            .slice(0, 1000); // Limit results
           break;
 
         case 'omniscript':
-          const osQuery = `SELECT Id,Name,vlocity_cmt__Type__c,vlocity_cmt__SubType__c,vlocity_cmt__IsProcedure__c,vlocity_cmt__ProcedureKey__c,vlocity_cmt__Version__c
-                          FROM vlocity_cmt__OmniScript__c 
-                          WHERE vlocity_cmt__IsProcedure__c=false AND vlocity_cmt__IsActive__c=true ${searchTerm ? `AND Name LIKE '%${searchTerm}%'` : ''}
-                          ORDER BY Name ASC LIMIT 1000`;
-          
-          console.log(`🔍 [OMNISTUDIO] Executing search query: ${osQuery}`);
-          const osResult = await connection.query(osQuery);
-          
-          instances = osResult.records.map(record => {
-            const uniqueId = `${record.vlocity_cmt__Type__c}_${record.vlocity_cmt__SubType__c}`;
-            return {
-              id: record.Id,
-              name: record.Name,
-              uniqueId: uniqueId,
-              type: record.vlocity_cmt__Type__c,
-              subtype: record.vlocity_cmt__SubType__c,
-              version: record.vlocity_cmt__Version__c,
+          // Search in cached omniscripts
+          instances = cachedData.omniscripts
+            .filter(os => !searchTerm || os.name.toLowerCase().includes(searchTerm.toLowerCase()))
+            .map(os => ({
+              id: os.id,
+              name: os.name,
+              uniqueId: os.uniqueId,
+              type: os.type,
+              subtype: os.subType,
+              version: os.version,
               componentType: 'omniscript'
-            };
-          });
+            }))
+            .slice(0, 1000); // Limit results
           break;
 
         case 'data-mapper':
-          const dmQuery = `SELECT Id,Name,vlocity_cmt__Type__c,vlocity_cmt__Version__c
-                          FROM vlocity_cmt__DRBundle__c 
-                          WHERE vlocity_cmt__IsActive__c=true ${searchTerm ? `AND Name LIKE '%${searchTerm}%'` : ''}
-                          ORDER BY Name ASC LIMIT 1000`;
-          
-          console.log(`🔍 [OMNISTUDIO] Executing search query: ${dmQuery}`);
-          const dmResult = await connection.query(dmQuery);
-          
-          instances = dmResult.records.map(record => ({
-            id: record.Id,
-            name: record.Name,
-            uniqueId: record.Name,
-            type: record.vlocity_cmt__Type__c,
-            version: record.vlocity_cmt__Version__c,
-            componentType: 'data-mapper'
-          }));
+          // Search in cached data mappers
+          instances = cachedData.dataMappers
+            .filter(dm => !searchTerm || dm.name.toLowerCase().includes(searchTerm.toLowerCase()))
+            .map(dm => ({
+              id: dm.id,
+              name: dm.name,
+              uniqueId: dm.uniqueId,
+              type: dm.type,
+              version: dm.version,
+              componentType: 'data-mapper'
+            }))
+            .slice(0, 1000); // Limit results
           break;
 
         default:
@@ -1306,14 +1640,57 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
           });
       }
 
-      console.log(`✅ [OMNISTUDIO] Search completed: Found ${instances.length} ${componentType} components`);
+      // 🔧 FIX: Deduplicate results to prevent duplicate records
+      if (componentType === 'integration-procedure') {
+        const uniqueInstances = [];
+        const seenProcedureKeys = new Set();
+        
+        instances.forEach(ip => {
+          if (!seenProcedureKeys.has(ip.procedureKey)) {
+            seenProcedureKeys.add(ip.procedureKey);
+            uniqueInstances.push(ip);
+          } else {
+            console.log(`⚠️ [SEARCH-DEDUP] Skipping duplicate IP with procedureKey: "${ip.procedureKey}"`);
+          }
+        });
+        
+        instances = uniqueInstances;
+        console.log(`🔧 [SEARCH-DEDUP] Deduplicated from ${instances.length + seenProcedureKeys.size - uniqueInstances.length} to ${uniqueInstances.length} unique IPs`);
+      } else if (componentType === 'omniscript') {
+        const uniqueInstances = [];
+        const seenNames = new Set();
+        
+        instances.forEach(os => {
+          if (!seenNames.has(os.name)) {
+            seenNames.add(os.name);
+            uniqueInstances.push(os);
+          } else {
+            console.log(`⚠️ [SEARCH-DEDUP] Skipping duplicate OmniScript with name: "${os.name}"`);
+          }
+        });
+        
+        instances = uniqueInstances;
+        console.log(`🔧 [SEARCH-DEDUP] Deduplicated from ${instances.length + seenNames.size - uniqueInstances.length} to ${uniqueInstances.length} unique OmniScripts`);
+      }
+      
+      console.log(`✅ [OMNISTUDIO] Search completed: Found ${instances.length} ${componentType} components in cached data`);
+      
+      // Debug: Log what we found for integration procedures
+      if (componentType === 'integration-procedure' && searchTerm) {
+        console.log(`🔍 [SEARCH-DEBUG] Searching by name OR procedureKey: "${searchTerm}"`);
+        console.log(`🔍 [SEARCH-DEBUG] Found ${instances.length} IPs:`);
+        instances.forEach((ip, idx) => {
+          console.log(`  [${idx + 1}] Name: "${ip.name}", ProcedureKey: "${ip.procedureKey}"`);
+        });
+      }
 
       res.json({
         success: true,
         instances,
         searchTerm,
         componentType,
-        totalFound: instances.length
+        totalFound: instances.length,
+        fromCache: true
       });
 
     } catch (error) {
@@ -1635,6 +2012,11 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
         hasChildren: child.children && child.children.length > 0
       };
 
+      // 🔧 FIX: Preserve the entire propSetMap for frontend access
+      if (child.propSetMap) {
+        step.propSetMap = child.propSetMap;
+      }
+
       // Extract execution condition
       if (child.propSetMap && child.propSetMap.executionConditionalFormula) {
         step.executionCondition = child.propSetMap.executionConditionalFormula;
@@ -1821,9 +2203,9 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
   }
 
   /**
-   * Extract hierarchical steps with block support
+   * Extract hierarchical steps with block support and IP reference path tracking
    */
-  extractHierarchicalSteps(children, componentType, containerName = 'Unknown') {
+  extractHierarchicalSteps(children, componentType, containerName = 'Unknown', currentProcedureKey = '') {
     const steps = [];
 
     const processStep = (child, parentLevel = 0, parentBlockType = null, childIndex = -1) => {
@@ -1852,6 +2234,11 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
         hasChildren: child.children && child.children.length > 0
       };
 
+      // 🔧 FIX: Preserve the entire propSetMap for frontend access
+      if (child.propSetMap) {
+        step.propSetMap = child.propSetMap;
+      }
+
       // Extract conditions
       if (child.propSetMap) {
         if (child.propSetMap.executionConditionalFormula) {
@@ -1869,6 +2256,23 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
         
         if (step.integrationProcedureKey && step.integrationProcedureKey !== 'undefined' && step.integrationProcedureKey !== '') {
           console.log(`    🔑 [IP-KEY] Step "${step.name}" has integrationProcedureKey: "${step.integrationProcedureKey}"`);
+          
+          // 🔧 NEW: Add referencedBy path tracking for IP references
+          if (currentProcedureKey) {
+            if (!step.referencedBy) {
+              step.referencedBy = [];
+            }
+            const referencePath = `${currentProcedureKey}-${step.integrationProcedureKey}`;
+            step.referencedBy.push({
+              path: referencePath,
+              timestamp: new Date().toISOString(),
+              type: 'ip-reference-path',
+              parentIP: currentProcedureKey,
+              childIP: step.integrationProcedureKey
+            });
+            console.log(`    ➕ [REFERENCED-BY] Added reference path "${referencePath}" to step "${step.name}"`);
+          }
+          
           // 🔧 FIX: Mark IP reference steps as expandable (only if not already a block)
           if (!step.blockType || step.blockType === 'None') {
             step.hasChildren = true;
@@ -2192,7 +2596,7 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
       
       // Process the child IP using our existing logic
       const record = result.records[0];
-      const childIP = this.processComponentRecord(record, 'integration-procedure');
+      const childIP = this.processComponentRecord(record, 'integration-procedure', ipName);
       
       console.log(`✅ [CHILD-IP] Successfully processed child IP: "${ipName}" with ${childIP.steps.length} steps`);
       
@@ -2266,7 +2670,7 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
       
       // Process the component using our existing logic (includes conditional block fixes!)
       const record = result.records[0];
-      const component = this.processComponentRecord(record, componentType);
+      const component = this.processComponentRecord(record, componentType, instanceName);
       
       console.log(`✅ [DETAILS] Successfully processed ${componentType}: "${instanceName}" with ${component.steps.length} steps`);
       
@@ -2331,246 +2735,362 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
 
 
   /**
-   * Recursively expand all child IPs to create full hierarchy (OPTIMIZED)
+   * IMPLEMENTATION OF THE RECURSIVE ALGORITHM AS INSTRUCTED
+   */
+  buildFullIPHierarchy(originalIPArray) {
+    console.log(`🚀 [ALGORITHM] Starting recursive IP hierarchy building for ${originalIPArray.length} IPs`);
+    
+    // Initialize the processed IP hierarchy array as a global static variable
+    // Always reset for a fresh build to prevent duplication
+    this.processedIPHierachyArray = [];
+    console.log(`🔄 [ALGORITHM] Reset processedIPHierachyArray for fresh build`);
+    
+    // Iterate through originalIPArray
+    for (let i = 0; i < originalIPArray.length; i++) {
+      const rootIP = originalIPArray[i];
+      if (i % 50 === 0 || i === originalIPArray.length - 1) {
+        console.log(`⚡ [ALGORITHM] Processing IP ${i + 1}/${originalIPArray.length}: ${rootIP.name}`);
+      }
+      
+      // Process single IP structure recursively with initial path (root IP)
+      // 🔧 NEW: No referencedBy logic during hierarchy building - just build the structure
+      const processedIP = this.processSingleIPStructure(rootIP, originalIPArray, rootIP.procedureKey);
+      
+      // 🔒 SAFEGUARD: Check for duplicates before adding
+      const existingIndex = this.processedIPHierachyArray.findIndex(ip => 
+        ip.procedureKey === processedIP.procedureKey || 
+        ip.id === processedIP.id
+      );
+      
+      if (existingIndex === -1) {
+        this.processedIPHierachyArray.push(processedIP);
+        console.log(`✅ [ALGORITHM] Added IP: ${processedIP.name} (${processedIP.procedureKey})`);
+      } else {
+        console.log(`⚠️ [ALGORITHM] Skipped duplicate IP: ${processedIP.name} (${processedIP.procedureKey}) - already exists at index ${existingIndex}`);
+      }
+    }
+    
+    console.log(`✅ [ALGORITHM] Completed recursive hierarchy building for ${this.processedIPHierachyArray.length} IPs`);
+    
+    // 🔒 FINAL SAFEGUARD: Remove any duplicates that might have slipped through
+    const uniqueIPs = [];
+    const seenKeys = new Set();
+    let duplicatesRemoved = 0;
+    
+    this.processedIPHierachyArray.forEach(ip => {
+      const key = ip.procedureKey || ip.id;
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        uniqueIPs.push(ip);
+      } else {
+        duplicatesRemoved++;
+        console.log(`⚠️ [ALGORITHM] Removed duplicate IP: ${ip.name} (${key})`);
+      }
+    });
+    
+    if (duplicatesRemoved > 0) {
+      console.log(`🔒 [ALGORITHM] Final deduplication: Removed ${duplicatesRemoved} duplicates`);
+      this.processedIPHierachyArray = uniqueIPs;
+    }
+    
+    console.log(`✅ [ALGORITHM] Final result: ${this.processedIPHierachyArray.length} unique IPs`);
+    
+    // 🔧 NEW: Decoupled reference path stamping - Phase 3 & 4
+    console.log('🔗 [REFERENCE-STAMPING] Starting decoupled reference path stamping...');
+    this.stampAllIPReferencePaths();
+    this.stampAllOmniScriptReferencePaths();
+    
+    return this.processedIPHierachyArray;
+  }
+
+  /**
+   * 🔧 NEW: Decoupled IP reference path stamping - Phase 3
+   * This method iterates all IPs and recursively processes each child + descendants
+   * Stamping reference paths within global array for every encountered child IP at any level
+   */
+  stampAllIPReferencePaths() {
+    console.log(`🔗 [REFERENCE-STAMPING] Phase 3: Stamping reference paths for all IPs and their descendants...`);
+    
+    let totalPathsStamped = 0;
+    
+    // Iterate through all IPs in the global array
+    this.processedIPHierachyArray.forEach(rootIP => {
+      if (!rootIP.steps || rootIP.steps.length === 0) return;
+      
+      // Recursively process this IP's steps and stamp reference paths
+      const pathsStamped = this.stampIPReferencePathsRecursively(rootIP.steps, rootIP.procedureKey, rootIP.procedureKey);
+      totalPathsStamped += pathsStamped;
+      
+      if (pathsStamped > 0) {
+        console.log(`🔗 [REFERENCE-STAMPING] Stamped ${pathsStamped} reference paths for IP: ${rootIP.name}`);
+      }
+    });
+    
+    console.log(`✅ [REFERENCE-STAMPING] Phase 3 Complete: Stamped ${totalPathsStamped} reference paths across all IPs`);
+  }
+
+  /**
+   * 🔧 NEW: Recursively stamp reference paths for IP steps and their descendants
+   * This method processes every step and stamps reference paths for every child IP encountered
+   */
+  stampIPReferencePathsRecursively(steps, currentIPKey, currentPath) {
+    let pathsStamped = 0;
+    
+    steps.forEach(step => {
+      // Check for direct IP references
+      if (step.integrationProcedureKey && step.integrationProcedureKey !== 'undefined' && step.integrationProcedureKey !== '') {
+        const childIPKey = step.integrationProcedureKey;
+        
+        // Find the child IP in the global array
+        const childIP = this.processedIPHierachyArray.find(ip => ip.procedureKey === childIPKey);
+        
+        if (childIP) {
+          // Initialize referencedBy array if it doesn't exist
+          if (!childIP.referencedBy) {
+            childIP.referencedBy = [];
+          }
+          
+          // Build the reference path: Current Path -> Child IP
+          const referencePath = `${currentPath}-${childIPKey}`;
+          
+          // Check if this reference path already exists
+          const pathExists = childIP.referencedBy.some(ref => ref.path === referencePath);
+          
+          if (!pathExists) {
+            // Stamp the reference path
+            childIP.referencedBy.push({
+              path: referencePath,
+              timestamp: new Date().toISOString(),
+              type: 'hierarchical-reference',
+              referencingIP: currentPath, // 🔧 FIX: Show full hierarchical path, not just direct parent
+              stepName: step.name,
+              stepType: step.type
+            });
+            
+            pathsStamped++;
+            
+            // Special logging for our target IP
+            if (childIP.procedureKey === 'V8_IP_OE_AddEnrichmentProduct') {
+              console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-STAMP] ➕ Stamped path: ${referencePath} from ${currentIPKey}`);
+            }
+          }
+          
+          // Recursively process the child IP's steps with the new path
+          if (childIP.steps && childIP.steps.length > 0) {
+            const childPathsStamped = this.stampIPReferencePathsRecursively(
+              childIP.steps, 
+              childIPKey, 
+              referencePath
+            );
+            pathsStamped += childPathsStamped;
+          }
+        }
+      }
+      
+      // Recursively process sub-steps
+      if (step.subSteps && step.subSteps.length > 0) {
+        const subPathsStamped = this.stampIPReferencePathsRecursively(
+          step.subSteps, 
+          currentIPKey, 
+          currentPath
+        );
+        pathsStamped += subPathsStamped;
+      }
+      
+      // Recursively process block steps
+      if (step.blockSteps && step.blockSteps.length > 0) {
+        const blockPathsStamped = this.stampIPReferencePathsRecursively(
+          step.blockSteps, 
+          currentIPKey, 
+          currentPath
+        );
+        pathsStamped += blockPathsStamped;
+      }
+      
+      // Recursively process child IP structures
+      if (step.childIPStructure && step.childIPStructure.steps) {
+        const childPathsStamped = this.stampIPReferencePathsRecursively(
+          step.childIPStructure.steps, 
+          currentIPKey, 
+          currentPath
+        );
+        pathsStamped += childPathsStamped;
+      }
+    });
+    
+    return pathsStamped;
+  }
+
+  /**
+   * 🔧 NEW: Decoupled OmniScript reference path stamping - Phase 4
+   * This method iterates all OmniScripts and recursively processes each child + descendants
+   * Stamping reference paths within global array for every encountered child IP/OS at any level
+   */
+  stampAllOmniScriptReferencePaths() {
+    console.log(`🔗 [REFERENCE-STAMPING] Phase 4: Stamping reference paths for all OmniScripts and their descendants...`);
+    
+    // Get the current org's cached data to access OmniScripts
+    const orgIds = Array.from(this.orgComponentsDataCache.keys());
+    if (orgIds.length === 0) {
+      console.log('⚠️ [REFERENCE-STAMPING] No org data found, skipping OmniScript analysis');
+      return;
+    }
+    
+    const orgId = orgIds[0]; // Use the first org for now
+    const orgData = this.orgComponentsDataCache.get(orgId);
+    
+    if (!orgData || !orgData.omniscripts) {
+      console.log('⚠️ [REFERENCE-STAMPING] No OmniScript data found, skipping analysis');
+      return;
+    }
+    
+    let totalPathsStamped = 0;
+    
+    // Iterate through all OmniScripts
+    orgData.omniscripts.forEach(omniscript => {
+      if (!omniscript.steps || omniscript.steps.length === 0) return;
+      
+      // Recursively process this OmniScript's steps and stamp reference paths
+      const pathsStamped = this.stampOmniScriptReferencePathsRecursively(
+        omniscript.steps, 
+        omniscript.name, 
+        omniscript.name
+      );
+      totalPathsStamped += pathsStamped;
+      
+      if (pathsStamped > 0) {
+        console.log(`🔗 [REFERENCE-STAMPING] Stamped ${pathsStamped} reference paths for OmniScript: ${omniscript.name}`);
+      }
+    });
+    
+    console.log(`✅ [REFERENCE-STAMPING] Phase 4 Complete: Stamped ${totalPathsStamped} reference paths across all OmniScripts`);
+  }
+
+  /**
+   * 🔧 NEW: Recursively stamp reference paths for OmniScript steps and their descendants
+   * This method processes every step and stamps reference paths for every child IP/OS encountered
+   */
+  stampOmniScriptReferencePathsRecursively(steps, currentOmniScriptName, currentPath) {
+    let pathsStamped = 0;
+    
+    steps.forEach(step => {
+      // Check for IP references
+      if (step.integrationProcedureKey && step.integrationProcedureKey !== 'undefined' && step.integrationProcedureKey !== '') {
+        const childIPKey = step.integrationProcedureKey;
+        
+        // Find the child IP in the global array
+        const childIP = this.processedIPHierachyArray.find(ip => ip.procedureKey === childIPKey);
+        
+        if (childIP) {
+          // Initialize referencedBy array if it doesn't exist
+          if (!childIP.referencedBy) {
+            childIP.referencedBy = [];
+          }
+          
+          // Build the reference path: OmniScript -> Child IP
+          const referencePath = `${currentPath}-${childIPKey}`;
+          
+          // Check if this reference path already exists
+          const pathExists = childIP.referencedBy.some(ref => ref.path === referencePath);
+          
+          if (!pathExists) {
+            // Stamp the reference path
+            childIP.referencedBy.push({
+              path: referencePath,
+              timestamp: new Date().toISOString(),
+              type: 'omniscript-reference',
+              referencingOmniScript: currentPath, // 🔧 FIX: Show full hierarchical path, not just OmniScript name
+              stepName: step.name,
+              stepType: step.type
+            });
+            
+            pathsStamped++;
+            
+            // Special logging for our target IP
+            if (childIP.procedureKey === 'V8_IP_OE_AddEnrichmentProduct') {
+              console.log(`🔥 [V8_IP_OE_AddEnrichmentProduct-STAMP] ➕ Stamped OmniScript path: ${referencePath} from ${currentOmniScriptName}`);
+            }
+          }
+          
+          // Recursively process the child IP's steps with the new path
+          if (childIP.steps && childIP.steps.length > 0) {
+            const childPathsStamped = this.stampIPReferencePathsRecursively(
+              childIP.steps, 
+              childIPKey, 
+              referencePath
+            );
+            pathsStamped += childPathsStamped;
+          }
+        }
+      }
+      
+      // Recursively process sub-steps
+      if (step.subSteps && step.subSteps.length > 0) {
+        const subPathsStamped = this.stampOmniScriptReferencePathsRecursively(
+          step.subSteps, 
+          currentOmniScriptName, 
+          currentPath
+        );
+        pathsStamped += subPathsStamped;
+      }
+      
+      // Recursively process block steps
+      if (step.blockSteps && step.blockSteps.length > 0) {
+        const blockPathsStamped = this.stampOmniScriptReferencePathsRecursively(
+          step.blockSteps, 
+          currentOmniScriptName, 
+          currentPath
+        );
+        pathsStamped += blockPathsStamped;
+      }
+    });
+    
+    return pathsStamped;
+  }
+
+  /**
+   * STUB: This method should not be called anymore
    */
   async recursivelyExpandChildIPs(integrationProcedures, req) {
-    const startTime = Date.now();
-    const expandedIPs = [];
-    const processedIPs = new Map(); // Track processed IPs to avoid infinite recursion
-    const sharedIPCache = new Map(); // OPTIMIZATION: Shared cache to avoid duplicate SOQL queries
-    let soqlQueryCount = 0;
-    
-    console.log(`🚀 [PERFORMANCE] Starting optimized recursive expansion for ${integrationProcedures.length} IPs`);
-    
-    for (let i = 0; i < integrationProcedures.length; i++) {
-      const ip = integrationProcedures[i];
-      if (i % 50 === 0 || i === integrationProcedures.length - 1) {
-        console.log(`⚡ [PROGRESS] Processing IP ${i + 1}/${integrationProcedures.length}: ${ip.name} (SOQL queries so far: ${soqlQueryCount})`);
-      }
-      
-      const expandedIP = await this.expandSingleIPRecursively(ip, req, processedIPs, 0, sharedIPCache);
-      expandedIPs.push(expandedIP);
-      soqlQueryCount = sharedIPCache.get('__SOQL_COUNT__') || 0;
-    }
-    
-    const duration = Date.now() - startTime;
-    console.log(`🎯 [PERFORMANCE] Completed IP expansion: ${duration}ms, ${soqlQueryCount} SOQL queries, ${expandedIPs.length} IPs processed`);
-    
-    return expandedIPs;
+    console.log(`🚫 [STUB] recursivelyExpandChildIPs called - this should not happen!`);
+    console.log(`🚫 [STUB] Returning original components without modification`);
+    return integrationProcedures;
   }
 
   /**
-   * Recursively expand a single IP with all its child IPs (OPTIMIZED)
+   * STUB: This method should not be called anymore
    */
   async expandSingleIPRecursively(ip, req, processedIPs, depth = 0, sharedIPCache = new Map()) {
-    const maxDepth = 10; // Prevent infinite recursion
-    
-    if (depth > maxDepth) {
-      if (depth === maxDepth + 1) console.warn(`⚠️ [RECURSIVE-EXPANSION] Max recursion depth reached for IP: ${ip.name}`);
-      return ip;
-    }
-
-    if (processedIPs.has(ip.name)) {
-      return processedIPs.get(ip.name);
-    }
-
-    // Only log every 10th IP at depth 0 to reduce noise
-    if (depth === 0 && Math.random() < 0.1) {
-      console.log(`🔍 [RECURSIVE-EXPANSION] Expanding IP: ${ip.name} (depth: ${depth})`);
-    }
-    
-    // Clone the IP to avoid modifying the original
-    const expandedIP = JSON.parse(JSON.stringify(ip));
-    
-    // Mark as being processed to avoid circular references
-    processedIPs.set(ip.name, expandedIP);
-
-    if (expandedIP.steps) {
-      expandedIP.steps = await this.expandStepsRecursively(expandedIP.steps, req, processedIPs, depth + 1, 'ip', sharedIPCache);
-    }
-
-    expandedIP.fullyExpanded = true;
-    return expandedIP;
+    console.log(`🚫 [STUB] expandSingleIPRecursively called - this should not happen!`);
+    console.log(`🚫 [STUB] Returning original IP without modification`);
+    return ip;
   }
 
   /**
-   * Recursively expand steps that contain child IPs (HEAVILY OPTIMIZED)
+   * STUB: This method should not be called anymore
    */
   async expandStepsRecursively(steps, req, processedIPs, depth, contextType = 'ip', sharedIPCache = new Map()) {
-    const expandedSteps = [];
-    const contextLabel = contextType === 'omniscript' ? 'OMNISCRIPT-EXPANSION' : 'RECURSIVE-EXPANSION';
-    
-    for (const step of steps) {
-      const expandedStep = JSON.parse(JSON.stringify(step));
-      
-      // Check if this step has a child IP reference
-      if (step.blockType === 'ip-reference' && step.referencedIP) {
-        const ipName = step.referencedIP;
-        
-        try {
-          let childIPStructure = null;
-          let cacheHit = false;
-          
-          // OPTIMIZED PRIORITY 1: Check shared IP cache FIRST (fastest)
-          if (sharedIPCache.has(ipName)) {
-            childIPStructure = sharedIPCache.get(ipName);
-            cacheHit = true;
-          }
-          
-          // OPTIMIZED PRIORITY 2: Check current processing cache 
-          else if (processedIPs.has(ipName)) {
-            childIPStructure = processedIPs.get(ipName);
-            sharedIPCache.set(ipName, childIPStructure); // Cache for future use
-            cacheHit = true;
-          }
-          
-          // OPTIMIZED PRIORITY 3: Check global cache
-          else {
-            const orgId = req.session.salesforce.organizationId;
-            const globalCache = this.orgComponentsDataCache.get(orgId);
-            
-            if (globalCache && globalCache.integrationProcedures) {
-              const existingIP = globalCache.integrationProcedures.find(ip => ip.name === ipName);
-              if (existingIP) {
-                childIPStructure = existingIP;
-                childIPStructure.fullyExpanded = true;
-                sharedIPCache.set(ipName, childIPStructure); // Cache for future use
-                cacheHit = true;
-              }
-            }
-          }
-          
-          // LAST RESORT: Load from Salesforce (track queries)
-          if (!childIPStructure) {
-            // Increment SOQL counter
-            const currentCount = sharedIPCache.get('__SOQL_COUNT__') || 0;
-            sharedIPCache.set('__SOQL_COUNT__', currentCount + 1);
-            
-            // Only log every 10th SOQL query to reduce noise
-            if (currentCount % 10 === 0) {
-              console.log(`🔄 [${contextLabel}] SOQL query #${currentCount + 1}: Loading ${ipName} from Salesforce`);
-            }
-            
-            childIPStructure = await this.loadChildIPFromSalesforce(ipName, req);
-            
-            if (childIPStructure) {
-              // For OmniScript context, expand recursively
-              if (contextType === 'omniscript') {
-                childIPStructure = await this.expandSingleIPRecursively(childIPStructure, req, processedIPs, depth + 1, sharedIPCache);
-              }
-              childIPStructure.fullyExpanded = true;
-              sharedIPCache.set(ipName, childIPStructure); // Cache for future use
-            }
-          }
-          
-          // Add the fully expanded child IP structure to the step
-          if (childIPStructure) {
-            expandedStep.childIPStructure = childIPStructure;
-            expandedStep.hasExpandedStructure = true;
-            
-            // Only log cache misses or every 20th cache hit
-            if (!cacheHit || Math.random() < 0.05) {
-              const source = cacheHit ? 'CACHE HIT' : 'SALESFORCE';
-              console.log(`📦 [${contextLabel}] Added child IP ${ipName} (${source}) with ${childIPStructure.steps?.length || 0} steps`);
-            }
-          } else {
-            console.warn(`⚠️ [${contextLabel}] Could not load child IP: ${ipName}`);
-          }
-          
-        } catch (error) {
-          console.error(`❌ [${contextLabel}] Error expanding child IP ${step.referencedIP}:`, error.message);
-        }
-      }
-      
-      // Recursively expand sub-steps if they exist
-      if (step.subSteps && step.subSteps.length > 0) {
-        expandedStep.subSteps = await this.expandStepsRecursively(step.subSteps, req, processedIPs, depth, contextType, sharedIPCache);
-      }
-      
-      // Recursively expand block steps if they exist
-      if (step.blockSteps && step.blockSteps.length > 0) {
-        expandedStep.blockSteps = await this.expandStepsRecursively(step.blockSteps, req, processedIPs, depth, contextType, sharedIPCache);
-      }
-      
-      expandedSteps.push(expandedStep);
-    }
-    
-    return expandedSteps;
+    console.log(`🚫 [STUB] expandStepsRecursively called - this should not happen!`);
+    console.log(`🚫 [STUB] Returning original steps without modification`);
+    return steps;
   }
 
   /**
-   * Recursively expand all OmniScripts to include full child IP hierarchy (OPTIMIZED)
+   * STUB: This method should not be called anymore
    */
   async recursivelyExpandOmniScripts(omniscripts, req) {
-    const startTime = Date.now();
-    const expandedOmniScripts = [];
-    const processedOmniScripts = new Map(); // Track processed OmniScripts
-    const sharedIPCache = new Map(); // OPTIMIZATION: Reuse cache from IP expansion phase
-    
-    console.log(`🚀 [PERFORMANCE] Starting optimized OmniScript expansion for ${omniscripts.length} OmniScripts`);
-    
-    // Copy existing IP cache if available (reuse from previous IP expansion)
-    const orgId = req.session.salesforce.organizationId;
-    const globalCache = this.orgComponentsDataCache.get(orgId);
-    if (globalCache && globalCache.integrationProcedures) {
-      for (const ip of globalCache.integrationProcedures) {
-        if (ip.fullyExpanded) {
-          sharedIPCache.set(ip.name, ip);
-        }
-      }
-      console.log(`📋 [CACHE-SEED] Pre-seeded OmniScript cache with ${sharedIPCache.size} already expanded IPs`);
-    }
-    
-    for (let i = 0; i < omniscripts.length; i++) {
-      const omniscript = omniscripts[i];
-      if (i % 20 === 0 || i === omniscripts.length - 1) {
-        const soqlCount = sharedIPCache.get('__SOQL_COUNT__') || 0;
-        console.log(`⚡ [PROGRESS] Processing OmniScript ${i + 1}/${omniscripts.length}: ${omniscript.name} (SOQL: ${soqlCount})`);
-      }
-      
-      const expandedOmniScript = await this.expandSingleOmniScriptRecursively(omniscript, req, processedOmniScripts, 0, sharedIPCache);
-      expandedOmniScripts.push(expandedOmniScript);
-    }
-    
-    const duration = Date.now() - startTime;
-    const soqlCount = sharedIPCache.get('__SOQL_COUNT__') || 0;
-    console.log(`🎯 [PERFORMANCE] Completed OmniScript expansion: ${duration}ms, ${soqlCount} additional SOQL queries, ${expandedOmniScripts.length} OmniScripts processed`);
-    
-    return expandedOmniScripts;
+    console.log(`🚫 [STUB] recursivelyExpandOmniScripts called - this should not happen!`);
+    console.log(`🚫 [STUB] Returning original components without modification`);
+    return omniscripts;
   }
 
   /**
-   * Recursively expand a single OmniScript with all its child IPs (OPTIMIZED)
+   * STUB: This method should not be called anymore
    */
   async expandSingleOmniScriptRecursively(omniscript, req, processedOmniScripts, depth = 0, sharedIPCache = new Map()) {
-    const maxDepth = 10; // Prevent infinite recursion
-    
-    if (depth > maxDepth) {
-      if (depth === maxDepth + 1) console.warn(`⚠️ [OMNISCRIPT-EXPANSION] Max recursion depth reached for OmniScript: ${omniscript.name}`);
-      return omniscript;
-    }
-
-    if (processedOmniScripts.has(omniscript.name)) {
-      return processedOmniScripts.get(omniscript.name);
-    }
-
-    // Only log occasionally to reduce noise
-    if (depth === 0 && Math.random() < 0.05) {
-      console.log(`🔍 [OMNISCRIPT-EXPANSION] Expanding OmniScript: ${omniscript.name} (depth: ${depth})`);
-    }
-    
-    // Clone the OmniScript to avoid modifying the original
-    const expandedOmniScript = JSON.parse(JSON.stringify(omniscript));
-    
-    // Mark as being processed to avoid circular references
-    processedOmniScripts.set(omniscript.name, expandedOmniScript);
-
-    if (expandedOmniScript.steps) {
-      // Reuse the same step expansion logic, but with OmniScript context and shared cache
-      expandedOmniScript.steps = await this.expandStepsRecursively(expandedOmniScript.steps, req, new Map(), depth + 1, 'omniscript', sharedIPCache);
-    }
-
-    return expandedOmniScript;
+    console.log(`🚫 [STUB] expandSingleOmniScriptRecursively called - this should not happen!`);
+    console.log(`🚫 [STUB] Returning original OmniScript without modification`);
+    return omniscript;
   }
 
   /**
@@ -2619,49 +3139,124 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
           });
       }
 
-      // Find the component by name (case insensitive)
-      component = componentArray.find(comp => 
-        comp.name.toLowerCase() === instanceName.toLowerCase()
-      );
+      // Find the component by name OR procedureKey (for Integration Procedures)
+      if (componentType === 'integration-procedure') {
+        // For IPs, search by both name AND procedureKey to handle URL mismatches
+        component = componentArray.find(comp => 
+          comp.name.toLowerCase() === instanceName.toLowerCase() ||
+          (comp.procedureKey && comp.procedureKey.toLowerCase() === instanceName.toLowerCase())
+        );
+        
+        if (component) {
+          console.log(`🔍 [CACHED-COMPONENT] Found IP "${instanceName}" by ${component.name.toLowerCase() === instanceName.toLowerCase() ? 'name' : 'procedureKey'}`);
+        }
+      } else {
+        // For other components, search by name only
+        component = componentArray.find(comp => 
+          comp.name.toLowerCase() === instanceName.toLowerCase()
+        );
+      }
 
       if (!component) {
+        let errorMessage = `Component "${instanceName}" not found in cached data`;
+        
+        if (componentType === 'integration-procedure') {
+          errorMessage += `. Searched by both name and procedureKey. Available IPs: ${componentArray.slice(0, 5).map(ip => `${ip.name}(${ip.procedureKey})`).join(', ')}...`;
+        }
+        
         return res.status(404).json({
           success: false,
-          message: `Component "${instanceName}" not found in cached data`
+          message: errorMessage
         });
       }
 
       console.log(`📦 [CACHED-COMPONENT] Serving ${componentType} "${instanceName}" from cache with ${component.steps?.length || 0} steps`);
       
+      // Always apply our algorithm to expand child IPs for components that have IP references
+      let expandedComponent = component;
+      if (component.steps && component.steps.length > 0) {
+        // Check if this component has any IP references that need expansion
+        const hasIPReferences = component.steps.some(step => 
+          step.integrationProcedureKey && step.integrationProcedureKey !== 'undefined' && step.integrationProcedureKey !== ''
+        );
+        
+        if (hasIPReferences) {
+          console.log(`🔄 [CACHED-COMPONENT] Applying recursive algorithm to expand child IPs for "${instanceName}"`);
+          
+          // Get the global data to find child IPs
+          const globalData = this.orgComponentsDataCache.get(req.session.salesforce.organizationId);
+          if (globalData && globalData.integrationProcedures) {
+            if (componentType === 'integration-procedure') {
+              // For Integration Procedures, find the already processed IP from the cache
+              // NO NEED to call buildFullIPHierarchy again - it's already been processed!
+              const existingIP = globalData.integrationProcedures.find(ip => 
+                ip.id === component.id || 
+                ip.name === component.name || 
+                (component.procedureKey && ip.procedureKey === component.procedureKey)
+              );
+              if (existingIP) {
+                expandedComponent = existingIP;
+                console.log(`✅ [CACHED-COMPONENT] Found existing processed IP "${instanceName}" in cache (no re-processing needed)`);
+              }
+            } else if (componentType === 'omniscript') {
+              // For Omniscripts, we don't need IP hierarchy building - they reference IPs but don't build IP hierarchies
+              console.log(`🔄 [CACHED-COMPONENT] Processing Omniscript "${instanceName}" - no IP hierarchy building needed`);
+              
+              // OmniScripts can reference IPs but don't need to go through IP hierarchy building
+              // The child IP references are already available in the steps
+              expandedComponent = component;
+              console.log(`✅ [CACHED-COMPONENT] Omniscript "${instanceName}" processed without IP hierarchy building`);
+            }
+          }
+        }
+      }
+      
       // Check if component has fully expanded child IPs
-      const hasExpandedChildren = component.steps?.some(step => 
-        step.blockType === 'ip-reference' && step.hasExpandedStructure
+      const hasExpandedChildren = expandedComponent.steps?.some(step => 
+        (step.blockType === 'ip-reference' && step.hasExpandedStructure) ||
+        (step.integrationProcedureKey && step.hasExpandedStructure)
       ) || false;
 
       // FRONTEND COMPATIBILITY: Transform cached data to match expected frontend format
       const transformedComponent = {
-        id: component.id,
-        name: component.name,
+        id: expandedComponent.id,
+        name: expandedComponent.name,
         componentType: componentType,
-        componentName: component.name,
+        componentName: expandedComponent.name,
         
         // Add summary object in expected format
         summary: {
-          id: component.id,
-          name: component.name,
-          type: component.type,
-          subType: component.subType,
-          version: component.version,
-          language: component.language || 'en_US',
-          isActive: component.isActive || true,
-          childrenCount: component.steps?.length || 0,
-          steps: component.steps || [],  // ← This is what frontend expects
+          id: expandedComponent.id,
+          name: expandedComponent.name,
+          type: expandedComponent.type,
+          subType: expandedComponent.subType,
+          version: expandedComponent.version,
+          language: expandedComponent.language || 'en_US',
+          isActive: expandedComponent.isActive || true,
+          childrenCount: expandedComponent.steps?.length || 0,
+          steps: expandedComponent.steps || [],  // ← This is what frontend expects
           hierarchy: [],
           blockStructure: null
         },
         
+        // Add expanded child IP structures to the main component for frontend access
+        expandedSteps: expandedComponent.steps?.map(step => {
+          console.log(`🔍 [DEBUG] Processing step: ${step.name}`);
+          console.log(`  - hasExpandedStructure: ${step.hasExpandedStructure}`);
+          console.log(`  - has childIPStructure: ${!!step.childIPStructure}`);
+          console.log(`  - integrationProcedureKey: ${step.integrationProcedureKey}`);
+          console.log(`  - step keys: ${Object.keys(step).join(', ')}`);
+          
+          if (step.hasExpandedStructure && step.childIPStructure) {
+            console.log(`✅ [DEBUG] Step ${step.name} has expanded structure: ${step.childIPStructure.name}`);
+            // Return step as-is - childIPStructure already contains all the needed data
+            return step;
+          }
+          return step;
+        }) || expandedComponent.steps || [],
+        
         // Keep original data for compatibility
-        ...component
+        ...expandedComponent
       };
 
       res.json({
@@ -2669,46 +3264,50 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
         component: transformedComponent,
         fromCache: true,
         fullyExpanded: component.fullyExpanded || hasExpandedChildren,
-        expandedChildrenCount: this.countExpandedChildren(component),
+        expandedChildrenCount: this.countExpandedChildren(expandedComponent),
         message: hasExpandedChildren ? 
           'Component served from cache with fully expanded child IP hierarchy' : 
-          'Component served from cache'
+          'Component served from cache (no child IP hierarchy expanded)'
       });
-
     } catch (error) {
       console.error(`❌ [CACHED-COMPONENT] Error serving cached component:`, error);
       res.status(500).json({
         success: false,
-        message: 'Failed to retrieve cached component data',
-        error: error.message
+        message: 'Failed to serve cached component: ' + error.message
       });
     }
   }
 
   /**
-   * Count expanded children in a component (for debugging/info)
+   * Count expanded children in a component
    */
   countExpandedChildren(component) {
+    if (!component.steps || component.steps.length === 0) {
+      return 0;
+    }
+
     let count = 0;
     
     const countInSteps = (steps) => {
-      if (!steps) return;
-      
-      for (const step of steps) {
-        if (step.blockType === 'ip-reference' && step.hasExpandedStructure) {
+      steps.forEach(step => {
+        // Check for our new algorithm's expanded structure
+        if (step.hasExpandedStructure && step.childIPStructure) {
           count++;
-          // Recursively count in child IP structure
-          if (step.childIPStructure && step.childIPStructure.steps) {
+          // Recursively count children of children
+          if (step.childIPStructure.steps && step.childIPStructure.steps.length > 0) {
             countInSteps(step.childIPStructure.steps);
           }
         }
-        
-        // Check sub-steps and block steps
-        if (step.subSteps) countInSteps(step.subSteps);
-        if (step.blockSteps) countInSteps(step.blockSteps);
-      }
+        // Also check for legacy format for backward compatibility
+        else if (step.hasChildComponent && step.childHierarchy) {
+          count++;
+          if (step.childHierarchy.steps && step.childHierarchy.steps.length > 0) {
+            countInSteps(step.childHierarchy.steps);
+          }
+        }
+      });
     };
-    
+
     countInSteps(component.steps);
     return count;
   }
@@ -2744,7 +3343,7 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
       
       // Process the child IP using our existing logic
       const record = result.records[0];
-      const childIP = this.processComponentRecord(record, 'integration-procedure');
+      const childIP = this.processComponentRecord(record, 'integration-procedure', ipName);
       
       console.log(`✅ [RECURSIVE-EXPANSION] Successfully loaded child IP: ${ipName} with ${childIP.steps?.length || 0} steps`);
       return childIP;
@@ -2757,3 +3356,4 @@ ${child.children[0].eleArray.slice(0, 3).map((item, i) =>
 }
 
 module.exports = OmnistudioModule;
+

@@ -298,6 +298,13 @@
   color: #6b7280;
 }
 
+.instance-procedure-key {
+  background: #fef3c7;
+  color: #92400e;
+  font-family: 'Courier New', monospace;
+  font-size: 0.7rem;
+}
+
 .instance-description {
   font-size: 0.875rem;
   color: #6b7280;
@@ -390,6 +397,151 @@
   overflow: hidden;
 }
 
+/* Steps Header with Controls */
+.steps-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.steps-header h5 {
+  margin: 0;
+  color: #374151;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* Step Controls */
+.step-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.step-control-btn {
+  padding: 8px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.step-control-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  transform: translateY(-1px);
+}
+
+.expand-all-btn {
+  background: #ecfdf5;
+  border-color: #10b981;
+  color: #065f46;
+}
+
+.expand-all-btn:hover {
+  background: #d1fae5;
+  border-color: #059669;
+}
+
+.expand-all-btn:disabled {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  color: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.expand-all-btn:disabled:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  transform: none;
+}
+
+.collapse-all-btn {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.collapse-all-btn:hover {
+  background: #fde68a;
+  border-color: #d97706;
+}
+
+/* Step Search */
+.step-search-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.step-search-input {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  width: 200px;
+  background: white;
+  color: #374151;
+  transition: border-color 0.2s ease;
+}
+
+.step-search-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.step-search-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 3px;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+}
+
+.step-search-clear:hover {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+/* Step Highlighting */
+.step-highlighted {
+  background: #fef3c7 !important;
+  border: 2px solid #f59e0b !important;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.3) !important;
+  animation: highlightPulse 2s ease-in-out infinite;
+}
+
+@keyframes highlightPulse {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.5);
+  }
+}
+
 .steps-list {
   flex: 1;
   overflow-y: auto;
@@ -468,6 +620,135 @@
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
 }
 
+
+
+/* Referenced By Section Styles */
+.referenced-by-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.referenced-by-info {
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.referenced-by-info p {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.referenced-by-loading,
+.referenced-by-error,
+.referenced-by-empty {
+  padding: 20px;
+  text-align: center;
+  color: #64748b;
+}
+
+.referenced-by-list {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.references-header {
+  padding: 12px 16px;
+  background: #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
+  font-weight: 600;
+  color: #334155;
+  font-size: 14px;
+}
+
+.reference-item {
+  padding: 16px;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background-color 0.2s ease;
+}
+
+.reference-item:hover {
+  background: #f8fafc;
+}
+
+.reference-item:last-child {
+  border-bottom: none;
+}
+
+.reference-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.reference-path {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 14px;
+}
+
+.reference-type {
+  background: #e0e7ff;
+  color: #3730a3;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.reference-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.reference-timestamp {
+  background: #f0f9ff;
+  color: #0369a1;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.referencing-ip {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.referencing-omniscript {
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.step-name {
+  color: #475569;
+  font-weight: 500;
+}
+
+.step-path {
+  background: #f1f5f9;
+  color: #64748b;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 11px;
+}
+
 .detail-item,
 .summary-item {
   display: flex;
@@ -521,16 +802,33 @@
   border-radius: 6px;
   border-left: 3px solid #0176D3;
   overflow: hidden;
-  min-height: 36px; /* Reduced minimum height for tighter spacing */
+  min-height: 48px; /* Ensure consistent height for alignment */
   flex-shrink: 0; /* Prevent items from shrinking */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .step-item.sub-step {
-  margin-left: 20px;
+  margin-left: 16px; /* Consistent with level-1 indentation */
   border-left-color: #64748b;
   background: #f1f5f9;
-  min-height: 32px; /* Reduced minimum height for sub-steps */
+  min-height: 40px; /* Slightly smaller but still consistent */
   font-size: 0.95em; /* Sub-steps are slightly smaller */
+  position: relative;
+}
+
+.step-item.sub-step::before {
+  content: '';
+  position: absolute;
+  left: -16px;
+  top: 50%;
+  width: 12px;
+  height: 2px; /* Make connector more visible */
+  background: #64748b; /* Use a more visible color */
+  transform: translateY(-50%);
+  z-index: 1; /* Ensure connector is visible */
 }
 
 /* Fix child component alignment and positioning 
@@ -543,17 +841,24 @@
 /* Child components should align with siblings, not get extra indentation */
 .child-component-steps {
   margin-left: 0; /* No extra margin for the container */
-  padding-left: 20px; /* Provide indentation via padding instead */
+  padding-left: 16px; /* Consistent with level-1 indentation */
 }
 
 .ip-reference-steps {
   margin-left: 0; /* No extra margin for the container */
-  padding-left: 20px; /* Provide indentation via padding instead */
+  padding-left: 16px; /* Consistent with level-1 indentation */
 }
 
 .step-block-steps {
   margin-left: 0; /* No extra margin for the container */
-  padding-left: 32px; /* Increased indentation for block steps */
+  padding-left: 16px; /* Consistent with level-1 indentation */
+}
+
+/* Force container indentation to work */
+.step-block-steps,
+.child-component-steps,
+.ip-reference-steps {
+  padding-left: 16px !important; /* Force container indentation */
 }
 
 /* Reset only sub-step margins within these containers, not level margins */
@@ -571,49 +876,49 @@
 
 /* Allow normal level-based indentation within child components */
 .child-component-steps .step-item.level-1 {
-  margin-left: 20px; /* Restore normal level indentation */
+  margin-left: 16px !important; /* Force level indentation */
 }
 
 .child-component-steps .step-item.level-2 {
-  margin-left: 40px;
+  margin-left: 32px !important;
 }
 
 .child-component-steps .step-item.level-3 {
-  margin-left: 60px;
+  margin-left: 48px !important;
 }
 
 .child-component-steps .step-item.level-4 {
-  margin-left: 80px;
+  margin-left: 64px !important;
 }
 
 /* Same for IP references */
 .ip-reference-steps .step-item.level-1 {
-  margin-left: 20px;
+  margin-left: 16px !important;
 }
 
 .ip-reference-steps .step-item.level-2 {
-  margin-left: 40px;
+  margin-left: 32px !important;
 }
 
 .ip-reference-steps .step-item.level-3 {
-  margin-left: 60px;
+  margin-left: 48px !important;
 }
 
 .ip-reference-steps .step-item.level-4 {
-  margin-left: 80px;
+  margin-left: 64px !important;
 }
 
 /* Same for block steps */
 .step-block-steps .step-item.level-1 {
-  margin-left: 20px;
+  margin-left: 16px !important;
 }
 
 .step-block-steps .step-item.level-2 {
-  margin-left: 40px;
+  margin-left: 32px !important;
 }
 
 .step-block-steps .step-item.level-3 {
-  margin-left: 60px;
+  margin-left: 48px !important;
 }
 
 .step-block-steps .step-item.level-4 {
@@ -629,6 +934,18 @@
   word-wrap: break-word;
   overflow-wrap: break-word;
   position: relative; /* For absolute positioning of toggles */
+}
+
+.step-header::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: 50%;
+  width: 4px;
+  height: 20px;
+  background: #0176D3;
+  border-radius: 2px;
+  transform: translateY(-50%);
 }
 
 .step-accordion-toggle {
@@ -749,6 +1066,25 @@
   transform: scale(1.2);
 }
 
+.lwc-override-indicator {
+  font-size: 1rem;
+  cursor: help;
+  color: #8b5cf6;
+  transition: transform 0.2s ease, color 0.2s ease;
+  margin-left: 8px;
+  background: rgba(139, 92, 246, 0.1);
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.lwc-override-indicator:hover {
+  transform: scale(1.2);
+  color: #7c3aed;
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
 .remote-class,
 .remote-method {
   font-size: 0.75rem;
@@ -783,13 +1119,14 @@
 
 .step-sub-steps {
   border-top: 1px solid #e2e8f0;
-  padding: 12px 0;
+  padding: 12px 0 12px 8px; /* Add left padding for better alignment */
   background: #fafbfc;
   animation: slideDown 0.3s ease-out;
   display: flex;
   flex-direction: column;
   gap: 8px;
   font-size: 0.95em; /* Sub-steps container is smaller */
+  border-left: 2px solid #e2e8f0; /* Visual separator for sub-steps */
 }
 
 /* Header for OmniScript sub-steps */
@@ -1063,9 +1400,22 @@
   border-left: 3px solid #0176D3 !important;
 }
 
+/* BUT: Allow level-based indentation for nested steps */
+.steps-list .step-item.level-1,
+.steps-list .step-item.level-2,
+.steps-list .step-item.level-3,
+.steps-list .step-item.level-4 {
+  margin-left: inherit !important; /* Allow our level-based margins to work */
+}
+
 /* Ensure direct children of steps-list never have margin */
 .steps-list > * {
   margin-left: 0 !important;
+}
+
+/* BUT: Allow sub-steps to have their proper indentation */
+.steps-list .step-item.sub-step {
+  margin-left: 16px !important; /* Force sub-step indentation */
 }
 
 /* Clean main-level step alignment - Final solution */
@@ -1078,27 +1428,55 @@
 }
 
 .step-item.level-1 {
-  margin-left: 20px;
+  margin-left: 16px;
   border-left-color: #64748b;
   font-size: 0.95em; /* 5% smaller than parent */
+  position: relative;
+}
+
+.step-item.level-1::before {
+  content: '';
+  position: absolute;
+  left: -16px;
+  top: 50%;
+  width: 12px;
+  height: 2px; /* Make connector more visible */
+  background: #94a3b8; /* Use a more visible color */
+  transform: translateY(-50%);
+  z-index: 1; /* Ensure connector is visible */
 }
 
 .step-item.level-2 {
-  margin-left: 40px;
+  margin-left: 32px;
   border-left-color: #94a3b8;
   font-size: 0.90em; /* 10% smaller than root */
+  position: relative;
+}
+
+.step-item.level-2::before {
+  content: '';
+  position: absolute;
+  left: -16px;
+  top: 50%;
+  width: 12px;
+  height: 2px; /* Make connector more visible */
+  background: #cbd5e1; /* Use a more visible color */
+  transform: translateY(-50%);
+  z-index: 1; /* Ensure connector is visible */
 }
 
 .step-item.level-3 {
-  margin-left: 60px;
+  margin-left: 48px;
   border-left-color: #cbd5e1;
   font-size: 0.85em; /* 15% smaller than root */
+  position: relative;
 }
 
 .step-item.level-4 {
-  margin-left: 80px;
+  margin-left: 64px;
   border-left-color: #e2e8f0;
   font-size: 0.80em; /* 20% smaller than root */
+  position: relative;
 }
 
 /* Block Type Step Styling */
@@ -1130,8 +1508,21 @@
 .step-block-steps {
   background: rgba(0, 0, 0, 0.02);
   border-radius: 6px;
-  padding: 12px 12px 12px 20px; /* Extra left padding for better indentation */
+  padding: 12px 12px 12px 16px; /* Consistent left padding */
   margin: 8px 0;
+  border-left: 2px solid #e2e8f0; /* Visual separator for block content */
+  position: relative;
+}
+
+.step-block-steps::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, #e2e8f0, #cbd5e1, #94a3b8);
+  border-radius: 1px;
 }
 
 /* Ensure nested elements within blocks maintain progressive sizing */
@@ -1179,11 +1570,12 @@
   font-size: 0.875rem;
   margin-bottom: 8px;
   color: #4b5563;
-  padding: 6px 10px;
+  padding: 6px 10px 6px 12px; /* Consistent left padding */
   background: rgba(0, 0, 0, 0.08);
   border-radius: 4px;
   font-weight: 600;
   border-left: 3px solid #0176D3;
+  margin-left: -8px; /* Align with the block content */
 }
 
 .block-steps-header {
@@ -1784,4 +2176,69 @@
 .dashboard.dark-mode div[style*="background-color: #ffffff"] {
   background: #2d3748 !important;
   color: #e1e7ef !important;
+}
+
+/* ====== RESPONSIVE DESIGN FOR LWC OVERRIDE INDICATOR ====== */
+@media (max-width: 768px) {
+  .lwc-override-indicator {
+    font-size: 0.875rem;
+    padding: 1px 3px;
+    margin-left: 4px;
+  }
+  
+  .step-primary-row {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .lwc-override-indicator {
+    font-size: 0.75rem;
+    padding: 1px 2px;
+    margin-left: 2px;
+  }
+  
+  .step-primary-row {
+    gap: 6px;
+  }
+}
+
+/* ====== RESPONSIVE DESIGN FOR STEP CONTROLS ====== */
+@media (max-width: 768px) {
+  .steps-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .step-controls {
+    justify-content: center;
+    gap: 8px;
+  }
+  
+  .step-control-btn {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+  
+  .step-search-input {
+    width: 180px;
+  }
+}
+
+@media (max-width: 480px) {
+  .step-controls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  
+  .step-control-btn {
+    justify-content: center;
+    padding: 8px 12px;
+  }
+  
+  .step-search-input {
+    width: 100%;
+  }
 }

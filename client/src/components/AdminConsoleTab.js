@@ -8,6 +8,8 @@ const AdminConsoleTab = ({ onTabLoad }) => {
   const [sectionData, setSectionData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [redisEnabled, setRedisEnabled] = useState(true);
+  const [isTogglingRedis, setIsTogglingRedis] = useState(false);
 
   // Admin sections configuration
   const adminSections = [
@@ -40,6 +42,13 @@ const AdminConsoleTab = ({ onTabLoad }) => {
       endpoint: '/api/admin/environment-info'
     },
     {
+      id: 'redis-management',
+      name: 'Redis Management',
+      description: 'Manage Redis caching functionality',
+      icon: '🗄️',
+      endpoint: '/api/omnistudio/redis/status'
+    },
+    {
       id: 'server-logs',
       name: 'Server Logs',
       description: 'Recent server log entries',
@@ -61,6 +70,13 @@ const AdminConsoleTab = ({ onTabLoad }) => {
       onTabLoad();
     }
   }, [onTabLoad]);
+
+  // Update Redis enabled state when section data changes
+  useEffect(() => {
+    if (sectionData?.redisStatus?.enabled !== undefined) {
+      setRedisEnabled(sectionData.redisStatus.enabled);
+    }
+  }, [sectionData?.redisStatus?.enabled]);
 
   const loadSectionData = async (sectionId) => {
     const section = adminSections.find(s => s.id === sectionId);
@@ -133,6 +149,131 @@ const AdminConsoleTab = ({ onTabLoad }) => {
       console.error('❌ [ADMIN] Error clearing all caches:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const regenerateAllCaches = async () => {
+    if (!window.confirm('Are you sure you want to regenerate ALL organization caches? This will reload all component data and rebuild hierarchies. This action may take several minutes.')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Get all org IDs from the current cache status
+      const response = await axios.get('/api/admin/component-data-status', {
+        withCredentials: true
+      });
+      
+      if (response.data.success && response.data.data.cacheStatus) {
+        const orgIds = Object.keys(response.data.data.cacheStatus);
+        
+        if (orgIds.length === 0) {
+          setError('No organizations found to regenerate. Please load component data first.');
+          return;
+        }
+
+        console.log(`🔄 [ADMIN] Starting regeneration for ${orgIds.length} organizations...`);
+        
+        // Step 1: Clear ALL existing caches first
+        console.log('🗑️ [ADMIN] Step 1: Clearing all existing caches...');
+        try {
+          const clearResponse = await axios.delete('/api/admin/cache-all', {
+            withCredentials: true
+          });
+          
+          if (clearResponse.data.success) {
+            console.log('✅ [ADMIN] Successfully cleared all existing caches');
+          } else {
+            console.warn('⚠️ [ADMIN] Warning: Failed to clear some caches, but continuing with regeneration...');
+          }
+        } catch (clearError) {
+          console.warn('⚠️ [ADMIN] Warning: Error clearing caches, but continuing with regeneration:', clearError.message);
+        }
+        
+        // Step 2: Regenerate each organization's cache
+        console.log('🔄 [ADMIN] Step 2: Regenerating caches for all organizations...');
+        for (const orgId of orgIds) {
+          try {
+            console.log(`🔄 [ADMIN] Regenerating cache for organization ${orgId}...`);
+            
+            // Trigger a fresh load of component data
+            const loadResponse = await axios.post('/api/omnistudio/load-all-components', {}, {
+              withCredentials: true
+            });
+            
+            if (loadResponse.data.success) {
+              console.log(`✅ [ADMIN] Successfully regenerated cache for organization ${orgId}`);
+            } else {
+              console.warn(`⚠️ [ADMIN] Failed to regenerate cache for organization ${orgId}: ${loadResponse.data.message}`);
+            }
+          } catch (orgError) {
+            console.error(`❌ [ADMIN] Error regenerating cache for organization ${orgId}:`, orgError);
+          }
+        }
+        
+        // Step 3: Reload component data status to show updated information
+        console.log('📊 [ADMIN] Step 3: Reloading component data status...');
+        await loadSectionData('component-data-status');
+        setError(null);
+        console.log('✅ [ADMIN] Cache regeneration completed for all organizations');
+      } else {
+        setError('Failed to get organization list for regeneration');
+      }
+    } catch (error) {
+      setError('Error regenerating caches: ' + (error.response?.data?.message || error.message));
+      console.error('❌ [ADMIN] Error regenerating all caches:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearPersistedCache = async (orgId) => {
+    if (!window.confirm(`Are you sure you want to clear the persisted Redis cache for organization ${orgId}? This will remove all global component data from Redis and cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await axios.delete(`/api/redis/component-data/${orgId}`, {
+        withCredentials: true
+      });
+      
+      if (response.data.success) {
+        console.log(`✅ [ADMIN] Cleared persisted Redis cache for ${orgId}:`, response.data.data);
+        // Reload component data status
+        loadSectionData('component-data-status');
+      } else {
+        setError('Failed to clear persisted cache: ' + response.data.message);
+      }
+    } catch (error) {
+      setError('Error clearing persisted cache: ' + (error.response?.data?.message || error.message));
+      console.error(`❌ [ADMIN] Error clearing persisted Redis cache for ${orgId}:`, error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRedisToggle = async (enabled) => {
+    setIsTogglingRedis(true);
+    try {
+      const response = await axios.post('/api/omnistudio/redis/toggle', {
+        enabled: enabled
+      }, {
+        withCredentials: true
+      });
+      
+      if (response.data.success) {
+        setRedisEnabled(enabled);
+        // Reload the section data to get updated status
+        loadSectionData('redis-management');
+      }
+    } catch (error) {
+      console.error('Error toggling Redis:', error);
+      setError('Error toggling Redis: ' + (error.response?.data?.message || error.message));
+    } finally {
+      setIsTogglingRedis(false);
     }
   };
 
@@ -215,6 +356,27 @@ const AdminConsoleTab = ({ onTabLoad }) => {
             >
               🗑️ Clear All Caches
             </button>
+            <button 
+              onClick={() => {
+                const orgIds = Object.keys(data.cacheStatus);
+                if (orgIds.length > 0) {
+                  clearPersistedCache(orgIds[0]);
+                }
+              }}
+              className="clear-persisted-btn"
+              disabled={loading}
+              title="Clear persisted Redis cache for the first organization"
+            >
+              🗄️ Clear Persisted Cache
+            </button>
+            <button 
+              onClick={regenerateAllCaches}
+              className="regenerate-btn"
+              disabled={loading}
+              title="Regenerate all cached component data and hierarchies"
+            >
+              🔄 Regenerate All Caches
+            </button>
           </div>
         )}
       </div>
@@ -228,13 +390,23 @@ const AdminConsoleTab = ({ onTabLoad }) => {
                 {cacheInfo.orgName && (
                   <div className="org-id-subtitle">ID: {orgId}</div>
                 )}
-                <button 
-                  onClick={() => clearOrgCache(orgId)}
-                  className="clear-cache-btn"
-                  disabled={loading}
-                >
-                  🗑️ Clear Cache
-                </button>
+                <div className="cache-buttons">
+                  <button 
+                    onClick={() => clearOrgCache(orgId)}
+                    className="clear-cache-btn"
+                    disabled={loading}
+                  >
+                    🗑️ Clear Cache
+                  </button>
+                  <button 
+                    onClick={() => clearPersistedCache(orgId)}
+                    className="clear-persisted-btn"
+                    disabled={loading}
+                    title="Clear persisted Redis cache for this organization"
+                  >
+                    🗄️ Clear Persisted
+                  </button>
+                </div>
               </div>
               
               <div className="cache-org-details">
@@ -393,6 +565,67 @@ const AdminConsoleTab = ({ onTabLoad }) => {
     </div>
   );
 
+  const renderRedisManagement = (data) => {
+    // Use the state from the parent component
+    const currentRedisEnabled = data?.redisStatus?.enabled ?? redisEnabled;
+
+    return (
+      <div className="admin-section-content">
+        <h3>🗄️ Redis Management</h3>
+        
+        <div className="redis-status-section">
+          <h4>Redis Status</h4>
+          
+          <div className="redis-info-grid">
+            <div className="redis-info-card">
+              <h5>Functionality Status</h5>
+              <div className="redis-status-item">
+                <span className="status-label">Enabled:</span>
+                <span className={`status-value ${currentRedisEnabled ? 'enabled' : 'disabled'}`}>
+                  {currentRedisEnabled ? '✅ Enabled' : '❌ Disabled'}
+                </span>
+              </div>
+              <div className="redis-toggle-section">
+                <button
+                  onClick={() => handleRedisToggle(!currentRedisEnabled)}
+                  className={`toggle-button ${currentRedisEnabled ? 'disable' : 'enable'}`}
+                  disabled={isTogglingRedis}
+                >
+                  {isTogglingRedis ? '⏳ Toggling...' : (currentRedisEnabled ? '🚫 Disable Redis' : '✅ Enable Redis')}
+                </button>
+              </div>
+            </div>
+            
+            <div className="redis-info-card">
+              <h5>System Status</h5>
+              <div className="redis-status-item">
+                <span className="status-label">Module Available:</span>
+                <span className={`status-value ${data?.redisStatus?.moduleExists ? 'available' : 'unavailable'}`}>
+                  {data?.redisStatus?.moduleExists ? '✅ Available' : '❌ Unavailable'}
+                </span>
+              </div>
+              <div className="redis-status-item">
+                <span className="status-label">Connection:</span>
+                <span className={`status-value ${data?.redisStatus?.available ? 'connected' : 'disconnected'}`}>
+                  {data?.redisStatus?.available ? '✅ Connected' : '❌ Disconnected'}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="redis-description">
+            <h5>What this does:</h5>
+            <ul>
+              <li><strong>Enable Redis:</strong> OmniStudio components will be cached in Redis for persistent storage across server restarts</li>
+              <li><strong>Disable Redis:</strong> Components will only be cached in memory and will be lost on server restart</li>
+              <li><strong>Note:</strong> This setting only affects new component loads, existing cached data remains unaffected</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderServerLogs = (data) => (
     <div className="admin-section-content">
       <h3>📋 Server Logs</h3>
@@ -477,6 +710,8 @@ const AdminConsoleTab = ({ onTabLoad }) => {
         return renderSessionInfo(sectionData);
       case 'environment-info':
         return renderEnvironmentInfo(sectionData);
+      case 'redis-management':
+        return renderRedisManagement(sectionData);
       case 'server-logs':
         return renderServerLogs(sectionData);
       default:

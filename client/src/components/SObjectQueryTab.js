@@ -126,15 +126,20 @@ const SObjectQueryTab = ({ selectedSObject }) => {
           <div className="query-results">
             <div className="results-header">
               <h5>📊 Query Results</h5>
-              <div className="results-meta">
-                <span className="results-count">
-                  {queryResults.records?.length || 0} records
-                  {queryResults.totalSize > 20 && ` (of ${queryResults.totalSize} total)`}
-                </span>
-                <span className="executed-soql">
-                  <strong>SOQL:</strong> <code>{queryResults.soql}</code>
-                </span>
-              </div>
+                              <div className="results-meta">
+                  <span className="results-count">
+                    {queryResults.records?.length || 0} records
+                    {queryResults.totalSize > 20 && ` (of ${queryResults.totalSize} total)`}
+                  </span>
+                  {queryResults.batchesRetrieved > 1 && (
+                    <span className="batches-info">
+                      📦 {queryResults.batchesRetrieved} batches retrieved
+                    </span>
+                  )}
+                  <span className="executed-soql">
+                    <strong>SOQL:</strong> <code>{queryResults.soql}</code>
+                  </span>
+                </div>
             </div>
             
             {queryResults.records && queryResults.records.length > 0 ? (

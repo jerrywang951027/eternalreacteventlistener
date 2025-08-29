@@ -178,14 +178,53 @@ class SObjectsModule {
       
       console.log(`🔍 [SOBJECTS] Executing SOQL: ${soql}`);
       
-      const queryResult = await conn.query(soql);
+      // Execute initial query and handle pagination
+      const allRecords = [];
+      let currentResult = await conn.query(soql);
+      let totalRecords = 0;
+      let batchCount = 0;
+      
+      // Add first batch of records
+      allRecords.push(...currentResult.records);
+      totalRecords = currentResult.totalSize;
+      batchCount++;
+      
+      console.log(`📦 [SOBJECTS] Batch ${batchCount}: Retrieved ${currentResult.records.length} records`);
+      
+      // Continue fetching records if there are more
+      while (currentResult.done === false && currentResult.nextRecordsUrl) {
+        try {
+          batchCount++;
+          currentResult = await conn.queryMore(currentResult.nextRecordsUrl);
+          allRecords.push(...currentResult.records);
+          console.log(`📦 [SOBJECTS] Batch ${batchCount}: Retrieved ${currentResult.records.length} records (Total: ${allRecords.length}/${totalRecords})`);
+          
+                // Safety check to prevent infinite loops
+      if (batchCount > 100) {
+        console.warn(`⚠️ [SOBJECTS] Safety limit reached (${batchCount} batches). Stopping pagination.`);
+        break;
+      }
+      
+      // Add a small delay between batches to prevent overwhelming the API
+      if (currentResult.nextRecordsUrl) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+        } catch (error) {
+          console.error(`❌ [SOBJECTS] Error fetching batch ${batchCount}:`, error);
+          break;
+        }
+      }
+      
+      console.log(`✅ [SOBJECTS] Query completed. Total batches: ${batchCount}, Total records: ${allRecords.length}/${totalRecords}`);
       
       res.json({
         success: true,
         soql: soql,
-        records: queryResult.records,
-        totalSize: queryResult.totalSize,
-        fields: fieldsToSelect
+        records: allRecords,
+        totalSize: totalRecords,
+        fields: fieldsToSelect,
+        batchesRetrieved: batchCount,
+        isComplete: currentResult.done !== false
       });
     } catch (error) {
       console.error(`❌ [SOBJECTS] Error querying SObject ${req.params.sobjectName}:`, error);
@@ -280,6 +319,101 @@ class SObjectsModule {
       res.status(500).json({ 
         success: false, 
         message: `Failed to describe SObject: ${error.message}` 
+      });
+    }
+  }
+
+  /**
+   * Execute a free text SOQL query
+   */
+  async executeFreeSOQLQuery(req, res) {
+    try {
+      const { query } = req.body;
+      
+      if (!query || query.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'SOQL query is required'
+        });
+      }
+
+      const conn = this.createConnection(req);
+      const soqlQuery = query.trim();
+
+      console.log(`🔍 [SOBJECTS] Executing free SOQL query: ${soqlQuery}`);
+
+      // Execute initial query and handle pagination
+      const allRecords = [];
+      let currentResult = await conn.query(soqlQuery);
+      let totalRecords = 0;
+      let batchCount = 0;
+      
+      // Add first batch of records
+      allRecords.push(...currentResult.records);
+      totalRecords = currentResult.totalSize;
+      batchCount++;
+      
+      console.log(`📦 [SOBJECTS] Free SOQL Batch ${batchCount}: Retrieved ${currentResult.records.length} records`);
+      
+      // Continue fetching records if there are more
+      while (currentResult.done === false && currentResult.nextRecordsUrl) {
+        try {
+          batchCount++;
+          currentResult = await conn.queryMore(currentResult.nextRecordsUrl);
+          allRecords.push(...currentResult.records);
+          console.log(`📦 [SOBJECTS] Free SOQL Batch ${batchCount}: Retrieved ${currentResult.records.length} records (Total: ${allRecords.length}/${totalRecords})`);
+          
+                // Safety check to prevent infinite loops
+      if (batchCount > 100) {
+        console.warn(`⚠️ [SOBJECTS] Free SOQL safety limit reached (${batchCount} batches). Stopping pagination.`);
+        break;
+      }
+      
+      // Add a small delay between batches to prevent overwhelming the API
+      if (currentResult.nextRecordsUrl) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+        } catch (error) {
+          console.error(`❌ [SOBJECTS] Error fetching free SOQL batch ${batchCount}:`, error);
+          break;
+        }
+      }
+      
+      console.log(`✅ [SOBJECTS] Free SOQL query completed. Total batches: ${batchCount}, Total records: ${allRecords.length}/${totalRecords}`);
+
+      res.json({
+        success: true,
+        records: allRecords,
+        totalSize: totalRecords,
+        done: currentResult.done !== false,
+        batchesRetrieved: batchCount,
+        isComplete: currentResult.done !== false
+      });
+    } catch (error) {
+      console.error('❌ [SOBJECTS] Error executing free SOQL query:', error);
+      
+      // Provide more specific error messages for common SOQL issues
+      let errorMessage = error.message;
+      if (error.name === 'INVALID_FIELD') {
+        errorMessage = `Invalid field in SOQL query: ${error.message}`;
+      } else if (error.name === 'INVALID_TYPE') {
+        errorMessage = `Invalid object type in SOQL query: ${error.message}`;
+      } else if (error.name === 'MALFORMED_QUERY') {
+        errorMessage = `Malformed SOQL query: ${error.message}`;
+      } else if (error.name === 'INVALID_ID_FIELD') {
+        errorMessage = `Invalid ID field in SOQL query: ${error.message}`;
+      } else if (error.name === 'INVALID_QUERY_LOCATOR') {
+        errorMessage = `Invalid query locator: ${error.message}`;
+      } else if (error.name === 'QUERY_TIMEOUT') {
+        errorMessage = `Query timeout: ${error.message}`;
+      } else if (error.name === 'INVALID_SESSION_ID') {
+        errorMessage = `Invalid session. Please log in again.`;
+      }
+
+      res.status(500).json({
+        success: false,
+        message: errorMessage,
+        errorCode: error.name || 'UNKNOWN_ERROR'
       });
     }
   }
