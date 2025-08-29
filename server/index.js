@@ -1471,6 +1471,43 @@ app.get('/api/admin/system-overview', loginModule.requireAuth, (req, res) => {
 
 /**
  * @swagger
+ * /api/admin/redis-status:
+ *   get:
+ *     summary: Get Redis status
+ *     description: Retrieve Redis configuration and connection status
+ *     tags: [Admin]
+ *     security:
+ *       - sessionAuth: []
+ *     responses:
+ *       200:
+ *         description: Redis status retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     redis:
+ *                       type: object
+ *                     environment:
+ *                       type: object
+ *                     recommendations:
+ *                       type: object
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
+app.get('/api/admin/redis-status', loginModule.requireAuth, (req, res) => {
+  adminModule.getRedisStatus(req, res);
+});
+
+/**
+ * @swagger
  * /api/admin/component-data-status:
  *   get:
  *     summary: Get component data status

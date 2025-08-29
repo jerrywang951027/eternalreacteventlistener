@@ -49,6 +49,37 @@ class AdminModule {
   }
 
   /**
+   * Get Redis status and configuration
+   */
+  async getRedisStatus(req, res) {
+    try {
+      const redisStatus = this.omnistudioModule.getRedisStatus();
+      
+      res.json({
+        success: true,
+        data: {
+          redis: redisStatus,
+          environment: {
+            REDIS_ENABLED: process.env.REDIS_ENABLED || 'not set',
+            NODE_ENV: process.env.NODE_ENV || 'development'
+          },
+          recommendations: {
+            enableRedis: !redisStatus.enabled && redisStatus.moduleExists && redisStatus.available,
+            checkConnection: redisStatus.enabled && !redisStatus.available,
+            installRedis: !redisStatus.moduleExists
+          }
+        }
+      });
+    } catch (error) {
+      console.error('❌ [ADMIN] Error getting Redis status:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get Redis status: ' + error.message
+      });
+    }
+  }
+
+  /**
    * Get component data cache status for all orgs
    */
   async getComponentDataStatus(req, res) {

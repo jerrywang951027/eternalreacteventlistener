@@ -5,7 +5,13 @@ class OmnistudioModule {
     this.orgComponentsDataCache = new Map(); // Store components per org: orgId -> componentData
     this.componentHierarchy = new Map(); // Store hierarchical relationships
     this.redisModule = redisModule; // Redis integration for persistent caching
-    this.redisEnabled = false; // Default to disabled
+    this.redisEnabled = process.env.REDIS_ENABLED === 'true'; // Use environment variable, default to enabled
+    
+    // Log Redis status on initialization
+    console.log(`🔧 [REDIS-CONFIG] Redis caching ${this.redisEnabled ? 'ENABLED' : 'DISABLED'} by environment variable REDIS_ENABLED=${process.env.REDIS_ENABLED || 'not set'}`);
+    if (this.redisEnabled && this.redisModule) {
+      console.log(`🔧 [REDIS-CONFIG] Redis module available: ${this.redisModule.isAvailable() ? 'YES' : 'NO'}`);
+    }
   }
 
   /**
@@ -36,14 +42,41 @@ class OmnistudioModule {
   }
 
   /**
+   * Enable Redis functionality
+   */
+  enableRedis() {
+    this.redisEnabled = true;
+    console.log(`✅ [REDIS-ENABLE] Redis functionality ENABLED`);
+    return this.redisEnabled;
+  }
+
+  /**
+   * Disable Redis functionality
+   */
+  disableRedis() {
+    this.redisEnabled = false;
+    console.log(`❌ [REDIS-DISABLE] Redis functionality DISABLED`);
+    return this.redisEnabled;
+  }
+
+  /**
    * Get current Redis status
    */
   getRedisStatus() {
     return {
       enabled: this.redisEnabled,
       available: this.redisModule && this.redisModule.isAvailable(),
-      moduleExists: !!this.redisModule
+      moduleExists: !!this.redisModule,
+      environmentVariable: process.env.REDIS_ENABLED,
+      connectionStatus: this.redisModule ? this.redisModule.isAvailable() : 'No Redis module'
     };
+  }
+
+  /**
+   * Check if Redis is properly configured and ready to use
+   */
+  isRedisReady() {
+    return this.redisEnabled && this.redisModule && this.redisModule.isAvailable();
   }
 
   /**
@@ -217,7 +250,7 @@ class OmnistudioModule {
         console.log('⚠️ [REDIS-CACHE] Application will continue without Redis caching...');
       }
     } else if (!this.redisEnabled) {
-      console.log('🚫 [REDIS-DISABLED] Redis caching is disabled, skipping Redis save...');
+      console.log('🚫 [REDIS-DISABLED] Redis caching is disabled by configuration, skipping Redis save...');
     }
 
     console.log('🎉 [RECURSIVE-EXPANSION] Complete! All components have full recursive hierarchy.');
