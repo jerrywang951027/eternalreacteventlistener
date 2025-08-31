@@ -90,6 +90,9 @@ const omnistudioModule = new OmnistudioModule(redisModule);
 const adminModule = new AdminModule(omnistudioModule);
 const agentforceModule = new AgentforceModule();
 
+// Make login module available to other modules via app.locals
+app.locals.loginModule = loginModule;
+
 // Auto-start React development server in development mode
 function startReactDev() {
   if (NODE_ENV === 'development') {
@@ -1292,12 +1295,135 @@ app.get('/api/omnistudio/ip-reference/:ipName/hierarchy', loginModule.requireAut
 });
 
 // 🤖 Agentforce API endpoints
-app.get('/api/salesforce/agentforce/agents', loginModule.requireAuth, (req, res) => {
-  agentforceModule.getAvailableAgents(req, res);
+app.get('/api/salesforce/agentforce/agents', loginModule.requireAuth, async (req, res) => {
+  try {
+    const result = await agentforceModule.getAvailableAgents(req);
+    res.json(result);
+  } catch (error) {
+    console.error('❌ [AGENTFORCE-ROUTE] Error in agents endpoint:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error: ' + error.message
+    });
+  }
 });
 
-app.post('/api/salesforce/agentforce/chat', loginModule.requireAuth, (req, res) => {
-  agentforceModule.sendChatMessage(req, res);
+app.post('/api/salesforce/agentforce/start-session', loginModule.requireAuth, async (req, res) => {
+  try {
+    const result = await agentforceModule.startAgentSession(req);
+    res.json(result);
+  } catch (error) {
+    console.error('❌ [AGENTFORCE-ROUTE] Error in start-session endpoint:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error: ' + error.message
+    });
+  }
+});
+
+app.get('/api/salesforce/agentforce/config-status', loginModule.requireAuth, async (req, res) => {
+  try {
+    const result = await agentforceModule.getAgentConfigurationStatus(req);
+    res.json(result);
+  } catch (error) {
+    console.error('❌ [AGENTFORCE-ROUTE] Error in config-status endpoint:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error: ' + error.message
+    });
+  }
+});
+
+app.post('/api/salesforce/agentforce/chat', loginModule.requireAuth, async (req, res) => {
+  try {
+    const result = await agentforceModule.sendChatMessage(req);
+    res.json(result);
+  } catch (error) {
+    console.error('❌ [AGENTFORCE-ROUTE] Error in chat endpoint:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error: ' + error.message
+    });
+  }
+});
+
+app.delete('/api/salesforce/agentforce/end-session', loginModule.requireAuth, async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Session ID is required'
+      });
+    }
+    
+    const result = await agentforceModule.endAgentSession(sessionId);
+    res.json(result);
+  } catch (error) {
+    console.error('❌ [AGENTFORCE-ROUTE] Error in end-session endpoint:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error: ' + error.message
+    });
+  }
+});
+
+app.get('/api/salesforce/agentforce/api-logs/:sessionId', loginModule.requireAuth, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Session ID is required'
+      });
+    }
+    
+    const logs = agentforceModule.getAgentApiLogs(sessionId);
+    res.json({
+      success: true,
+      logs: logs
+    });
+  } catch (error) {
+    console.error('❌ [AGENTFORCE-ROUTE] Error in api-logs endpoint:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error: ' + error.message
+    });
+  }
+});
+
+// New endpoint for filtered logs (current session or all logs)
+app.get('/api/salesforce/agentforce/filtered-logs', loginModule.requireAuth, async (req, res) => {
+  try {
+    const { sessionId, showAll } = req.query;
+    
+    let logs;
+    if (showAll === 'true') {
+      // Show all logs across all sessions
+      logs = agentforceModule.getAllAgentApiLogs();
+    } else if (sessionId) {
+      // Show logs for specific session
+      logs = agentforceModule.getAgentApiLogs(sessionId);
+    } else {
+      // Default: show logs for current active session (if any)
+      logs = [];
+    }
+    
+    res.json({
+      success: true,
+      logs: logs,
+      filter: {
+        sessionId: sessionId || null,
+        showAll: showAll === 'true'
+      }
+    });
+  } catch (error) {
+    console.error('❌ [AGENTFORCE-ROUTE] Error in filtered-logs endpoint:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error: ' + error.message
+    });
+  }
 });
 
 // 🧪 DEBUG: Force clear cache and reload 

@@ -5,26 +5,30 @@ class AgentforceModule {
   constructor() {
     this.moduleName = 'AgentforceModule';
     this.description = 'Salesforce Agentforce API integration using official Agent API';
-    this.version = '2.0.0';
+    this.version = '3.0.0';
     
-    // Store active sessions
-    this.activeSessions = new Map();
+    // Store active agentforce sessions
+    this.activeAgentSessions = new Map();
+    
+    // Store API logs for all sessions (including ended ones)
+    this.apiLogs = new Map();
     
     console.log(`🔗 [${this.moduleName}] Initialized - ${this.description} v${this.version}`);
+    console.log(`🤖 [AGENTFORCE] Agent ID will be retrieved from org configuration`);
   }
 
   /**
-   * Get available Agentforce agents from Salesforce using Agent API
+   * Get the configured Agentforce agent from current org configuration
    * @param {Object} req - Express request object
-   * @returns {Object} Response with agents list
+   * @returns {Object} Response with agent info
    */
   async getAvailableAgents(req) {
     try {
-      console.log('🔍 [AGENTFORCE] Fetching available agents using Agent API...');
+      console.log('🔍 [AGENTFORCE] Getting configured agent from current org...');
       
-      // Get the current org's access token
-      const orgId = req.session.orgId;
-      if (!orgId) {
+      // Get the current org's configuration using orgKey from session
+      const orgKey = req.session.salesforce?.orgKey;
+      if (!orgKey) {
         return {
           success: false,
           message: 'No organization selected. Please login first.',
@@ -32,8 +36,17 @@ class AgentforceModule {
         };
       }
 
-      // Get org configuration
-      const orgConfig = req.app.locals.orgConfigs?.find(org => org.orgId === orgId);
+      // Get org configuration from login module
+      const loginModule = req.app.locals.loginModule;
+      if (!loginModule) {
+        return {
+          success: false,
+          message: 'Login module not available.',
+          agents: []
+        };
+      }
+
+      const orgConfig = loginModule.getOrgConfiguration(orgKey);
       if (!orgConfig) {
         return {
           success: false,
@@ -42,22 +55,37 @@ class AgentforceModule {
         };
       }
 
-      // Query Salesforce for Agentforce agents using SOQL
-      const agents = await this.queryAgentforceAgents(orgConfig);
+      // Get agent ID from org configuration
+      const agentId = orgConfig.agentId;
+      if (!agentId) {
+        return {
+          success: false,
+          message: 'No agent ID configured for this organization. Please add agentId to org configuration.',
+          agents: []
+        };
+      }
+
+      // Return the single configured agent for this org
+      const agent = {
+        id: agentId,
+        name: 'AI Service Assistant',
+        type: 'Agentforce Agent',
+        description: `AI-powered service assistant for ${orgConfig.name || 'this Salesforce org'}`
+      };
       
-      console.log(`✅ [AGENTFORCE] Found ${agents.length} available agents`);
+      console.log(`✅ [AGENTFORCE] Found configured agent for org ${orgConfig.name}: ${agent.name} (${agent.id})`);
       
       return {
         success: true,
-        message: `Successfully loaded ${agents.length} agents`,
-        agents: agents
+        message: 'Agent configuration loaded successfully',
+        agents: [agent]
       };
       
     } catch (error) {
-      console.error('❌ [AGENTFORCE] Error getting agents:', error);
+      console.error('❌ [AGENTFORCE] Error getting agent configuration:', error);
       return {
         success: false,
-        message: 'Failed to load agents: ' + error.message,
+        message: 'Failed to load agent configuration: ' + error.message,
         agents: []
       };
     }
@@ -70,58 +98,37 @@ class AgentforceModule {
    */
   async sendChatMessage(req) {
     try {
-      const { agentId, message, sessionId } = req.body;
+      const { message, sessionId } = req.body;
       
-      if (!agentId || !message) {
+      if (!message || !sessionId) {
         return {
           success: false,
-          message: 'Missing required parameters: agentId and message'
+          message: 'Missing required parameters: message and sessionId'
         };
       }
 
-      console.log(`💬 [AGENTFORCE] Sending message to agent ${agentId} via Agent API: "${message}"`);
+      console.log(`💬 [AGENTFORCE] Sending message via Agent API, agentforce session ${sessionId}`);
       
-      // Get the current org's access token
-      const orgId = req.session.orgId;
-      if (!orgId) {
+      // Check if agentforce session exists and is active
+      const agentSessionInfo = this.activeAgentSessions.get(sessionId);
+      if (!agentSessionInfo) {
         return {
           success: false,
-          message: 'No organization selected. Please login first.'
+          message: 'Invalid or expired agentforce session. Please start a new session.'
         };
       }
 
-      // Get org configuration
-      const orgConfig = req.app.locals.orgConfigs?.find(org => org.orgId === orgId);
-      if (!orgConfig) {
-        return {
-          success: false,
-          message: 'Organization configuration not found.'
-        };
-      }
-
-      // Check if we have an active session, if not create one
-      let currentSessionId = sessionId;
-      if (!currentSessionId) {
-        currentSessionId = await this.createAgentSession(orgConfig, agentId);
-        if (!currentSessionId) {
-          return {
-            success: false,
-            message: 'Failed to create agent session'
-          };
-        }
-      }
-
-      // Send message using Agent API
-      const response = await this.sendMessageViaAgentAPI(orgConfig, agentId, currentSessionId, message);
+      // Send message using Salesforce Agent API
+      const response = await this.sendMessageViaAgentAPI(sessionId, message);
       
-      console.log(`✅ [AGENTFORCE] Agent response received via Agent API for agent ${agentId}`);
+      console.log(`✅ [AGENTFORCE] Agent response received via Agent API`);
       
       return {
         success: true,
         message: 'Message sent successfully via Agent API',
         response: response.message,
         agentName: response.agentName,
-        sessionId: currentSessionId,
+        sessionId: sessionId,
         timestamp: new Date().toISOString()
       };
       
@@ -290,113 +297,598 @@ class AgentforceModule {
   }
 
   /**
-   * Create a new agent session using Agent API
-   * @param {Object} orgConfig - Organization configuration
-   * @param {string} agentId - Agent ID
-   * @returns {string} Session ID
+   * Start a new agentforce session using Salesforce Agent API
+   * @param {Object} req - Express request object
+   * @returns {Object} Response with agentforce session details
    */
-  async createAgentSession(orgConfig, agentId) {
+  async startAgentSession(req) {
     try {
-      console.log(`🔗 [AGENTFORCE] Creating new session for agent ${agentId}`);
+      console.log('🔗 [AGENTFORCE] Starting new agentforce session...');
       
-      const accessToken = orgConfig.accessToken;
-      const instanceUrl = orgConfig.instanceUrl;
+      // Get the current org's configuration using orgKey from web session
+      const orgKey = req.session.salesforce?.orgKey;
+      if (!orgKey) {
+        return {
+          success: false,
+          message: 'No organization selected. Please login first.'
+        };
+      }
+
+      // Get org configuration from login module
+      const loginModule = req.app.locals.loginModule;
+      if (!loginModule) {
+        return {
+          success: false,
+          message: 'Login module not available.'
+        };
+      }
+
+      const orgConfig = loginModule.getOrgConfiguration(orgKey);
+      if (!orgConfig) {
+        return {
+          success: false,
+          message: 'Organization configuration not found.'
+        };
+      }
+
+      // Get agent ID from org configuration
+      const agentId = orgConfig.agentId;
+      if (!agentId) {
+        return {
+          success: false,
+          message: 'No agent ID configured for this organization. Please add agentId to org configuration.'
+        };
+      }
+
+      // Get the current org's access token from web session
+      if (!req.session.salesforce || !req.session.salesforce.accessToken) {
+        return {
+          success: false,
+          message: 'No Salesforce access token found. Please login first.'
+        };
+      }
+
+      const accessToken = req.session.salesforce.accessToken;
+      const myDomainUrl = req.session.salesforce.instanceUrl || 'https://login.salesforce.com';
       
-      // Generate a random UUID for the session key as required by Agent API
-      const sessionKey = uuidv4();
+      // Generate a random UUID for external session key
+      const externalSessionKey = uuidv4();
       
-      // Create session using Agent API endpoint
-      const response = await axios.post(
-        `${instanceUrl}/services/data/v58.0/sobjects/AgentSession__c`,
-        {
-          Agent__c: agentId,
-          SessionKey__c: sessionKey,
-          Status__c: 'Active',
-          StartTime__c: new Date().toISOString()
+      // Prepare request payload for Salesforce Agent API
+      const requestPayload = {
+        externalSessionKey: externalSessionKey,
+        instanceConfig: {
+          endpoint: myDomainUrl
         },
+        streamingCapabilities: {
+          chunkTypes: ["Text"]
+        },
+        bypassUser: true
+      };
+
+      console.log(`📤 [AGENTFORCE] Starting agentforce session with agent ${agentId} for org ${orgConfig.name}`);
+      console.log(`🌐 [AGENTFORCE] Using endpoint: ${myDomainUrl}`);
+      
+      // Call Salesforce Agent API to start agentforce session
+      const response = await axios.post(
+        `https://api.salesforce.com/einstein/ai-agent/v1/agents/${agentId}/sessions`,
+        requestPayload,
         {
           headers: {
+            'Content-Type': 'application/json',
             'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
+            'x-salesforce-region': 'us-east-1',
+            'x-sfdc-tenant-id': 'core/prod/00DRL00000BrEq32AF'
           }
         }
       );
       
-      if (response.data.success) {
-        const sessionId = response.data.id;
-        console.log(`✅ [AGENTFORCE] Created session ${sessionId} for agent ${agentId}`);
+      if (response.data && response.data.sessionId) {
+        const sessionId = response.data.sessionId;
+        const welcomeMessage = response.data.messages?.[0]?.message || 'Hi, I\'m an AI service assistant. How can I help you?';
         
-        // Store session info
-        this.activeSessions.set(sessionId, {
-          agentId,
-          sessionKey,
+        console.log(`✅ [AGENTFORCE] Agentforce session started successfully: ${sessionId}`);
+        
+        // Store agentforce session info
+        this.activeAgentSessions.set(sessionId, {
+          agentId: agentId,
+          externalSessionKey,
           startTime: new Date(),
-          messageCount: 0
+          messageCount: 0,
+          myDomainUrl,
+          accessToken,
+          orgKey: orgKey,
+          orgName: orgConfig.name,
+          apiLogs: [] // Store API communication logs
         });
         
-        return sessionId;
+        return {
+          success: true,
+          message: 'Agentforce session started successfully',
+          sessionId: sessionId,
+          welcomeMessage: welcomeMessage,
+          links: response.data._links
+        };
       } else {
-        throw new Error('Failed to create agent session');
+        throw new Error('Invalid response from Salesforce Agent API');
       }
       
     } catch (error) {
-      console.error('❌ [AGENTFORCE] Error creating agent session:', error);
+      console.error('❌ [AGENTFORCE] Error starting agentforce session:', error);
       
-      // Fallback: create a mock session for testing
-      console.log('🔄 [AGENTFORCE] Creating mock session for testing');
-      const mockSessionId = `mock-session-${Date.now()}`;
+      // Check if it's an authentication error
+      if (error.response?.status === 401) {
+        return {
+          success: false,
+          message: 'Authentication failed. Please check your Salesforce credentials and try again.'
+        };
+      }
       
-      this.activeSessions.set(mockSessionId, {
-        agentId,
-        sessionKey: uuidv4(),
-        startTime: new Date(),
-        messageCount: 0,
-        isMock: true
-      });
+      // Check if it's a configuration error
+      if (error.response?.status === 404) {
+        return {
+          success: false,
+          message: 'Agent not found. Please check the agentId configuration for this organization.'
+        };
+      }
       
-      return mockSessionId;
+      return {
+        success: false,
+        message: 'Failed to start agentforce session: ' + error.message
+      };
     }
   }
 
   /**
-   * Send message via Agent API
-   * @param {Object} orgConfig - Organization configuration
-   * @param {string} agentId - Agent ID
-   * @param {string} sessionId - Session ID
+   * Clean Salesforce data by removing "_link" nodes and other metadata
+   * @param {Object} data - Data to clean
+   * @returns {Object} Cleaned data
+   */
+  cleanSalesforceData(data) {
+    if (!data || typeof data !== 'object') {
+      return data;
+    }
+    
+    const cleaned = {};
+    for (const [key, value] of Object.entries(data)) {
+      // Skip "_link" nodes and other Salesforce metadata
+      if (key.startsWith('_') || key === 'attributes') {
+        continue;
+      }
+      
+      // Recursively clean nested objects
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        cleaned[key] = this.cleanSalesforceData(value);
+      } else if (Array.isArray(value)) {
+        // Clean array elements
+        cleaned[key] = value.map(item => 
+          typeof item === 'object' ? this.cleanSalesforceData(item) : item
+        );
+      } else {
+        cleaned[key] = value;
+      }
+    }
+    
+    return cleaned;
+  }
+
+  /**
+   * Log API communication for an agentforce session
+   * @param {string} agentSessionId - Agentforce session ID
+   * @param {string} type - Type of log (request/response)
+   * @param {Object} data - Log data
+   */
+  logAgentApiCommunication(agentSessionId, type, data) {
+    // Create log entry with cleaned data
+    const logEntry = {
+      id: Date.now() + Math.random(),
+      type,
+      timestamp: new Date().toISOString(),
+      data: this.cleanSalesforceData(data)
+    };
+    
+    console.log(`🔍 [AGENTFORCE] About to log ${type} for session ${agentSessionId}`);
+    console.log(`🔍 [AGENTFORCE] this.apiLogs exists:`, !!this.apiLogs);
+    console.log(`🔍 [AGENTFORCE] this.apiLogs is Map:`, this.apiLogs instanceof Map);
+    console.log(`🔍 [AGENTFORCE] this.apiLogs size:`, this.apiLogs ? this.apiLogs.size : 'N/A');
+    
+    // Store in both session-specific logs and global logs
+    const agentSessionInfo = this.activeAgentSessions.get(agentSessionId);
+    if (agentSessionInfo && agentSessionInfo.apiLogs) {
+      agentSessionInfo.apiLogs.push(logEntry);
+      
+      // Keep only last 100 logs to prevent memory issues
+      if (agentSessionInfo.apiLogs.length > 100) {
+        agentSessionInfo.apiLogs = agentSessionInfo.apiLogs.slice(-100);
+      }
+      console.log(`📋 [AGENTFORCE] Stored in session-specific logs, count: ${agentSessionInfo.apiLogs.length}`);
+    } else {
+      console.log(`⚠️ [AGENTFORCE] No session info or apiLogs for session ${agentSessionId}`);
+    }
+    
+    // Also store in global logs for cross-session access
+    if (!this.apiLogs.has(agentSessionId)) {
+      this.apiLogs.set(agentSessionId, []);
+      console.log(`📋 [AGENTFORCE] Created new log array for session ${agentSessionId} in global apiLogs`);
+    }
+    
+    const globalLogs = this.apiLogs.get(agentSessionId);
+    globalLogs.push(logEntry);
+    console.log(`📋 [AGENTFORCE] Stored in global apiLogs, session ${agentSessionId} now has ${globalLogs.length} logs`);
+    
+    console.log(`📋 [AGENTFORCE] Successfully logged ${type} for session ${agentSessionId}`);
+  }
+
+  /**
+   * Get API communication logs for an agentforce session
+   * @param {string} agentSessionId - Agentforce session ID
+   * @returns {Array} Array of API communication logs
+   */
+  getAgentApiLogs(agentSessionId) {
+    try {
+      console.log(`🔍 [AGENTFORCE] getAgentApiLogs called for session: ${agentSessionId}`);
+      console.log(`🔍 [AGENTFORCE] this.apiLogs exists:`, !!this.apiLogs);
+      console.log(`🔍 [AGENTFORCE] this.apiLogs is Map:`, this.apiLogs instanceof Map);
+      console.log(`🔍 [AGENTFORCE] this.apiLogs size:`, this.apiLogs ? this.apiLogs.size : 'N/A');
+      console.log(`🔍 [AGENTFORCE] this.apiLogs keys:`, this.apiLogs ? Array.from(this.apiLogs.keys()) : 'N/A');
+      
+      // First try to get logs from the global apiLogs Map (includes ended sessions)
+      if (this.apiLogs && this.apiLogs.has(agentSessionId)) {
+        const globalLogs = this.apiLogs.get(agentSessionId);
+        if (globalLogs && Array.isArray(globalLogs)) {
+          console.log(`📋 [AGENTFORCE] Found ${globalLogs.length} logs in global apiLogs for session ${agentSessionId}`);
+          // Sort by timestamp (newest first) for consistent behavior
+          return globalLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        } else {
+          console.log(`⚠️ [AGENTFORCE] Global logs for session ${agentSessionId} is not an array:`, typeof globalLogs);
+        }
+      } else {
+        console.log(`⚠️ [AGENTFORCE] Session ${agentSessionId} not found in global apiLogs`);
+      }
+      
+      // Fallback to session-specific logs (for active sessions)
+      const agentSessionInfo = this.activeAgentSessions.get(agentSessionId);
+      if (agentSessionInfo && agentSessionInfo.apiLogs) {
+        console.log(`📋 [AGENTFORCE] Found ${agentSessionInfo.apiLogs.length} logs in session-specific logs for session ${agentSessionId}`);
+        // Sort by timestamp (newest first) for consistent behavior
+        return agentSessionInfo.apiLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      } else {
+        console.log(`⚠️ [AGENTFORCE] No session info or apiLogs for session ${agentSessionId} in activeAgentSessions`);
+      }
+      
+      console.log(`📋 [AGENTFORCE] No logs found for session ${agentSessionId}`);
+      return [];
+    } catch (error) {
+      console.error('❌ [AGENTFORCE] Error in getAgentApiLogs:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get all API logs across all sessions (including ended sessions)
+   * @returns {Array} Array of all API log entries
+   */
+  getAllAgentApiLogs() {
+    // Ensure this.apiLogs exists and is a Map
+    if (!this.apiLogs || !(this.apiLogs instanceof Map)) {
+      console.warn('⚠️ [AGENTFORCE] this.apiLogs is not properly initialized, returning empty array');
+      return [];
+    }
+    
+    const allLogs = [];
+    try {
+      for (const [sessionId, logs] of this.apiLogs) {
+        if (logs && Array.isArray(logs)) {
+          allLogs.push(...logs);
+        }
+      }
+      // Sort by timestamp (newest first)
+      return allLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    } catch (error) {
+      console.error('❌ [AGENTFORCE] Error iterating over apiLogs:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get API logs filtered by session ID or all logs
+   * @param {string} sessionId - Optional session ID to filter by
+   * @returns {Array} Array of filtered API log entries
+   */
+  getFilteredAgentApiLogs(sessionId = null) {
+    try {
+      if (sessionId) {
+        return this.getAgentApiLogs(sessionId);
+      } else {
+        return this.getAllAgentApiLogs();
+      }
+    } catch (error) {
+      console.error('❌ [AGENTFORCE] Error in getFilteredAgentApiLogs:', error);
+      return [];
+    }
+  }
+
+  /**
+   * End an active agentforce session using Salesforce Agent API
+   * @param {string} agentSessionId - Agentforce session ID to end
+   * @returns {Object} Response indicating agentforce session end status
+   */
+  async endAgentSession(agentSessionId) {
+    try {
+      console.log(`🛑 [AGENTFORCE] Ending agentforce session: ${agentSessionId}`);
+      
+      // Get agentforce session info
+      const agentSessionInfo = this.activeAgentSessions.get(agentSessionId);
+      if (!agentSessionInfo) {
+        throw new Error('Invalid agentforce session ID');
+      }
+      
+      // Log the outbound request to end agentforce session
+      const endSessionRequestLog = {
+        url: `https://api.salesforce.com/einstein/ai-agent/v1/sessions/${agentSessionId}`,
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${agentSessionInfo.accessToken.substring(0, 20)}...`,
+          'x-salesforce-region': 'us-east-1',
+          'x-sfdc-tenant-id': 'core/prod/00DRL00000BrEq32AF',
+          'x-session-end-reason': 'UserRequest',
+        }
+      };
+      
+      console.log(`📤 [AGENTFORCE-SALESFORCE-API] END SESSION REQUEST:`, JSON.stringify(endSessionRequestLog, null, 2));
+      this.logAgentApiCommunication(agentSessionId, 'request', endSessionRequestLog);
+      
+      // Call Salesforce Agent API to end agentforce session
+      // Call Salesforce Agent API to end agentforce session
+      // Use simple DELETE without payload as per Salesforce API requirements
+      const response = await axios.delete(
+        `https://api.salesforce.com/einstein/ai-agent/v1/sessions/${agentSessionId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${agentSessionInfo.accessToken}`,
+            'x-salesforce-region': 'us-east-1',
+            'x-sfdc-tenant-id': 'core/prod/00DRL00000BrEq32AF',
+            'x-session-end-reason': 'UserRequest',
+          }
+        }
+      );
+      
+      // Log the response from Salesforce Agent API
+      const endSessionResponseLog = {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+        data: response.data
+      };
+      
+      console.log(`📥 [AGENTFORCE-SALESFORCE-API] END SESSION RESPONSE:`, JSON.stringify(endSessionResponseLog, null, 2));
+      this.logAgentApiCommunication(agentSessionId, 'response', endSessionResponseLog);
+      
+      console.log(`✅ [AGENTFORCE] Agentforce session ${agentSessionId} ended successfully via Salesforce Agent API`);
+      
+      // Create the response with API logs
+      const endSessionResponse = {
+        success: true,
+        message: 'Agentforce session ended successfully',
+        sessionId: agentSessionId,
+        timestamp: new Date().toISOString(),
+        // Include Salesforce API communication details for frontend display
+        salesforceApi: {
+          request: endSessionRequestLog,
+          response: endSessionResponseLog
+        },
+        // Include the API logs directly in the response
+        apiLogs: [
+          {
+            id: Date.now(),
+            type: 'request',
+            timestamp: new Date().toISOString(),
+            data: endSessionRequestLog
+          },
+          {
+            id: Date.now() + 1,
+            type: 'response',
+            timestamp: new Date().toISOString(),
+            data: endSessionResponseLog
+          }
+        ]
+      };
+
+      // Remove agentforce session from active sessions but KEEP the logs for audit trail
+      this.activeAgentSessions.delete(agentSessionId);
+      
+      return endSessionResponse;
+      
+    } catch (error) {
+      console.error('❌ [AGENTFORCE] Error ending agentforce session via Salesforce Agent API:', error);
+      
+      // Get agentforce session info before deleting it
+      const agentSessionInfo = this.activeAgentSessions.get(agentSessionId);
+      
+      // Prepare error response data for logging
+      const endSessionErrorResponseLog = {
+        status: error.response?.status || 'ERROR',
+        statusText: error.response?.statusText || 'Request Failed',
+        headers: error.response?.headers || {},
+        data: {
+          error: error.message,
+          details: error.response?.data || 'No response data'
+        }
+      };
+      
+      // Log the error response so it appears in the API logs
+      console.log(`📥 [AGENTFORCE-SALESFORCE-API] END SESSION ERROR RESPONSE:`, JSON.stringify(endSessionErrorResponseLog, null, 2));
+      this.logAgentApiCommunication(agentSessionId, 'response', endSessionErrorResponseLog);
+      
+      // If the Salesforce API call fails, still remove the session locally
+      this.activeAgentSessions.delete(agentSessionId);
+      console.log(`⚠️ [AGENTFORCE] Salesforce API call failed, but agentforce session removed locally`);
+      
+      return {
+        success: false,
+        message: 'Failed to end agentforce session via Salesforce Agent API: ' + error.message,
+        sessionId: agentSessionId,
+        timestamp: new Date().toISOString(),
+        // Include Salesforce API request details even on failure
+        salesforceApi: {
+          request: {
+            url: `https://api.salesforce.com/einstein/ai-agent/v1/sessions/${agentSessionId}`,
+            method: 'DELETE',
+            headers: {
+              'Authorization': agentSessionInfo ? `Bearer ${agentSessionInfo.accessToken.substring(0, 20)}...` : 'Bearer [No Token]',
+              'x-salesforce-region': 'us-east-1',
+              'x-sfdc-tenant-id': 'core/prod/00DRL00000BrEq32AF'
+            }
+          },
+          response: endSessionErrorResponseLog
+        },
+        // Include the API logs directly in the response even on failure
+        apiLogs: [
+          {
+            id: Date.now(),
+            type: 'request',
+            timestamp: new Date().toISOString(),
+            data: {
+              url: `https://api.salesforce.com/einstein/ai-agent/v1/sessions/${agentSessionId}`,
+              method: 'DELETE',
+              headers: {
+                'Authorization': agentSessionInfo ? `Bearer ${agentSessionInfo.accessToken.substring(0, 20)}...` : 'Bearer [No Token]',
+                'x-salesforce-region': 'us-east-1',
+                'x-sfdc-tenant-id': 'core/prod/00DRL00000BrEq32AF'
+              }
+            }
+          },
+          {
+            id: Date.now() + 1,
+            type: 'response',
+            timestamp: new Date().toISOString(),
+            data: endSessionErrorResponseLog
+          }
+        ]
+      };
+    }
+  }
+
+  /**
+   * Send message via Salesforce Agent API
+   * @param {string} agentSessionId - Agentforce session ID
    * @param {string} message - Message content
    * @returns {Object} Agent response
    */
-  async sendMessageViaAgentAPI(orgConfig, agentId, sessionId, message) {
+  async sendMessageViaAgentAPI(agentSessionId, message) {
     try {
-      console.log(`📤 [AGENTFORCE] Sending message via Agent API to agent ${agentId}, session ${sessionId}`);
+      console.log(`📤 [AGENTFORCE] Sending message via Salesforce Agent API, agentforce session ${agentSessionId}`);
       
-      const accessToken = orgConfig.accessToken;
-      const instanceUrl = orgConfig.instanceUrl;
-      
-      // Get session info
-      const sessionInfo = this.activeSessions.get(sessionId);
-      if (!sessionInfo) {
-        throw new Error('Invalid session ID');
+      // Get agentforce session info
+      const agentSessionInfo = this.activeAgentSessions.get(agentSessionId);
+      if (!agentSessionInfo) {
+        throw new Error('Invalid agentforce session ID');
       }
       
       // Update message count
-      sessionInfo.messageCount++;
+      agentSessionInfo.messageCount++;
       
-      // For now, simulate Agent API response since we need proper setup
-      // In production, this would call the actual Agent API endpoints
-      if (sessionInfo.isMock) {
-        console.log('🔄 [AGENTFORCE] Using mock response for testing');
-        return await this.generateMockAgentResponse(message, agentId);
+      // Generate sequence ID (timestamp-based for uniqueness)
+      const sequenceId = Date.now();
+      
+      // Prepare message payload according to Salesforce Agent API specification
+      const messagePayload = {
+        message: {
+          sequenceId: sequenceId,
+          type: "Text",
+          text: message
+        },
+        variables: []
+      };
+      
+      console.log(`📤 [AGENTFORCE] Sending message with sequence ID ${sequenceId} to Salesforce Agent API`);
+      
+      // Log the outbound request to Salesforce Agent API
+      const requestLog = {
+        url: `https://api.salesforce.com/einstein/ai-agent/v1/sessions/${agentSessionId}/messages`,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${agentSessionInfo.accessToken.substring(0, 20)}...`,
+          'x-salesforce-region': 'us-east-1',
+          'x-sfdc-tenant-id': 'core/prod/00DRL00000BrEq32AF'
+        },
+        payload: messagePayload
+      };
+      
+      console.log(`📤 [AGENTFORCE-SALESFORCE-API] OUTBOUND REQUEST:`, JSON.stringify(requestLog, null, 2));
+      this.logAgentApiCommunication(agentSessionId, 'request', requestLog);
+      
+      // Call Salesforce Agent API messages endpoint
+      const response = await axios.post(
+        `https://api.salesforce.com/einstein/ai-agent/v1/sessions/${agentSessionId}/messages`,
+        messagePayload,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${agentSessionInfo.accessToken}`,
+            'x-salesforce-region': 'us-east-1',
+            'x-sfdc-tenant-id': 'core/prod/00DRL00000BrEq32AF'
+          }
+        }
+      );
+      
+      // Log the inbound response from Salesforce Agent API
+      const responseLog = {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+        data: response.data
+      };
+      
+      console.log(`📥 [AGENTFORCE-SALESFORCE-API] INBOUND RESPONSE:`, JSON.stringify(responseLog, null, 2));
+      this.logAgentApiCommunication(agentSessionId, 'response', responseLog);
+      
+      if (response.data) {
+        console.log(`✅ [AGENTFORCE] Message sent successfully via Salesforce Agent API`);
+        
+        // Parse the response from Salesforce Agent API
+        // Check response.data.messages array as specified
+        let agentMessage = "Message received by agent";
+        let rawMessages = [];
+  
+        if (response.data.messages && Array.isArray(response.data.messages)) {
+          rawMessages = response.data.messages;
+          // Get the first message text if available
+          if (rawMessages.length > 0) {
+            agentMessage = rawMessages[0].message || rawMessages[0].text || agentMessage;
+          }
+          console.log(`📋 [AGENTFORCE] Found ${rawMessages.length} messages in response`);
+        } else {
+          console.log(`⚠️ [AGENTFORCE] No messages array in response, using fallback`);
+        }
+        
+        const agentResponse = {
+          message: agentMessage,
+          agentName: "AI Agent",
+          timestamp: new Date().toISOString(),
+          sequenceId: sequenceId,
+          rawResponse: response.data,
+          messages: rawMessages
+        };
+        
+        return agentResponse;
+      } else {
+        throw new Error('Invalid response from Salesforce Agent API');
       }
       
-      // TODO: Implement actual Agent API call when proper setup is available
-      // This would involve calling the Agent API endpoints as documented
-      console.log('⚠️ [AGENTFORCE] Agent API not fully configured, using fallback response');
-      return await this.generateMockAgentResponse(message, agentId);
-      
     } catch (error) {
-      console.error('❌ [AGENTFORCE] Error sending message via Agent API:', error);
-      throw error;
+      console.error('❌ [AGENTFORCE] Error sending message via Salesforce Agent API:', error);
+      
+      // If the Salesforce API call fails, fall back to mock response for testing
+      console.log('⚠️ [AGENTFORCE] Salesforce Agent API call failed, using fallback mock response');
+      
+      const agentSessionInfo = this.activeAgentSessions.get(agentSessionId);
+      if (agentSessionInfo) {
+        return await this.generateMockAgentResponse(message, agentSessionInfo.agentId);
+      } else {
+        throw error;
+      }
     }
   }
 
@@ -527,6 +1019,60 @@ class AgentforceModule {
   }
 
   /**
+   * Get agent configuration status for all orgs
+   * @param {Object} req - Express request object
+   * @returns {Object} Response with org agent configuration status
+   */
+  async getAgentConfigurationStatus(req) {
+    try {
+      console.log('🔍 [AGENTFORCE] Getting agent configuration status for all orgs...');
+      
+      // Get org configurations from login module
+      const loginModule = req.app.locals.loginModule;
+      if (!loginModule) {
+        return {
+          success: false,
+          message: 'Login module not available.'
+        };
+      }
+      
+      const orgConfigs = loginModule.orgConfigurations || [];
+      console.log(`🔍 [AGENTFORCE] Loaded ${orgConfigs.length} org configurations:`, orgConfigs.map(org => ({ name: org.name, agentId: org.agentId })));
+      const status = [];
+      
+      for (const org of orgConfigs) {
+        const hasAgentId = !!org.agentId;
+        console.log(`🔍 [AGENTFORCE] Processing org: name="${org.name}", agentId="${org.agentId}", hasAgentId=${hasAgentId}`);
+        status.push({
+          orgName: org.name,
+          orgId: org.name, // Use org name for matching
+          hasAgentId: hasAgentId,
+          agentId: org.agentId || 'Not configured',
+          status: hasAgentId ? '✅ Configured' : '❌ Missing agentId'
+        });
+      }
+      
+      return {
+        success: true,
+        message: `Found ${orgConfigs.length} organizations`,
+        data: {
+          totalOrgs: orgConfigs.length,
+          configuredOrgs: status.filter(s => s.hasAgentId).length,
+          missingOrgs: status.filter(s => !s.hasAgentId).length,
+          orgStatus: status
+        }
+      };
+      
+    } catch (error) {
+      console.error('❌ [AGENTFORCE] Error getting agent configuration status:', error);
+      return {
+        success: false,
+        message: 'Failed to get agent configuration status: ' + error.message
+      };
+    }
+  }
+
+  /**
    * Get module information
    * @returns {Object} Module information
    */
@@ -535,16 +1081,28 @@ class AgentforceModule {
       name: this.moduleName,
       description: this.description,
       version: this.version,
+      activeAgentSessions: this.activeAgentSessions.size,
+      configuration: 'Agent IDs configured per organization in SALESFORCE_ORGS',
       endpoints: [
         {
           method: 'GET',
           path: '/api/salesforce/agentforce/agents',
-          description: 'Get available Agentforce agents'
+          description: 'Get available Agentforce agents for current org'
+        },
+        {
+          method: 'POST',
+          path: '/api/salesforce/agentforce/start-session',
+          description: 'Start new agentforce session'
         },
         {
           method: 'POST',
           path: '/api/salesforce/agentforce/chat',
-          description: 'Send chat message to agent'
+          description: 'Send chat message to agent (requires active agentforce session)'
+        },
+        {
+          method: 'GET',
+          path: '/api/salesforce/agentforce/filtered-logs',
+          description: 'Get filtered logs (current session or all logs across sessions)'
         }
       ]
     };

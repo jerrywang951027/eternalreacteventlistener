@@ -164,20 +164,26 @@
 }
 
 .dashboard.dark-mode .tab-btn {
-  background: transparent;
+  background: #2d3748;
   color: #a0aec0;
   border-bottom: 2px solid transparent;
 }
 
 .dashboard.dark-mode .tab-btn:hover {
-  background: rgba(74, 85, 104, 0.3);
+  background: #4a5568;
   color: #e1e7ef;
 }
 
-.dashboard.dark-mode .tab-btn.active {
-  background: #1a202c;
-  color: #63b3ed;
-  border-bottom-color: #63b3ed;
+.dashboard.dark-mode .tab-btn.active,
+.dashboard.dark-mode .tabs-nav .tab-btn.active,
+.dashboard.dark-mode .tabs-container .tabs-nav .tab-btn.active {
+  background: #ca8a04 !important;
+  color: #000000 !important;
+  border-bottom-color: #ca8a04 !important;
+  font-weight: bold !important;
+  box-shadow: 0 0 15px rgba(202, 138, 4, 0.5) !important;
+  text-shadow: none !important;
+  transform: scale(1.05) !important;
 }
 
 .dashboard.dark-mode .subscribe-btn {
@@ -342,6 +348,8 @@
 }
 
 /* ====== NUCLEAR OPTION - CATCH ALL WHITE BACKGROUNDS ====== */
+/* TEMPORARILY DISABLED - This was making ALL backgrounds transparent */
+/*
 .dashboard.dark-mode div,
 .dashboard.dark-mode section,
 .dashboard.dark-mode article,
@@ -349,6 +357,7 @@
 .dashboard.dark-mode main {
   background-color: transparent !important;
 }
+*/
 
 .dashboard.dark-mode div[style*="background: white"],
 .dashboard.dark-mode div[style*="background-color: white"],
@@ -557,6 +566,103 @@
   border: 1px solid #718096 !important;
 }
 
+/* ====== ADDITIONAL OM TAB DARK MODE FIXES ====== */
+.dashboard.dark-mode .search-info {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .search-info p {
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .search-info ul {
+  color: #a0aec0 !important;
+}
+
+.dashboard.dark-mode .no-results-placeholder {
+  color: #a0aec0 !important;
+}
+
+.dashboard.dark-mode .results-header {
+  border-bottom-color: #4a5568 !important;
+}
+
+.dashboard.dark-mode .results-header h3 {
+  color: #63b3ed !important;
+}
+
+.dashboard.dark-mode .results-summary {
+  color: #a0aec0 !important;
+}
+
+.dashboard.dark-mode .order-search-input {
+  background: #374151 !important;
+  color: #e1e7ef !important;
+  border-color: #4a5568 !important;
+}
+
+.dashboard.dark-mode .order-search-input:focus {
+  border-color: #63b3ed !important;
+  box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.1) !important;
+}
+
+.dashboard.dark-mode .order-search-input::placeholder {
+  color: #a0aec0 !important;
+}
+
+.dashboard.dark-mode .order-card {
+  background: #374151 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .order-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dashboard.dark-mode .orders-container {
+  background: transparent !important;
+}
+
+.dashboard.dark-mode .orders-results {
+  background: transparent !important;
+}
+
+/* ====== COMPREHENSIVE OM TAB DARK MODE CATCH-ALL ====== */
+.dashboard.dark-mode .om-content,
+.dashboard.dark-mode .om-layout,
+.dashboard.dark-mode .om-left-panel,
+.dashboard.dark-mode .om-right-panel,
+.dashboard.dark-mode .om-content *,
+.dashboard.dark-mode .om-layout *,
+.dashboard.dark-mode .om-left-panel *,
+.dashboard.dark-mode .om-right-panel * {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
+}
+
+/* Override specific elements that need different backgrounds */
+.dashboard.dark-mode .om-left-panel,
+.dashboard.dark-mode .om-right-panel {
+  background: #2d3748 !important;
+}
+
+.dashboard.dark-mode .om-left-panel *,
+.dashboard.dark-mode .om-right-panel * {
+  background: transparent !important;
+}
+
+.dashboard.dark-mode .order-search-section,
+.dashboard.dark-mode .order-actions-section,
+.dashboard.dark-mode .order-results-section,
+.dashboard.dark-mode .order-details-section,
+.dashboard.dark-mode .search-info,
+.dashboard.dark-mode .order-card {
+  background: #374151 !important;
+}
+
 /* ====== ORDER STATUS COLOR CODING ====== */
 /* CORRECT SELECTORS - Based on actual OM tab implementation */
 .dashboard.dark-mode .order-status.status-in-progress,
@@ -669,7 +775,8 @@
 }
 
 .platform-events-info h3 {
-  margin: 0 0 15px 0;
+  margin: 0;
+  padding: 0;
   color: #333;
 }
 
@@ -708,7 +815,8 @@
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  margin-bottom: 20px;
+  margin: 0;
+  margin-top: auto; /* Push to bottom */
 }
 
 .subscribe-btn:hover:not(:disabled) {
@@ -732,7 +840,8 @@
   border-radius: 8px;
   color: #059669;
   font-weight: 500;
-  margin-bottom: 20px;
+  margin: 0;
+  margin-top: auto; /* Push to bottom */
 }
 
 .pulse-dot {
@@ -767,6 +876,8 @@
   border-radius: 8px;
   border-left: 4px solid #c33;
   font-size: 14px;
+  margin: 0;
+  margin-top: auto; /* Push to bottom */
 }
 
 .events-section {
@@ -918,9 +1029,9 @@
 
 /* Checkbox styles for event selection */
 .select-all-container {
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  margin: 0;
+  padding: 0;
+  border-bottom: none;
 }
 
 .checkbox-label {
@@ -930,8 +1041,8 @@
   gap: 8px;
   font-size: 13px;
   transition: background-color 0.2s ease;
-  padding: 6px;
-  border-radius: 4px;
+  padding: 0;
+  border-radius: 0;
   width: 100%;
 }
 
@@ -1002,31 +1113,35 @@
   justify-content: center;
   gap: 8px;
   padding: 16px 20px;
-  background: white;
+  background: #f1f5f9;
   border: none;
   border-bottom: 3px solid transparent;
   cursor: pointer;
   transition: all 0.3s ease;
   color: #64748b;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: bold;
   min-height: 60px;
+  transform: scale(1);
 }
 
 .tab-btn:hover {
-  background: #f8fafc;
+  background: #e2e8f0;
   color: #475569;
 }
 
-.tab-btn.active {
-  background: #f8fafc;
-  border-bottom-color: #667eea;
-  color: #667eea;
-  font-weight: 600;
+/* Light mode active tab - only applies when NOT in dark mode */
+.dashboard:not(.dark-mode) .tab-btn.active {
+  background: #374151 !important;
+  border-bottom-color: #374151 !important;
+  color: #ffffff !important;
+  font-weight: bold !important;
+  box-shadow: 0 4px 12px rgba(55, 65, 81, 0.3) !important;
+  transform: scale(1.05) !important;
 }
 
 .tab-btn.active .tab-icon {
-  transform: scale(1.1);
+  transform: scale(1.2) !important;
 }
 
 .tab-icon {
@@ -1042,50 +1157,113 @@
   background: white;
   border-radius: 0 0 12px 12px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  min-height: 600px;
+  min-height: calc(100vh - 200px);
   width: 100%;
   max-width: 2200px;
   margin: 0 auto;
+  overflow: hidden;
 }
 
 .tab-content {
   padding: 0;
   height: 100%;
+  min-height: calc(100vh - 200px);
 }
 
 /* Platform Events content adjustments */
 .platform-events-content {
   padding: 0;
-  background: none;
-  box-shadow: none;
-}
-
-.platform-events-content .control-panel,
-.platform-events-content .events-section {
+  background: transparent;
   border-radius: 0;
-  margin: 0;
   box-shadow: none;
-  border: none;
+  height: calc(100vh - 200px);
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
 }
 
-.platform-events-content .control-panel {
-  border-bottom: 1px solid #e5e7eb;
-  height: 80vh; /* Control panel takes 80% of viewport */
+/* Platform Events Two-Panel Layout */
+.platform-events-layout {
+  display: flex;
+  width: fit-content;
+  height: 100%;
+  gap: 20px;
+  min-height: 400px;
+}
+
+.platform-events-left-panel {
+  width: 400px;
+  background: #6b7280;
+  border-radius: 12px;
+  padding: 20px;
+  overflow-y: auto;
+  flex-shrink: 0;
+  color: #ffffff;
+}
+
+.platform-events-right-panel {
+  flex: 1;
+  background: #6b7280;
+  border-radius: 12px;
+  padding: 20px;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* Prevent overall scrolling */
+  color: #ffffff;
+  min-height: 400px;
+  height: 100%;
+  min-width: 300px;
+  min-width: 0;
+}
+
+/* Light mode overrides for platform events */
+.dashboard:not(.dark-mode) .platform-events-left-panel,
+.dashboard:not(.dark-mode) .platform-events-right-panel {
+  background: #ffffff !important;
+  color: #374151 !important;
+}
+
+.dashboard:not(.dark-mode) .platform-events-left-panel *,
+.dashboard:not(.dark-mode) .platform-events-right-panel * {
+  color: #374151 !important;
+}
+
+/* Legacy control-panel and events-section styles (now contained within panels) */
+.platform-events-content .control-panel {
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border-radius: 0;
+  flex-shrink: 0;
 }
 
 .platform-events-content .events-section {
-  height: 80vh; /* Match the control panel height */
-  overflow-y: auto;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border-radius: 0;
+  flex: 1;
+  min-height: 0; /* Allow flex shrinking */
+}
+
+/* Ensure events-section within right panel has proper height */
+.platform-events-right-panel .events-section {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 300px;
 }
 
 /* Search functionality for platform events */
 .search-container {
-  margin: 15px 0;
-  padding-bottom: 15px;
-  border-bottom: 1px solid #f1f5f9;
+  margin: 0;
+  padding: 0;
+  border-bottom: none;
 }
 
 .search-input-wrapper {
@@ -1145,44 +1323,55 @@
 }
 
 /* Make platform-events-info section flexible and scrollable */
-.platform-events-content .platform-events-info {
+.platform-events-left-panel .platform-events-info {
   flex: 1; /* Take up available space */
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.platform-events-content .events-selection {
+.platform-events-left-panel .events-selection {
   flex: 1; /* Take up remaining space after header and search */
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0; /* Allow flex shrinking */
 }
 
 /* Make events-list the scrollable part */
-.platform-events-content .events-list {
+.platform-events-left-panel .events-list {
   flex: 1; /* Take up space after select-all */
   overflow-y: auto; /* This is the only scrollable section */
   padding-right: 8px; /* Space for scrollbar */
+  min-height: 400px; /* Double the height - was roughly 200px before */
 }
 
 /* Keep subscribe button and other controls at bottom */
-.platform-events-content .control-panel > :not(.platform-events-info) {
+.platform-events-left-panel .control-panel > :not(.platform-events-info) {
   flex-shrink: 0; /* Don't shrink these elements */
 }
 
 /* Mobile responsive adjustments for platform events */
 @media (max-width: 768px) {
-  .platform-events-content .control-panel,
-  .platform-events-content .events-section {
-    height: 70vh; /* Smaller height on mobile */
+  .platform-events-layout {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .platform-events-left-panel {
+    width: 100%;
+    height: 40vh;
+  }
+  
+  .platform-events-right-panel {
+    height: 60vh;
   }
   
   .search-input {
     font-size: 16px; /* Prevent zoom on iOS */
   }
   
-  .platform-events-content .events-list {
+  .platform-events-left-panel .events-list {
     padding-right: 4px; /* Less padding on mobile */
   }
 }
@@ -1292,40 +1481,62 @@
 
 /* SObjects Tab Styles */
 .sobjects-content {
-  height: 100%;
-  max-width: 2200px;
-  margin: 0 auto;
-  padding: 20px;
+  height: calc(100vh - 200px);
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: hidden;
+  display: flex; /* CRITICAL: Make this a flex container */
+  flex-direction: column; /* Stack children vertically */
 }
 
 .sobjects-layout {
   display: flex;
-  min-height: calc(100vh - 140px);
+  height: 100%;
   gap: 15px;
   width: 100%;
   max-width: none;
 }
 
-.sobjects-left-panel {
-  flex: 0 0 280px;
-  background: white;
-  border-radius: 12px;
-  padding: 12px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  overflow-y: auto;
-  min-width: 260px;
-  max-width: 300px;
+/* SObject layout styles - Using Omnistudio-style layout from SObjectsTab.css */
+
+/* CRITICAL: Override SObject search section background */
+.sobjects-content .sobjects-left-panel-compact .search-section {
+  background: #f8f9fa !important;
+  color: #374151 !important;
+  padding: 20px !important;
+  border-bottom: 1px solid #e5e7eb !important;
 }
 
-.sobjects-right-panel {
-  flex: 1;
-  background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  overflow-y: auto;
-  min-height: 500px;
-  min-width: 700px;
+/* CRITICAL: Override dark mode for SObject search section */
+.dashboard.dark-mode .sobjects-content .sobjects-left-panel-compact .search-section {
+  background: #f8f9fa !important;
+  color: #374151 !important;
+  padding: 20px !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+/* CRITICAL: Override dark mode transparent background for SObject left panel */
+.dashboard.dark-mode .sobjects-content .sobjects-left-panel-compact {
+  background: #f8f9fa !important;
+  color: #374151 !important;
+}
+
+/* CRITICAL: Override dark mode transparent background for SObject search section */
+.dashboard.dark-mode .sobjects-content .sobjects-left-panel-compact .search-section {
+  background: #f8f9fa !important;
+  color: #374151 !important;
+  padding: 20px !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+/* CRITICAL: Override dark mode for search section */
+.dashboard.dark-mode .sobjects-content .sobjects-left-panel-compact .search-section {
+  background: #f8f9fa !important;
+  color: #374151 !important;
 }
 
 .search-section h3 {
@@ -1333,6 +1544,8 @@
   color: #2563eb;
   font-size: 1.1rem;
 }
+
+
 
 .search-input-container {
   position: relative;
@@ -1461,7 +1674,7 @@
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  margin-bottom: 15px;
+  margin: 0;
 }
 
 .checkbox-input {
@@ -1899,40 +2112,49 @@
 
 /* OM Tab Styles */
 .om-content {
-  height: 100%;
-  max-width: 2200px;
-  margin: 0 auto;
-  padding: 20px;
+  height: calc(100vh - 200px);
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: hidden;
+  display: flex; /* CRITICAL: Make this a flex container */
+  flex-direction: column; /* Stack children vertically */
 }
 
 .om-layout {
   display: flex;
-  min-height: calc(100vh - 140px);
+  height: 100%;
   gap: 15px;
   width: 100%;
   max-width: none;
+  flex: 1; /* CRITICAL: Make this expand to fill available space */
 }
 
 .om-left-panel {
   flex: 0 0 320px;
-  background: white;
-  border-radius: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
   padding: 15px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow-y: auto;
   min-width: 300px;
   max-width: 350px;
+  height: 100%;
+  border-right: 1px solid #e5e7eb;
 }
 
 .om-right-panel {
   flex: 1;
   background: white;
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 20px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow-y: auto;
-  min-height: 500px;
   min-width: 600px;
+  height: 100%;
 }
 
 .order-search-input {

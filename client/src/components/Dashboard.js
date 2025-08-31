@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import io from 'socket.io-client';
 import PlatformEventsTab from './PlatformEventsTab';
@@ -39,13 +39,22 @@ const Dashboard = ({ user, onLogout }) => {
   
   // Global data loading state
   const [globalDataLoaded, setGlobalDataLoaded] = useState(false);
+  
+  // Agentforce configuration state
+  const [agentforceConfig, setAgentforceConfig] = useState({
+    hasAgentId: false,
+    loading: true,
+    error: null
+  });
+  
+  console.log('🔍 [DASHBOARD] Initial agentforceConfig state:', agentforceConfig);
 
   // Load OmniStudio global data (only once per session)
   const loadOmnistudioGlobalData = async () => {
     if (globalDataLoaded) return; // Already loaded
     
     try {
-      console.log('🔄 Loading OmniStudio global data (first time only)...');
+      console.log('🔄 Loading OmniStudio global data (first time per session)...');
       const response = await fetch('/api/omnistudio/global-data', {
         method: 'GET',
         credentials: 'include'
@@ -62,6 +71,89 @@ const Dashboard = ({ user, onLogout }) => {
       console.error('❌ Error loading OmniStudio global data:', error);
     }
   };
+
+  // Check Agentforce configuration for current org
+  const checkAgentforceConfig = useCallback(async () => {
+    try {
+      console.log('🔍 Checking Agentforce configuration for current org...');
+      console.log('👤 Current user orgKey:', user?.orgKey);
+      
+      const response = await axios.get('/api/salesforce/agentforce/config-status');
+      
+      if (response.data.success) {
+        console.log('📋 Available orgs from backend:', response.data.data.orgStatus);
+        
+        // Extract org name from orgKey (format: org_0_8x8jinwang -> 8x8jinwang)
+        const orgNameFromKey = user?.orgKey?.replace(/^org_\d+_/, '') || '';
+        console.log('🔑 Extracted org name from orgKey:', orgNameFromKey);
+        
+        // Try exact match first, then try normalized matching (removing hyphens and special chars)
+        let currentOrg = response.data.data.orgStatus.find(org => 
+          org.orgId === orgNameFromKey
+        );
+        
+        // If no exact match, try normalized matching
+        if (!currentOrg) {
+          const normalizedOrgNameFromKey = orgNameFromKey.replace(/[^a-z0-9]/gi, '');
+          console.log('🔍 Trying normalized match:', normalizedOrgNameFromKey);
+          
+          currentOrg = response.data.data.orgStatus.find(org => 
+            org.orgId.replace(/[^a-z0-9]/gi, '') === normalizedOrgNameFromKey
+          );
+        }
+        
+        console.log('🎯 Found matching org:', currentOrg);
+        
+        setAgentforceConfig({
+          hasAgentId: currentOrg ? currentOrg.hasAgentId : false,
+          loading: false,
+          error: null
+        });
+        
+        console.log('✅ Agentforce config checked for org:', orgNameFromKey, 'hasAgentId:', currentOrg ? currentOrg.hasAgentId : false);
+      } else {
+        setAgentforceConfig({
+          hasAgentId: false,
+          loading: false,
+          error: response.data.message
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error checking Agentforce configuration:', error);
+      setAgentforceConfig({
+        hasAgentId: false,
+        loading: false,
+        error: error.message
+      });
+    }
+  }, [user?.orgKey]);
+
+  // Monitor user object changes
+  useEffect(() => {
+    console.log('🔄 [DASHBOARD] User object changed:', user);
+    console.log('🔄 [DASHBOARD] User orgKey changed:', user?.orgKey);
+  }, [user]);
+
+  // Check Agentforce configuration when user changes
+  useEffect(() => {
+    console.log('🔍 [DASHBOARD] User object structure:', user);
+    console.log('🔍 [DASHBOARD] User orgKey:', user?.orgKey);
+    
+    if (user?.orgKey) {
+      console.log('🔄 [DASHBOARD] User orgKey changed, calling checkAgentforceConfig...');
+      checkAgentforceConfig();
+    } else {
+      console.log('⚠️ [DASHBOARD] No orgKey found in user object:', user);
+    }
+  }, [user?.orgKey, checkAgentforceConfig]);
+
+  // Switch away from Agentforce tab if it gets hidden
+  useEffect(() => {
+    if (!agentforceConfig.hasAgentId && activeTab === 'talk-to-sfdc-agent') {
+      console.log('🔄 Agentforce tab hidden, switching to platform-events tab');
+      setActiveTab('platform-events');
+    }
+  }, [agentforceConfig.hasAgentId, activeTab]);
   
   // Platform Events Tab State (lifted up to preserve across tab switches)
   const [platformEventsState, setPlatformEventsState] = useState({
@@ -677,10 +769,18 @@ const Dashboard = ({ user, onLogout }) => {
     { id: 'sobjects', label: 'Explore SObjects', icon: '🗃️' },
     { id: 'om', label: 'Explore OM', icon: '⚙️' },
     { id: 'omnistudio', label: 'Explore Omnistudio(MP)', icon: '🔧' },
-    { id: 'talk-to-sfdc-agent', label: 'Talk to SFDC Agent', icon: '🤖' },
     { id: 'admin-console', label: 'Admin Console', icon: '🛠️' },
     { id: 'swagger', label: 'API Documentation', icon: '📚' }
   ];
+
+  // Add Agentforce tab conditionally
+  console.log('🔍 [DASHBOARD] Building tabs array, agentforceConfig:', agentforceConfig);
+  if (agentforceConfig.hasAgentId) {
+    console.log('✅ [DASHBOARD] Adding Agentforce tab to tabs array');
+    tabs.splice(4, 0, { id: 'talk-to-sfdc-agent', label: 'Talk to SFDC Agent', icon: '🤖' });
+  } else {
+    console.log('❌ [DASHBOARD] Agentforce tab NOT added, hasAgentId:', agentforceConfig.hasAgentId);
+  }
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -770,15 +870,6 @@ const Dashboard = ({ user, onLogout }) => {
             <button className="theme-toggle" onClick={toggleDarkMode}>
               {isDarkMode ? '☀️' : '🌙'}
             </button>
-                        <a
-              href={process.env.NODE_ENV === "production" ? "/api-docs" : "http://localhost:5000/api-docs"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="api-docs-link"
-              title="View API Documentation"
-            >
-              📚 API Docs
-            </a>
             <button 
               className="logout-btn" 
               onClick={handleLogout}

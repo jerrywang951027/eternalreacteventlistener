@@ -21,23 +21,33 @@ const PlatformEventsTab = ({
   // Search state for filtering platform events
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Filter platform events based on search term
+  // Filter and sort platform events based on search term
   const filteredPlatformEvents = useMemo(() => {
-    if (!searchTerm.trim()) return platformEvents;
+    let events = platformEvents;
     
-    const term = searchTerm.toLowerCase();
-    return platformEvents.filter(event => 
-      event.QualifiedApiName.toLowerCase().includes(term) ||
-      (event.Label && event.Label.toLowerCase().includes(term))
+    // Filter by search term if provided
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      events = platformEvents.filter(event => 
+        event.QualifiedApiName.toLowerCase().includes(term) ||
+        (event.Label && event.Label.toLowerCase().includes(term))
+      );
+    }
+    
+    // Sort alphabetically by QualifiedApiName
+    return events.sort((a, b) => 
+      a.QualifiedApiName.localeCompare(b.QualifiedApiName)
     );
   }, [platformEvents, searchTerm]);
 
   return (
     <div className="tab-content">
       <div className="dashboard-content platform-events-content">
-        <div className="control-panel">
-          <div className="platform-events-info">
-            <h3>📋 Available Platform Events ({platformEvents.length})</h3>
+        <div className="platform-events-layout">
+          {/* Left Panel - Event Selection */}
+          <div className="platform-events-left-panel">
+            <div className="platform-events-info">
+              <h3>📋 Available Platform Events ({platformEvents.length})</h3>
             
             {/* Search box for filtering platform events */}
             {platformEvents.length > 0 && (
@@ -132,9 +142,12 @@ const PlatformEventsTab = ({
               ⚠️ {error}
             </div>
           )}
-        </div>
+            </div>
+          </div>
 
-        <div className="events-section">
+          {/* Right Panel - Events Display */}
+          <div className="platform-events-right-panel">
+            <div className="events-section">
           <div className="events-header">
             <h3>📨 Received Events ({events.length})</h3>
             {events.length > 0 && (
@@ -179,6 +192,7 @@ const PlatformEventsTab = ({
                 </div>
               ))
             )}
+            </div>
           </div>
         </div>
       </div>

@@ -1,35 +1,101 @@
 /* SObjects Tab Layout Enhancements */
 
-/* Expanded layout for better space utilization */
+/* Expanded layout for better space utilization - Using Omnistudio-style layout */
 .sobjects-layout-expanded {
   display: flex;
-  gap: 15px;
-  height: calc(100vh - 200px);
-  min-height: 600px;
+  flex: 1;
+  gap: 20px;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
 }
 
-/* Compact left panel */
+/* Compact left panel - Using Omnistudio-style layout */
 .sobjects-left-panel-compact {
-  flex: 0 0 320px;
-  min-width: 320px;
-  max-width: 320px;
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  overflow-y: auto;
+  width: 400px;
+  background: #f8f9fa !important; /* Light grey background */
+  border-right: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-/* Expanded right panel */
+/* Override the blue gradient for SObject tab - make it light grey like OM tab */
+.sobjects-left-panel-compact .search-section {
+  padding: 20px !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  background: #f8f9fa !important; /* Light grey background like OM tab */
+  color: #374151 !important; /* Dark text instead of white */
+}
+
+/* Even higher specificity override to ensure it works */
+.sobjects-content .sobjects-left-panel-compact .search-section {
+  background: #f8f9fa !important;
+  color: #374151 !important;
+}
+
+/* Ensure the left panel background is also light grey */
+.sobjects-left-panel-compact {
+  background: #f8f9fa !important;
+}
+
+/* Panel header styling - Using Omnistudio-style - SPECIFIC TO SOBJECTS TAB ONLY */
+.sobjects-left-panel-compact .search-section h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.sobjects-left-panel-compact .search-section p {
+  margin: 0 0 12px 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+/* Expanded right panel - Using Omnistudio-style layout */
 .sobjects-right-panel-expanded {
   flex: 1;
   background: white;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+/* Details panel styling - Using Omnistudio-style */
+.sobject-details {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  height: 100%;
+}
+
+.no-selection-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  padding: 40px;
+}
+
+.placeholder-content {
+  text-align: center;
+  max-width: 400px;
+}
+
+.placeholder-content h3 {
+  color: #6b7280;
+  margin-bottom: 16px;
+}
+
+.placeholder-content p {
+  color: #9ca3af;
+  margin-bottom: 12px;
 }
 
 /* Sub-tabs Navigation */
@@ -664,6 +730,89 @@
   padding: 8px 10px;
 }
 
+/* ====== SOBJECTS TAB LIGHT MODE ====== */
+.dashboard:not(.dark-mode) .sobjects-content,
+.dashboard:not(.dark-mode) .sobjects-left-panel-compact,
+.dashboard:not(.dark-mode) .sobjects-right-panel-expanded {
+  background: #ffffff !important;
+  color: #333333 !important;
+  border-color: #e5e7eb !important;
+}
+
+/* Override hardcoded left panel styles for light mode */
+.dashboard:not(.dark-mode) .sobjects-left-panel-compact {
+  background: #ffffff !important;
+}
+
+.dashboard:not(.dark-mode) .sobjects-left-panel-compact .search-section {
+  background: #ffffff !important;
+  color: #333333 !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+/* Override all hardcoded light grey backgrounds in light mode */
+.dashboard:not(.dark-mode) .sobjects-left-panel-compact,
+.dashboard:not(.dark-mode) .sobjects-left-panel-compact .search-section,
+.dashboard:not(.dark-mode) .sobjects-content .sobjects-left-panel-compact .search-section {
+  background: #ffffff !important;
+}
+
+/* Nuclear option - override ALL left panel backgrounds in light mode */
+.dashboard:not(.dark-mode) .sobjects-left-panel-compact,
+.dashboard:not(.dark-mode) .sobjects-left-panel-compact *,
+.dashboard:not(.dark-mode) .sobjects-content .sobjects-left-panel-compact,
+.dashboard:not(.dark-mode) .sobjects-content .sobjects-left-panel-compact * {
+  background: #ffffff !important;
+}
+
+.dashboard:not(.dark-mode) .sobjects-content *,
+.dashboard:not(.dark-mode) .sobjects-left-panel-compact *,
+.dashboard:not(.dark-mode) .sobjects-right-panel-expanded * {
+  color: #333333 !important;
+}
+
+.dashboard:not(.dark-mode) .sobject-list-item,
+.dashboard:not(.dark-mode) .sobject-item {
+  background: #ffffff !important;
+  color: #333333 !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+.dashboard:not(.dark-mode) .sobject-list-item:hover,
+.dashboard:not(.dark-mode) .sobject-item:hover {
+  background: #f8f9fa !important;
+  border-color: #3b82f6 !important;
+}
+
+.dashboard:not(.dark-mode) .sobject-list-item.selected {
+  background: #3b82f6 !important;
+  color: white !important;
+}
+
+.dashboard:not(.dark-mode) .sobject-search,
+.dashboard:not(.dark-mode) .sobject-filter,
+.dashboard:not(.dark-mode) .search-input {
+  background: #ffffff !important;
+  color: #333333 !important;
+  border: 1px solid #d1d5db !important;
+}
+
+.dashboard:not(.dark-mode) .sobject-details,
+.dashboard:not(.dark-mode) .field-list,
+.dashboard:not(.dark-mode) .relationship-list,
+.dashboard:not(.dark-mode) .fields-table,
+.dashboard:not(.dark-mode) .permissions-grid {
+  background: #ffffff !important;
+  color: #333333 !important;
+}
+
+.dashboard:not(.dark-mode) .field-item,
+.dashboard:not(.dark-mode) .relationship-item {
+  background: #f8f9fa !important;
+  color: #333333 !important;
+  border: 1px solid #e5e7eb !important;
+}
+
 /* ====== SOBJECTS TAB DARK MODE ====== */
 .dashboard.dark-mode .sobjects-content,
 .dashboard.dark-mode .sobjects-left-panel-compact,
@@ -826,4 +975,53 @@
   background: #374151 !important;
   color: #f7fafc !important;
   border-bottom: 1px solid #4a5568 !important;
+}
+
+/* ====== FINAL LIGHT MODE OVERRIDES - ADDED AT END FOR MAXIMUM PRECEDENCE ====== */
+.dashboard:not(.dark-mode) .sobjects-left-panel-compact {
+  background: #ffffff !important;
+}
+
+.dashboard:not(.dark-mode) .sobjects-left-panel-compact .search-section {
+  background: #ffffff !important;
+}
+
+.dashboard:not(.dark-mode) .sobjects-content .sobjects-left-panel-compact .search-section {
+  background: #ffffff !important;
+}
+
+.dashboard:not(.dark-mode) .sobjects-left-panel-compact * {
+  background: #ffffff !important;
+}
+
+/* ====== SOBJECTS LEFT PANEL STYLING (REPLACING INLINE STYLES) ====== */
+.sobjects-left-panel-compact {
+  width: 400px;
+  border-right: 1px solid #6b7280;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 100%;
+  position: relative;
+  z-index: 9999;
+  background: #6b7280; /* Dark mode default */
+  color: #ffffff; /* Dark mode default */
+}
+
+.sobjects-search-section {
+  padding: 20px;
+  border-bottom: 1px solid #6b7280;
+  min-height: 100px;
+  background: #6b7280; /* Dark mode default */
+  color: #ffffff; /* Dark mode default */
+}
+
+/* ====== SOBJECTS RIGHT PANEL STYLING (REPLACING INLINE STYLES) ====== */
+.sobjects-right-panel-expanded {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #6b7280; /* Dark mode default */
+  color: #ffffff; /* Dark mode default */
 }

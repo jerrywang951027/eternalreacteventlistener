@@ -73,10 +73,10 @@ const SObjectsTab = ({
   return (
     <div className="tab-content">
       <div className="dashboard-content sobjects-content">
-        <div className="sobjects-layout sobjects-layout-expanded">
+        <div className="sobjects-layout-expanded">
           {/* Left Panel - Search */}
-          <div className="sobjects-left-panel sobjects-left-panel-compact">
-            <div className="search-section">
+          <div className="sobjects-left-panel-compact">
+            <div className="sobjects-search-section">
               <h3>🔍 Search SObjects</h3>
               
               <div className="search-input-container">
@@ -180,7 +180,7 @@ const SObjectsTab = ({
           </div>
 
           {/* Right Panel - Details with Sub-tabs */}
-          <div className="sobjects-right-panel sobjects-right-panel-expanded">
+          <div className="sobjects-right-panel-expanded">
             {!selectedSObject ? (
               <div className="no-selection-placeholder">
                 <div className="placeholder-content">
