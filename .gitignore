@@ -120,3 +120,4 @@ server/.env.backup*
 
 /tests/*.*
 /misc/envs/*.*
+misc/envs/env.json
