@@ -116,6 +116,7 @@ Thumbs.db
 
 #prompt related files
 work/*.*
-server/.env.backup
+server/.env.backup*
 
 /tests/*.*
+/misc/envs/*.*
