@@ -18,7 +18,7 @@ class PlatformEventsModule {
     });
   }
 
-  /**
+  /**een
    * Fetch all available platform events
    */
   async fetchPlatformEvents(req, res) {
