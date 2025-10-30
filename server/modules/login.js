@@ -11,18 +11,24 @@ class LoginModule {
    */
   loadOrgConfigurations() {
     try {
+      console.log('🔄 [LOGIN] Loading org configurations from environment...');
       const orgsEnvVar = process.env.SALESFORCE_ORGS;
       
       if (!orgsEnvVar) {
-        console.warn('⚠️ [LOGIN] SALESFORCE_ORGS environment variable not set');
+        console.error('❌ [LOGIN] SALESFORCE_ORGS environment variable not set');
+        console.error('❌ [LOGIN] All environment variables:', Object.keys(process.env).filter(k => k.includes('SALESFORCE')));
         this.orgConfigurations = [];
         return;
       }
 
+      console.log('🔄 [LOGIN] SALESFORCE_ORGS found, length:', orgsEnvVar.length);
+      
       // Parse JSON first, then validate structuref
       const trimmedJson = orgsEnvVar.trim();
 
+      console.log('🔄 [LOGIN] Parsing JSON...');
       const parsedOrgs = JSON.parse(trimmedJson);
+      console.log('✅ [LOGIN] JSON parsed successfully, found', parsedOrgs.length, 'orgs');
       
       // Validate that it's an array of org objects
       if (!Array.isArray(parsedOrgs)) {
@@ -143,17 +149,17 @@ class LoginModule {
   }
 
   /**
-   * Handle Salesforce login request (updated for multi-org support)
+   * Handle Salesforce login request (updated for multi-org support with dual OAuth)
    */
   async handleSalesforceLogin(req, res) {
     try {
       const { orgKey, orgType, customUrl } = req.body;
       
-      let loginUrl, clientId, clientSecret;
+      let loginUrl, clientId, clientSecret, orgConfig;
 
       // New multi-org flow
       if (orgKey) {
-        const orgConfig = this.getOrgConfiguration(orgKey);
+        orgConfig = this.getOrgConfiguration(orgKey);
         if (!orgConfig) {
           return res.status(400).json({ success: false, message: 'Invalid org selection' });
         }
@@ -163,6 +169,16 @@ class LoginModule {
         clientSecret = orgConfig.clientSecret;
         
         console.log(`🔗 [LOGIN] Using org configuration: ${orgConfig.name} (${orgKey})`);
+        
+        // Check OAuth type and route accordingly
+        const oAuthType = orgConfig.oAuthType || 'authorizationCode';
+        console.log(`🔐 [LOGIN] OAuth type: ${oAuthType}`);
+        
+        if (oAuthType === 'clientCredential') {
+          // Use username-password flow (Salesforce's equivalent to client credentials)
+          return await this.handleClientCredentialLogin(req, res, orgConfig, orgKey);
+        }
+        // Otherwise, continue with authorization code flow below
       } 
       // Legacy flow for backward compatibility
       else if (orgType) {
@@ -239,6 +255,143 @@ class LoginModule {
       res.status(500).json({
         success: false,
         message: 'Failed to get org configurations: ' + error.message
+      });
+    }
+  }
+
+  /**
+   * Handle client credential login using pure OAuth 2.0 client credentials grant
+   * Using only clientId and clientSecret (no username/password required)
+   */
+  async handleClientCredentialLogin(req, res, orgConfig, orgKey) {
+    try {
+      console.log('🔐 [LOGIN] Starting pure client credential authentication...');
+      console.log('🔐 [LOGIN] Using ONLY clientId and clientSecret (no username/password)');
+      
+      const { name, clientId, clientSecret, url } = orgConfig;
+      const axios = require('axios');
+      
+      console.log(`🔐 [LOGIN] Org: ${name}`);
+      console.log(`🔐 [LOGIN] Token URL: ${url}/services/oauth2/token`);
+      
+      // Prepare client credentials grant request
+      const tokenUrl = `${url}/services/oauth2/token`;
+      const params = new URLSearchParams({
+        grant_type: 'client_credentials',
+        client_id: clientId,
+        client_secret: clientSecret
+      });
+      
+      // Add audience if specified (optional, similar to Auth0 pattern)
+      if (orgConfig.audience) {
+        params.append('audience', orgConfig.audience);
+        console.log(`📋 [LOGIN] Using audience: ${orgConfig.audience}`);
+      }
+      
+      console.log('📤 [LOGIN] Request parameters:', {
+        grant_type: 'client_credentials',
+        client_id: clientId.substring(0, 20) + '...',
+        client_secret: '***' + clientSecret.substring(clientSecret.length - 4)
+      });
+
+      // Make direct OAuth token request
+      const response = await axios.post(tokenUrl, params.toString(), {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      });
+      
+      console.log('✅ [LOGIN] Client credential authentication successful!');
+      console.log('📋 [LOGIN] Token response:', {
+        access_token: response.data.access_token ? (response.data.access_token.substring(0, 20) + '...') : 'N/A',
+        instance_url: response.data.instance_url,
+        token_type: response.data.token_type,
+        issued_at: response.data.issued_at
+      });
+
+      // Extract token information
+      const { access_token, instance_url, id, token_type, issued_at } = response.data;
+      
+      if (!access_token) {
+        throw new Error('No access token received from Salesforce');
+      }
+
+      // Create jsforce connection with the token to get user info
+      const conn = new jsforce.Connection({
+        instanceUrl: instance_url,
+        accessToken: access_token
+      });
+
+      // Get user identity information
+      let identityInfo;
+      try {
+        identityInfo = await conn.identity();
+        console.log('🔍 [LOGIN] Identity info:', {
+          display_name: identityInfo.display_name,
+          username: identityInfo.username,
+          email: identityInfo.email,
+          organization_id: identityInfo.organization_id,
+          user_id: identityInfo.user_id
+        });
+      } catch (identityError) {
+        console.warn('⚠️ [LOGIN] Could not fetch identity info:', identityError.message);
+        // Use defaults if identity call fails
+        identityInfo = {
+          display_name: 'Integration User',
+          username: 'client_credential_user',
+          email: 'integration@example.com',
+          organization_id: 'unknown',
+          user_id: 'unknown'
+        };
+      }
+      
+      // Store connection info in session
+      req.session.salesforce = {
+        accessToken: access_token,
+        refreshToken: response.data.refresh_token || null,
+        instanceUrl: instance_url,
+        organizationId: identityInfo.organization_id,
+        userId: identityInfo.user_id,
+        orgType: 'clientCredential',
+        orgKey: orgKey,
+        orgName: name,
+        oAuthType: 'clientCredential',
+        // Additional user details
+        displayName: identityInfo.display_name,
+        username: identityInfo.username,
+        email: identityInfo.email
+      };
+
+      // Return success immediately (no redirect needed for client credentials)
+      return res.json({
+        success: true,
+        message: 'Client credential authentication successful (no username/password required)',
+        authType: 'clientCredential',
+        user: {
+          userId: identityInfo.user_id,
+          organizationId: identityInfo.organization_id,
+          instanceUrl: instance_url,
+          orgName: name,
+          orgKey: orgKey,
+          displayName: identityInfo.display_name,
+          username: identityInfo.username,
+          email: identityInfo.email
+        }
+      });
+      
+    } catch (error) {
+      console.error('❌ [LOGIN] Client credential authentication failed:', error);
+      console.error('📋 [LOGIN] Error details:', {
+        message: error.message,
+        response_status: error.response?.status,
+        response_data: error.response?.data
+      });
+      
+      return res.status(error.response?.status || 401).json({
+        success: false,
+        message: 'Client credential authentication failed: ' + error.message,
+        details: error.response?.data || error.message,
+        hint: 'If this fails, the Connected App might need "Enable Client Credentials Flow" or might not support pure client credentials'
       });
     }
   }

@@ -1,0 +1,618 @@
+.datacloud-query-tab {
+  padding: 8px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  overflow: hidden;
+}
+
+.tab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 3px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+}
+
+.tab-header h2 {
+  margin: 0;
+  font-size: 20px;
+  color: white;
+}
+
+.connect-btn {
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 2px solid white;
+  border-radius: 6px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  transition: all 0.3s ease;
+}
+
+.connect-btn:hover:not(:disabled) {
+  background: white;
+  color: #667eea;
+  transform: translateY(-1px);
+}
+
+.connect-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.connect-btn.connected {
+  background: rgba(16, 185, 129, 0.3);
+  border-color: #10b981;
+  color: white;
+}
+
+.error-message {
+  padding: 8px 12px;
+  background: #fee;
+  border: 1px solid #fcc;
+  border-radius: 6px;
+  color: #c33;
+  font-size: 13px;
+}
+
+.section-container {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+  background: white;
+  transition: opacity 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.section-container.query-result-section {
+  flex: 1;
+  min-height: 300px;
+  max-height: none;
+  resize: vertical;
+  overflow: hidden;
+}
+
+.section-container.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #f5f7fa;
+  border-bottom: 1px solid #ddd;
+  user-select: none;
+}
+
+.section-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  flex: 1;
+}
+
+.section-header-left:hover {
+  opacity: 0.8;
+}
+
+.section-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 18px;
+  flex: 1;
+}
+
+.collapse-icon {
+  font-size: 12px;
+  color: #666;
+}
+
+.result-meta {
+  font-size: 13px;
+  color: #666;
+  font-weight: normal;
+  margin-left: 10px;
+}
+
+.result-header-info {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  font-size: 12px;
+  color: #555;
+}
+
+.result-header-item {
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.section-content {
+  padding: 8px 10px 10px 10px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sql-editor-container {
+  position: relative;
+  width: 100%;
+  height: 150px;
+  min-height: 100px;
+  max-height: 600px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  background: #f9f9f9;
+  overflow: auto;
+  resize: vertical;
+  display: block;
+}
+
+.sql-editor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding: 5px 8px;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  border: none;
+  background: transparent;
+  color: transparent;
+  caret-color: #333;
+  resize: none;
+  min-height: 100%;
+  z-index: 2;
+  overflow: auto;
+  white-space: pre;
+  word-wrap: normal;
+}
+
+.sql-editor:focus {
+  outline: none;
+}
+
+.sql-editor:disabled {
+  cursor: not-allowed;
+}
+
+.sql-highlighted {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding: 5px 8px;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre;
+  word-wrap: normal;
+  overflow: auto;
+  pointer-events: none;
+  z-index: 1;
+  color: #333;
+}
+
+.sql-keyword {
+  color: #0066cc;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.sql-string {
+  color: #22863a;
+}
+
+.sql-number {
+  color: #005cc5;
+}
+
+.sql-comment {
+  color: #6a737d;
+  font-style: italic;
+}
+
+.sql-placeholder {
+  color: #999;
+  font-style: italic;
+}
+
+.format-btn-header {
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1.5px solid #667eea;
+  border-radius: 5px;
+  cursor: pointer;
+  background: white;
+  color: #667eea;
+  transition: all 0.2s ease;
+}
+
+.format-btn-header:hover:not(:disabled) {
+  background: #667eea;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+}
+
+.format-btn-header:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.execute-btn-header {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.execute-btn-header:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(102, 126, 234, 0.4);
+}
+
+.execute-btn-header:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.query-result-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.result-info {
+  display: flex;
+  gap: 15px;
+  padding: 6px 10px;
+  background: #f5f7fa;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #555;
+}
+
+.result-info span {
+  font-weight: 500;
+}
+
+.table-wrapper {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+.result-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.result-table thead {
+  position: sticky;
+  top: 0;
+  background: #667eea;
+  color: white;
+  z-index: 10;
+}
+
+.result-table th {
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 600;
+  white-space: nowrap;
+  position: relative;
+  user-select: none;
+  cursor: pointer;
+}
+
+.result-table th.sortable-header:hover {
+  background: #5568d3;
+}
+
+.result-table th .sort-indicator {
+  font-size: 10px;
+  opacity: 0.8;
+  margin-left: 4px;
+}
+
+.th-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.column-resizer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  background: transparent;
+  z-index: 1;
+}
+
+.column-resizer:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.column-resizer:active {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.result-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #eee;
+  vertical-align: top;
+}
+
+.result-table td:not(.special-cell) {
+  word-wrap: break-word;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.result-table td.special-cell {
+  overflow: visible;
+}
+
+.result-table td.copyable-cell {
+  position: relative;
+}
+
+.cell-wrapper {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.copy-btn {
+  position: sticky;
+  top: 8px;
+  right: 0;
+  flex-shrink: 0;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 14px;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.2s ease;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.copyable-cell:hover .copy-btn {
+  opacity: 1;
+}
+
+.copy-btn:hover {
+  background: #5568d3;
+  transform: scale(1.05);
+}
+
+.copy-btn:active {
+  transform: scale(0.95);
+}
+
+.copy-btn.copied {
+  background: #10b981;
+  opacity: 1 !important;
+}
+
+.copy-btn.copied::after {
+  content: ' Copied!';
+  font-size: 11px;
+  margin-left: 4px;
+}
+
+.result-table tbody tr:hover {
+  background: #f9f9f9;
+}
+
+.result-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.cell-content {
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  background: #f9f9f9;
+  padding: 8px;
+  border-radius: 4px;
+  max-height: 400px;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+.json-content {
+  background: #f5f5f5;
+  border-left: 3px solid #667eea;
+  font-size: 11px;
+  max-height: 500px;
+  min-width: 300px;
+}
+
+.no-results {
+  padding: 40px;
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+}
+
+/* Dark mode support for column resizer */
+.dark-mode .column-resizer:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.dark-mode .column-resizer:active {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* Dark mode support */
+.dark-mode .datacloud-query-tab {
+  color: #e0e0e0;
+}
+
+.dark-mode .tab-header h2 {
+  color: white;
+}
+
+.dark-mode .result-header-info {
+  color: #ccc;
+}
+
+.dark-mode .section-container {
+  background: #2d2d2d;
+  border-color: #444;
+}
+
+.dark-mode .section-header {
+  background: #3a3a3a;
+  border-color: #444;
+}
+
+.dark-mode .section-header-left:hover {
+  opacity: 0.8;
+}
+
+.dark-mode .sql-editor-container {
+  background: #1e1e1e;
+  border-color: #444;
+}
+
+.dark-mode .sql-editor {
+  caret-color: #e0e0e0;
+}
+
+.dark-mode .sql-highlighted {
+  color: #e0e0e0;
+}
+
+.dark-mode .sql-keyword {
+  color: #569cd6;
+}
+
+.dark-mode .sql-string {
+  color: #ce9178;
+}
+
+.dark-mode .sql-number {
+  color: #b5cea8;
+}
+
+.dark-mode .sql-comment {
+  color: #6a9955;
+}
+
+.dark-mode .sql-placeholder {
+  color: #666;
+}
+
+.dark-mode .format-btn-header {
+  background: #2d2d2d;
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.dark-mode .format-btn-header:hover:not(:disabled) {
+  background: #667eea;
+  color: white;
+}
+
+.dark-mode .result-info {
+  background: #3a3a3a;
+  color: #ccc;
+}
+
+.dark-mode .table-wrapper {
+  border-color: #444;
+}
+
+.dark-mode .result-table th {
+  background: #667eea;
+}
+
+.dark-mode .result-table td {
+  border-color: #444;
+}
+
+.dark-mode .result-table tbody tr:hover {
+  background: #353535;
+}
+
+.dark-mode .cell-content {
+  background: #1e1e1e;
+  color: #e0e0e0;
+}
+
+.dark-mode .json-content {
+  background: #1a1a1a;
+  border-left-color: #667eea;
+}
+
+.dark-mode .copy-btn {
+  background: #667eea;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.dark-mode .copy-btn:hover {
+  background: #5568d3;
+}
+
+.dark-mode .copy-btn.copied {
+  background: #10b981;
+}
+
+.dark-mode .error-message {
+  background: #3d1f1f;
+  border-color: #5a2a2a;
+  color: #ff8080;
+}
+
+.dark-mode .no-results {
+  color: #666;
+}
+

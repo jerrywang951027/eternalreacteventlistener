@@ -8,35 +8,126 @@
   min-height: 0;
   height: 100%;
   width: 100%;
+  padding-bottom: 20px;
 }
 
 /* Compact left panel - Using Omnistudio-style layout */
 .sobjects-left-panel-compact {
   width: 400px;
-  background: #f8f9fa !important; /* Light grey background */
-  border-right: 1px solid #e5e7eb;
+  background: #1a202c; /* Dark background for better contrast */
+  border-right: 1px solid #2d3748;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  height: 100%;
+  border-radius: 8px;
 }
 
-/* Override the blue gradient for SObject tab - make it light grey like OM tab */
+/* Override the blue gradient for SObject tab - make it dark */
 .sobjects-left-panel-compact .search-section {
   padding: 20px !important;
-  border-bottom: 1px solid #e5e7eb !important;
-  background: #f8f9fa !important; /* Light grey background like OM tab */
-  color: #374151 !important; /* Dark text instead of white */
+  border-bottom: 1px solid #2d3748 !important;
+  background: #1a202c !important; /* Dark background */
+  color: #e1e7ef !important; /* Light text */
 }
 
 /* Even higher specificity override to ensure it works */
 .sobjects-content .sobjects-left-panel-compact .search-section {
-  background: #f8f9fa !important;
-  color: #374151 !important;
+  background: #1a202c !important;
+  color: #e1e7ef !important;
 }
 
-/* Ensure the left panel background is also light grey */
+/* Ensure the left panel background is also dark */
 .sobjects-left-panel-compact {
-  background: #f8f9fa !important;
+  background: #1a202c !important;
+  height: 100%;
+}
+
+/* Ensure no white space at bottom of left panel */
+.sobjects-left-panel-compact .search-results,
+.sobjects-left-panel-compact .results-list {
+  background: #1a202c !important;
+}
+
+.sobjects-left-panel-compact .results-list {
+  padding-bottom: 20px;
+  background: #1a202c !important;
+}
+
+/* Light mode styles for left panel content area */
+.sobjects-left-panel-compact .search-section,
+.sobjects-left-panel-compact .search-results,
+.sobjects-left-panel-compact .results-list,
+.sobjects-left-panel-compact .sobject-name,
+.sobjects-left-panel-compact .result-item {
+  background: #ffffff;
+  color: #333333;
+}
+
+/* Light mode styles for empty search results area */
+.sobjects-left-panel-compact .search-results:empty::before {
+  content: "No search results yet";
+  display: block;
+  padding: 20px;
+  color: #6b7280;
+  text-align: center;
+  background: #ffffff;
+}
+
+/* Light mode styles for search results container */
+.sobjects-left-panel-compact .search-results {
+  background: #ffffff;
+  border-radius: 8px;
+  margin-top: 10px;
+  padding: 0;
+  border: none;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Light mode no results message styling */
+.no-results-message {
+  background: #ffffff;
+  color: #6b7280;
+  padding: 40px 20px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  border-radius: 8px;
+  flex: 1;
+  min-height: 0;
+}
+
+.no-results-message p {
+  margin: 0;
+  font-size: 1rem;
+  color: #6b7280;
+}
+
+/* Light mode styles for results list */
+.sobjects-left-panel-compact .results-list {
+  background: #ffffff;
+  padding: 0 10px 20px 0;
+  margin: 0;
+  border: none;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+
+/* Light mode styles for left panel container */
+.sobjects-left-panel-compact {
+  background: #ffffff;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Panel header styling - Using Omnistudio-style - SPECIFIC TO SOBJECTS TAB ONLY */
@@ -55,10 +146,11 @@
 /* Expanded right panel - Using Omnistudio-style layout */
 .sobjects-right-panel-expanded {
   flex: 1;
-  background: white;
+  background: #1a202c;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border: none;
 }
 
 /* Details panel styling - Using Omnistudio-style */
@@ -279,16 +371,16 @@
 .query-results-section {
   margin-top: 20px;
   flex-grow: 1;
-  background: #f8fafc;
+  background: #2d3748;
   padding: 20px;
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  border: none;
   overflow-y: auto;
 }
 
 .query-results-section h5 {
   margin: 0 0 15px 0;
-  color: #1e293b;
+  color: #e1e7ef;
   font-size: 1.1em;
   font-weight: 600;
 }
@@ -532,7 +624,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible !important; /* Changed from hidden to visible to show content */
 }
 
 .loading-query, .error-query {
@@ -634,19 +726,25 @@
 .results-table-container {
   flex: 1;
   overflow: auto;
-  border: 1px solid #e5e7eb;
+  border: none;
   border-radius: 8px;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .results-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.9em;
+  display: table !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .results-table th {
   background: #f8fafc;
-  border-bottom: 2px solid #e5e7eb;
+  border: none;
   padding: 12px 8px;
   text-align: left;
   font-weight: 600;
@@ -657,7 +755,7 @@
 }
 
 .results-table td {
-  border-bottom: 1px solid #f3f4f6;
+  border: none;
   padding: 10px 8px;
   color: #1f2937;
   max-width: 200px;
@@ -732,16 +830,16 @@
 
 /* ====== SOBJECTS TAB LIGHT MODE ====== */
 .dashboard:not(.dark-mode) .sobjects-content,
-.dashboard:not(.dark-mode) .sobjects-left-panel-compact,
 .dashboard:not(.dark-mode) .sobjects-right-panel-expanded {
   background: #ffffff !important;
   color: #333333 !important;
   border-color: #e5e7eb !important;
 }
 
-/* Override hardcoded left panel styles for light mode */
+/* Light mode styles for left panel */
 .dashboard:not(.dark-mode) .sobjects-left-panel-compact {
   background: #ffffff !important;
+  color: #333333 !important;
 }
 
 .dashboard:not(.dark-mode) .sobjects-left-panel-compact .search-section {
@@ -750,19 +848,13 @@
   border-bottom: 1px solid #e5e7eb !important;
 }
 
-/* Override all hardcoded light grey backgrounds in light mode */
-.dashboard:not(.dark-mode) .sobjects-left-panel-compact,
-.dashboard:not(.dark-mode) .sobjects-left-panel-compact .search-section,
-.dashboard:not(.dark-mode) .sobjects-content .sobjects-left-panel-compact .search-section {
-  background: #ffffff !important;
-}
-
-/* Nuclear option - override ALL left panel backgrounds in light mode */
+/* Light mode overrides for left panel content */
 .dashboard:not(.dark-mode) .sobjects-left-panel-compact,
 .dashboard:not(.dark-mode) .sobjects-left-panel-compact *,
 .dashboard:not(.dark-mode) .sobjects-content .sobjects-left-panel-compact,
 .dashboard:not(.dark-mode) .sobjects-content .sobjects-left-panel-compact * {
   background: #ffffff !important;
+  color: #333333 !important;
 }
 
 .dashboard:not(.dark-mode) .sobjects-content *,
@@ -772,19 +864,22 @@
 }
 
 .dashboard:not(.dark-mode) .sobject-list-item,
-.dashboard:not(.dark-mode) .sobject-item {
+.dashboard:not(.dark-mode) .sobject-item,
+.dashboard:not(.dark-mode) .result-item {
   background: #ffffff !important;
   color: #333333 !important;
   border: 1px solid #e5e7eb !important;
 }
 
 .dashboard:not(.dark-mode) .sobject-list-item:hover,
-.dashboard:not(.dark-mode) .sobject-item:hover {
+.dashboard:not(.dark-mode) .sobject-item:hover,
+.dashboard:not(.dark-mode) .result-item:hover {
   background: #f8f9fa !important;
   border-color: #3b82f6 !important;
 }
 
-.dashboard:not(.dark-mode) .sobject-list-item.selected {
+.dashboard:not(.dark-mode) .sobject-list-item.selected,
+.dashboard:not(.dark-mode) .result-item.selected {
   background: #3b82f6 !important;
   color: white !important;
 }
@@ -820,6 +915,18 @@
   background: #1a202c !important;
   color: #e1e7ef !important;
   border-color: #2d3748 !important;
+}
+
+.dashboard.dark-mode .sobjects-left-panel-compact {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
+  border-right: 1px solid #2d3748 !important;
+}
+
+.dashboard.dark-mode .sobjects-search-section {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
+  border-bottom: 1px solid #2d3748 !important;
 }
 
 .dashboard.dark-mode .sobjects-content *,
@@ -939,6 +1046,95 @@
   color: #e1e7ef !important;
 }
 
+/* Dark mode styles for Child Relationships */
+.dashboard.dark-mode .relationships-section {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .relationships-section h4 {
+  color: #63b3ed !important;
+}
+
+.dashboard.dark-mode .relationships-table {
+  background: #2d3748 !important;
+}
+
+.dashboard.dark-mode .relationships-table table {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .relationships-table th {
+  background: #374151 !important;
+  color: #f7fafc !important;
+  border-color: #4a5568 !important;
+}
+
+.dashboard.dark-mode .relationships-table td {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border-color: #4a5568 !important;
+}
+
+.dashboard.dark-mode .relationships-table tr:hover {
+  background: #374151 !important;
+}
+
+/* Dark mode styles for Record Types */
+.dashboard.dark-mode .record-types-section {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .record-types-section h4 {
+  color: #63b3ed !important;
+}
+
+.dashboard.dark-mode .record-types-table {
+  background: #2d3748 !important;
+}
+
+.dashboard.dark-mode .record-types-table table {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .record-types-table th {
+  background: #374151 !important;
+  color: #f7fafc !important;
+  border-color: #4a5568 !important;
+}
+
+.dashboard.dark-mode .record-types-table td {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border-color: #4a5568 !important;
+}
+
+.dashboard.dark-mode .record-types-table tr:hover {
+  background: #374151 !important;
+}
+
+.record-type-name {
+  font-weight: 600;
+  color: #2563eb;
+}
+
+.dashboard.dark-mode .record-type-name {
+  color: #63b3ed !important;
+}
+
+.record-type-id {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+  color: #6b7280;
+}
+
+.dashboard.dark-mode .record-type-id {
+  color: #9ca3af !important;
+}
+
 /* ====== FIX SPECIFIC WHITE SECTIONS IN SOBJECTS ====== */
 .dashboard.dark-mode .query-section,
 .dashboard.dark-mode .query-results,
@@ -947,7 +1143,33 @@
 .dashboard.dark-mode .query-input-area {
   background: #2d3748 !important;
   color: #e1e7ef !important;
-  border: 1px solid #4a5568 !important;
+  border: none !important;
+}
+
+/* Dark mode table styling */
+.dashboard.dark-mode .results-table {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .results-table th {
+  background: #374151 !important;
+  color: #f7fafc !important;
+  border: none !important;
+}
+
+.dashboard.dark-mode .results-table td {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: none !important;
+}
+
+.dashboard.dark-mode .results-table tr:hover {
+  background: #374151 !important;
+}
+
+.dashboard.dark-mode .results-table td:first-child {
+  color: #63b3ed !important;
 }
 
 .dashboard.dark-mode .query-textarea,
@@ -977,43 +1199,282 @@
   border-bottom: 1px solid #4a5568 !important;
 }
 
-/* ====== FINAL LIGHT MODE OVERRIDES - ADDED AT END FOR MAXIMUM PRECEDENCE ====== */
-.dashboard:not(.dark-mode) .sobjects-left-panel-compact {
-  background: #ffffff !important;
+/* ====== FINAL DARK MODE OVERRIDES - ADDED AT END FOR MAXIMUM PRECEDENCE ====== */
+.dashboard.dark-mode .sobjects-left-panel-compact {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
 }
 
-.dashboard:not(.dark-mode) .sobjects-left-panel-compact .search-section {
-  background: #ffffff !important;
+.dashboard.dark-mode .sobjects-left-panel-compact .search-section {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
 }
 
-.dashboard:not(.dark-mode) .sobjects-content .sobjects-left-panel-compact .search-section {
-  background: #ffffff !important;
+.dashboard.dark-mode .sobjects-content .sobjects-left-panel-compact .search-section {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
 }
 
-.dashboard:not(.dark-mode) .sobjects-left-panel-compact * {
-  background: #ffffff !important;
+.dashboard.dark-mode .sobjects-left-panel-compact * {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
+}
+
+/* Fix selection highlighting for dark mode */
+.dashboard:not(.dark-mode) .result-item.selected {
+  background: #2b6cb0 !important;
+  color: white !important;
+  border-color: #63b3ed !important;
+}
+
+.dashboard:not(.dark-mode) .result-item:hover {
+  background: #374151 !important;
+  border-color: #63b3ed !important;
+}
+
+/* Light mode styles for result items */
+.sobjects-left-panel-compact .result-item {
+  background: #ffffff;
+  color: #333333;
+  border: 1px solid #e5e7eb;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sobjects-left-panel-compact .result-item.selected {
+  background: #3b82f6;
+  color: white;
+  border-color: #2563eb;
+}
+
+.sobjects-left-panel-compact .result-item:hover {
+  background: #f8f9fa;
+  border-color: #3b82f6;
 }
 
 /* ====== SOBJECTS LEFT PANEL STYLING (REPLACING INLINE STYLES) ====== */
 .sobjects-left-panel-compact {
   width: 400px;
-  border-right: 1px solid #6b7280;
+  border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  min-height: 100%;
+  height: 100%;
   position: relative;
   z-index: 9999;
-  background: #6b7280; /* Dark mode default */
-  color: #ffffff; /* Dark mode default */
+  background: #ffffff; /* Light mode default */
+  color: #333333; /* Light mode default */
 }
 
 .sobjects-search-section {
+  padding: 20px 20px 20px 20px;
+  border-bottom: 1px solid #e5e7eb; /* Light mode border */
+  background: #ffffff; /* Light mode background */
+  color: #333333; /* Light mode text */
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+  border-radius: 8px;
+}
+
+.sobjects-search-section h3 {
+  margin: 0 0 16px 0;
+  flex-shrink: 0;
+}
+
+/* SObject header layout */
+.sobject-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.sobject-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.sobject-title-row h3 {
+  margin: 0;
+  flex: 1;
+}
+
+.sobject-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.custom-badge {
+  background-color: #fbbf24;
+  color: #1f2937;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Force yellow background for left panel custom badges - ULTRA SPECIFIC */
+.sobjects-left-panel-compact .results-list .sobject-name .custom-badge-left,
+.sobjects-left-panel-compact .results-list .custom-badge-left,
+.sobjects-left-panel-compact .custom-badge-left,
+.sobjects-left-panel-compact .custom-badge,
+.results-list .custom-badge-left,
+.results-list .custom-badge,
+.custom-badge-left {
+  background-color: #fbbf24 !important;
+  background: #fbbf24 !important;
+  color: #1f2937 !important;
+  padding: 2px 8px !important;
+  border-radius: 4px !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  border: none !important;
+  display: inline-block !important;
+  min-width: auto !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+}
+
+/* Nuclear option - target any span with custom-badge-left class */
+span.custom-badge-left {
+  background-color: #fbbf24 !important;
+  background: #fbbf24 !important;
+  color: #1f2937 !important;
+  padding: 2px 8px !important;
+  border-radius: 4px !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  border: none !important;
+  display: inline-block !important;
+  min-width: auto !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+}
+
+/* Right panel placeholder styling */
+.no-selection-placeholder {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.placeholder-content {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  padding: 40px;
+  border-radius: 12px;
+  text-align: center;
+  max-width: 500px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.placeholder-content h3 {
+  color: #f7fafc !important;
+  margin-bottom: 16px;
+  font-size: 1.5rem;
+}
+
+.placeholder-content p {
+  color: #cbd5e0 !important;
+  margin-bottom: 24px;
+  font-size: 1.1rem;
+}
+
+.help-text {
+  background: #374151 !important;
+  color: #e1e7ef !important;
   padding: 20px;
-  border-bottom: 1px solid #6b7280;
-  min-height: 100px;
-  background: #6b7280; /* Dark mode default */
-  color: #ffffff; /* Dark mode default */
+  border-radius: 8px;
+  text-align: left;
+}
+
+.help-text p {
+  color: #f7fafc !important;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.help-text ul {
+  color: #cbd5e0 !important;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.help-text li {
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+/* Dark mode overrides for search section */
+.dashboard.dark-mode .sobjects-search-section {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
+  border-bottom: 1px solid #2d3748 !important;
+}
+
+/* Dark mode overrides for left panel content */
+.dashboard.dark-mode .sobjects-left-panel-compact .search-section,
+.dashboard.dark-mode .sobjects-left-panel-compact .search-results,
+.dashboard.dark-mode .sobjects-left-panel-compact .results-list,
+.dashboard.dark-mode .sobjects-left-panel-compact .sobject-name,
+.dashboard.dark-mode .sobjects-left-panel-compact .result-item {
+  background: #1a202c !important;
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .sobjects-left-panel-compact .search-results {
+  background: #1a202c !important;
+}
+
+.dashboard.dark-mode .sobjects-left-panel-compact .results-list {
+  background: #1a202c !important;
+}
+
+.dashboard.dark-mode .no-results-message {
+  background: #1a202c !important;
+  color: #a0aec0 !important;
+}
+
+.dashboard.dark-mode .no-results-message p {
+  color: #a0aec0 !important;
+}
+
+.dashboard.dark-mode .sobjects-left-panel-compact .result-item {
+  background: #2d3748 !important;
+  color: #e1e7ef !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .sobjects-left-panel-compact .result-item.selected {
+  background: #2b6cb0 !important;
+  color: white !important;
+  border-color: #63b3ed !important;
+}
+
+.dashboard.dark-mode .sobjects-left-panel-compact .result-item:hover {
+  background: #374151 !important;
+  border-color: #63b3ed !important;
 }
 
 /* ====== SOBJECTS RIGHT PANEL STYLING (REPLACING INLINE STYLES) ====== */
@@ -1022,6 +1483,6 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #6b7280; /* Dark mode default */
-  color: #ffffff; /* Dark mode default */
+  background: #ffffff; /* Light mode default */
+  color: #333333; /* Light mode default */
 }

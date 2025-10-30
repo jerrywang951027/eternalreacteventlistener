@@ -32,15 +32,6 @@ const SObjectQueryTab = ({ selectedSObject }) => {
     }
   }, [selectedSObject]);
 
-  const handleQueryConditionChange = (e) => {
-    setQueryCondition(e.target.value);
-  };
-
-  const handleQuerySubmit = (e) => {
-    e.preventDefault();
-    executeSOQLQuery(queryCondition);
-  };
-
   // Load default records when component mounts or selectedSObject changes
   useEffect(() => {
     if (selectedSObject) {
@@ -50,6 +41,15 @@ const SObjectQueryTab = ({ selectedSObject }) => {
       executeSOQLQuery(); // Load default records without condition
     }
   }, [selectedSObject, executeSOQLQuery]);
+
+  const handleQueryConditionChange = (e) => {
+    setQueryCondition(e.target.value);
+  };
+
+  const handleQuerySubmit = (e) => {
+    e.preventDefault();
+    executeSOQLQuery(queryCondition);
+  };
 
   if (!selectedSObject) {
     return (
@@ -61,6 +61,7 @@ const SObjectQueryTab = ({ selectedSObject }) => {
 
   return (
     <div className="soql-query-content">
+
       {/* Query Condition Input */}
       <div className="query-section">
         <h4>🔍 Query Records</h4>
@@ -107,6 +108,8 @@ const SObjectQueryTab = ({ selectedSObject }) => {
         </form>
       </div>
 
+
+
       {/* Query Results */}
       <div className="query-results-section">
         {queryLoading && (
@@ -122,61 +125,42 @@ const SObjectQueryTab = ({ selectedSObject }) => {
           </div>
         )}
 
-        {queryResults && !queryLoading && (
+        {/* SOQL Query Results */}
+        {queryResults && queryResults.records && queryResults.records.length > 0 && (
           <div className="query-results">
-            <div className="results-header">
-              <h5>📊 Query Results</h5>
-                              <div className="results-meta">
-                  <span className="results-count">
-                    {queryResults.records?.length || 0} records
-                    {queryResults.totalSize > 20 && ` (of ${queryResults.totalSize} total)`}
-                  </span>
-                  {queryResults.batchesRetrieved > 1 && (
-                    <span className="batches-info">
-                      📦 {queryResults.batchesRetrieved} batches retrieved
-                    </span>
-                  )}
-                  <span className="executed-soql">
-                    <strong>SOQL:</strong> <code>{queryResults.soql}</code>
-                  </span>
-                </div>
-            </div>
-            
-            {queryResults.records && queryResults.records.length > 0 ? (
-              <div className="results-table-container">
-                <table className="results-table">
-                  <thead>
-                    <tr>
-                      {queryResults.fields?.map(field => (
-                        <th key={field}>{field}</th>
+            <h5>📊 Query Results ({queryResults.records.length} records)</h5>
+            <div className="results-table-container">
+              <table className="results-table">
+                <thead>
+                  <tr>
+                    {queryResults.fields.map(field => (
+                      <th key={field}>{field}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {queryResults.records.map((record, index) => (
+                    <tr key={record.Id || index}>
+                      {queryResults.fields.map(field => (
+                        <td key={field}>
+                          {record[field] ? String(record[field]) : ''}
+                        </td>
                       ))}
                     </tr>
-                  </thead>
-                  <tbody>
-                    {queryResults.records.map((record, index) => (
-                      <tr key={record.Id || index}>
-                        {queryResults.fields?.map(field => (
-                          <td key={field}>
-                            {record[field] !== undefined && record[field] !== null 
-                              ? (typeof record[field] === 'object' 
-                                  ? JSON.stringify(record[field]) 
-                                  : String(record[field]))
-                              : ''
-                            }
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="no-results">
-                <p>No records found matching the criteria.</p>
-              </div>
-            )}
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
+
+        {/* No Results Message */}
+        {queryResults && queryResults.records && queryResults.records.length === 0 && (
+          <div className="no-results">
+            <p>No records found matching your criteria.</p>
+          </div>
+        )}
+
       </div>
     </div>
   );

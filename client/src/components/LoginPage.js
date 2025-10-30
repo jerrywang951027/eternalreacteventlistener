@@ -52,26 +52,32 @@ const LoginPage = ({ onLoginSuccess }) => {
       });
 
       if (response.data.success) {
-        // Open Salesforce login in a popup window
-        const popup = window.open(
-          response.data.authUrl, 
-          'salesforce-login',
-          'width=600,height=700,scrollbars=yes,resizable=yes'
-        );
+        // Check if this is client credential flow (direct login)
+        if (response.data.authType === 'clientCredential') {
+          console.log('✅ [LOGIN] Client credential authentication successful');
+          // Direct login successful - no popup needed
+          onLoginSuccess(response.data.user);
+        } else {
+          // Authorization code flow - open Salesforce login in a popup window
+          const popup = window.open(
+            response.data.authUrl, 
+            'salesforce-login',
+            'width=600,height=700,scrollbars=yes,resizable=yes'
+          );
 
-        // Poll for popup closure
-        const pollTimer = setInterval(() => {
-          try {
-            if (popup.closed) {
-              clearInterval(pollTimer);
-              // Check if authentication was successful
-              checkAuthStatus();
+          // Poll for popup closure
+          const pollTimer = setInterval(() => {
+            try {
+              if (popup.closed) {
+                clearInterval(pollTimer);
+                // Check if authentication was successful
+                checkAuthStatus();
+              }
+            } catch (error) {
+              // Popup might be cross-origin, ignore errors
             }
-          } catch (error) {
-            // Popup might be cross-origin, ignore errors
-          }
-        }, 1000);
-
+          }, 1000);
+        }
       } else {
         setError('Failed to initiate Salesforce login');
       }

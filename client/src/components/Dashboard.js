@@ -8,6 +8,8 @@ import OmnistudioTab from './OmnistudioTab';
 import AdminConsoleTab from './AdminConsoleTab';
 import SwaggerTab from './SwaggerTab';
 import TalkToSFDCAgentTab from './TalkToSFDCAgentTab';
+import DataCloudQueryTab from './DataCloudQueryTab';
+import DataCloudObjectsTab from './DataCloudObjectsTab';
 import UserInfoPopup from './UserInfoPopup';
 import './Dashboard.css';
 
@@ -45,6 +47,31 @@ const Dashboard = ({ user, onLogout }) => {
     hasAgentId: false,
     loading: true,
     error: null
+  });
+  
+  // Data Cloud configuration state
+  const [dataCloudConfig, setDataCloudConfig] = useState({
+    hasDataCloud: false,
+    loading: true,
+    error: null
+  });
+  
+  // Data Cloud Query tab state - persisted across tab switches
+  const [dataCloudQueryState, setDataCloudQueryState] = useState({
+    isConnected: false,
+    sqlQuery: '',
+    queryResult: null,
+    error: ''
+  });
+  
+  // Data Cloud Objects tab state - persisted across tab switches
+  const [dataCloudObjectsState, setDataCloudObjectsState] = useState({
+    isConnected: false,
+    entityType: '',
+    objects: [],
+    selectedObject: null,
+    searchTerm: '',
+    error: ''
   });
   
   console.log('🔍 [DASHBOARD] Initial agentforceConfig state:', agentforceConfig);
@@ -87,22 +114,51 @@ const Dashboard = ({ user, onLogout }) => {
         const orgNameFromKey = user?.orgKey?.replace(/^org_\d+_/, '') || '';
         console.log('🔑 Extracted org name from orgKey:', orgNameFromKey);
         
-        // Try exact match first, then try normalized matching (removing hyphens and special chars)
+        // Try exact match first (case-insensitive)
         let currentOrg = response.data.data.orgStatus.find(org => 
-          org.orgId === orgNameFromKey
+          org.orgId.toLowerCase() === orgNameFromKey.toLowerCase()
         );
         
-        // If no exact match, try normalized matching
+        // If no exact match, try normalized matching (removing all special chars and case-insensitive)
         if (!currentOrg) {
-          const normalizedOrgNameFromKey = orgNameFromKey.replace(/[^a-z0-9]/gi, '');
+          const normalizedOrgNameFromKey = orgNameFromKey.replace(/[^a-z0-9]/gi, '').toLowerCase();
           console.log('🔍 Trying normalized match:', normalizedOrgNameFromKey);
           
           currentOrg = response.data.data.orgStatus.find(org => 
-            org.orgId.replace(/[^a-z0-9]/gi, '') === normalizedOrgNameFromKey
+            org.orgId.replace(/[^a-z0-9]/gi, '').toLowerCase() === normalizedOrgNameFromKey
           );
         }
         
         console.log('🎯 Found matching org:', currentOrg);
+        
+        if (currentOrg) {
+          console.log('✅ Matched org:', currentOrg.orgName, 'hasAgentId:', currentOrg.hasAgentId, 'agentId:', currentOrg.agentId);
+          
+          // Check for Data Cloud configuration
+          if (currentOrg.dataCloud) {
+            console.log('✅ Org has Data Cloud enabled');
+            setDataCloudConfig({
+              hasDataCloud: true,
+              loading: false,
+              error: null
+            });
+          } else {
+            console.log('❌ Org does not have Data Cloud enabled');
+            setDataCloudConfig({
+              hasDataCloud: false,
+              loading: false,
+              error: null
+            });
+          }
+        } else {
+          console.log('❌ No matching org found for orgKey:', user?.orgKey);
+          console.log('📋 Available org IDs:', response.data.data.orgStatus.map(o => o.orgId));
+          setDataCloudConfig({
+            hasDataCloud: false,
+            loading: false,
+            error: null
+          });
+        }
         
         setAgentforceConfig({
           hasAgentId: currentOrg ? currentOrg.hasAgentId : false,
@@ -110,10 +166,15 @@ const Dashboard = ({ user, onLogout }) => {
           error: null
         });
         
-        console.log('✅ Agentforce config checked for org:', orgNameFromKey, 'hasAgentId:', currentOrg ? currentOrg.hasAgentId : false);
+        console.log('✅ Agentforce config set:', { hasAgentId: currentOrg ? currentOrg.hasAgentId : false });
       } else {
         setAgentforceConfig({
           hasAgentId: false,
+          loading: false,
+          error: response.data.message
+        });
+        setDataCloudConfig({
+          hasDataCloud: false,
           loading: false,
           error: response.data.message
         });
@@ -122,6 +183,11 @@ const Dashboard = ({ user, onLogout }) => {
       console.error('❌ Error checking Agentforce configuration:', error);
       setAgentforceConfig({
         hasAgentId: false,
+        loading: false,
+        error: error.message
+      });
+      setDataCloudConfig({
+        hasDataCloud: false,
         loading: false,
         error: error.message
       });
@@ -766,21 +832,33 @@ const Dashboard = ({ user, onLogout }) => {
   // Tab navigation
   const tabs = [
     { id: 'platform-events', label: 'Explore Platform Events', icon: '📨' },
-    { id: 'sobjects', label: 'Explore SObjects', icon: '🗃️' },
-    { id: 'om', label: 'Explore OM', icon: '⚙️' },
-    { id: 'omnistudio', label: 'Explore Omnistudio(MP)', icon: '🔧' },
-    { id: 'admin-console', label: 'Admin Console', icon: '🛠️' },
-    { id: 'swagger', label: 'API Documentation', icon: '📚' }
+    { id: 'sobjects', label: 'Explore SObjects', icon: '🗃️' }
+    // { id: 'om', label: 'Explore OM', icon: '⚙️' }, // Hidden to save space
+    // { id: 'omnistudio', label: 'Explore Omnistudio(MP)', icon: '🔧' }, // Hidden to save space
+    // { id: 'swagger', label: 'API Documentation', icon: '📚' } // Hidden to save space
   ];
 
   // Add Agentforce tab conditionally
   console.log('🔍 [DASHBOARD] Building tabs array, agentforceConfig:', agentforceConfig);
   if (agentforceConfig.hasAgentId) {
     console.log('✅ [DASHBOARD] Adding Agentforce tab to tabs array');
-    tabs.splice(4, 0, { id: 'talk-to-sfdc-agent', label: 'Talk to SFDC Agent', icon: '🤖' });
+    tabs.push({ id: 'talk-to-sfdc-agent', label: 'AgentChat', icon: '🤖' });
   } else {
     console.log('❌ [DASHBOARD] Agentforce tab NOT added, hasAgentId:', agentforceConfig.hasAgentId);
   }
+
+  // Add Data Cloud tabs conditionally
+  console.log('🔍 [DASHBOARD] Building tabs array, dataCloudConfig:', dataCloudConfig);
+  if (dataCloudConfig.hasDataCloud) {
+    console.log('✅ [DASHBOARD] Adding Data Cloud Query tab to tabs array');
+    tabs.push({ id: 'datacloud-query', label: 'Data Cloud Query', icon: '🌥️' });
+    tabs.push({ id: 'datacloud-objects', label: 'Data Cloud Objects', icon: '🗂️' });
+  } else {
+    console.log('❌ [DASHBOARD] Data Cloud tabs NOT added, hasDataCloud:', dataCloudConfig.hasDataCloud);
+  }
+
+  // Add Admin Console at the very end
+  tabs.push({ id: 'admin-console', label: 'Admin Console', icon: '🛠️' });
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -846,6 +924,20 @@ const Dashboard = ({ user, onLogout }) => {
         return <OmnistudioTab onTabLoad={loadOmnistudioGlobalData} />;
       case 'talk-to-sfdc-agent':
         return <TalkToSFDCAgentTab />;
+      case 'datacloud-query':
+        return (
+          <DataCloudQueryTab 
+            persistedState={dataCloudQueryState}
+            onStateChange={setDataCloudQueryState}
+          />
+        );
+      case 'datacloud-objects':
+        return (
+          <DataCloudObjectsTab 
+            persistedState={dataCloudObjectsState}
+            onStateChange={setDataCloudObjectsState}
+          />
+        );
       case 'admin-console':
         return <AdminConsoleTab onTabLoad={loadOmnistudioGlobalData} />;
         case 'swagger':

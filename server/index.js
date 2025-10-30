@@ -6,7 +6,7 @@ const http = require('http');
 const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
-require('dotenv').config();
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpecs = require('./swagger');
 
@@ -39,11 +39,14 @@ console.log(`📝 [LOGGING] Server logs will be written to: ${logFilePath}`);
 const LoginModule = require('./modules/login');
 const PlatformEventsModule = require('./modules/platformEvents');
 const SObjectsModule = require('./modules/sobjects');
+const SObjectFieldSearchModule = require('./modules/sobjectFieldSearch');
 const OrderManagementModule = require('./modules/orderManagement');
 const OmnistudioModule = require('./modules/omnistudio');
 const AdminModule = require('./modules/admin');
 const RedisModule = require('./modules/redis');
 const AgentforceModule = require('./modules/agentforce');
+const EnvManagerModule = require('./modules/envManager');
+const DataCloudModule = require('./modules/dataCloud');
 
 const PORT = process.env.PORT || 5000;
 const CLIENT_PORT = process.env.CLIENT_PORT || 3000;
@@ -85,10 +88,13 @@ const redisModule = new RedisModule();
 const loginModule = new LoginModule();
 const platformEventsModule = new PlatformEventsModule(io, platformEventSubscriptions);
 const sObjectsModule = new SObjectsModule();
+const sobjectFieldSearchModule = new SObjectFieldSearchModule();
 const orderManagementModule = new OrderManagementModule();
 const omnistudioModule = new OmnistudioModule(redisModule);
 const adminModule = new AdminModule(omnistudioModule);
 const agentforceModule = new AgentforceModule();
+const envManagerModule = new EnvManagerModule();
+const dataCloudModule = new DataCloudModule();
 
 // Make login module available to other modules via app.locals
 app.locals.loginModule = loginModule;
@@ -785,6 +791,183 @@ app.post('/api/sobjects/execute-soql', loginModule.requireAuth, (req, res) => {
   sObjectsModule.executeFreeSOQLQuery(req, res);
 });
 
+// SObject Field Search Routes
+/**
+ * @swagger
+ * /api/sobjects/field-search/build-cache:
+ *   post:
+ *     summary: Build field metadata cache
+ *     description: Build and cache field metadata for all SObjects in the org (excluding Share, Change, History, Feed suffixes)
+ *     tags: [SObject Field Search]
+ *     security:
+ *       - sessionAuth: []
+ *     responses:
+ *       200:
+ *         description: Cache built successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 sobjectCount:
+ *                   type: integer
+ *                 errorCount:
+ *                   type: integer
+ *                 cachedAt:
+ *                   type: string
+ *       401:
+ *         description: Unauthorized - user not authenticated
+ *       500:
+ *         description: Server error
+ */
+app.post('/api/sobjects/field-search/build-cache', loginModule.requireAuth, (req, res) => {
+  sobjectFieldSearchModule.buildFieldMetadataCache(req, res);
+});
+
+/**
+ * @swagger
+ * /api/sobjects/field-search/cache-status:
+ *   get:
+ *     summary: Check field cache status
+ *     description: Check if field metadata cache exists for the current org
+ *     tags: [SObject Field Search]
+ *     security:
+ *       - sessionAuth: []
+ *     responses:
+ *       200:
+ *         description: Cache status retrieved
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 cached:
+ *                   type: boolean
+ *                 sobjectCount:
+ *                   type: integer
+ *                 cachedAt:
+ *                   type: string
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+app.get('/api/sobjects/field-search/cache-status', loginModule.requireAuth, (req, res) => {
+  sobjectFieldSearchModule.getCacheStatus(req, res);
+});
+
+/**
+ * @swagger
+ * /api/sobjects/field-search/search:
+ *   get:
+ *     summary: Search SObjects by field name
+ *     description: Search for SObjects that contain fields matching the query
+ *     tags: [SObject Field Search]
+ *     security:
+ *       - sessionAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: query
+ *         required: true
+ *         schema:
+ *           type: string
+ *           minLength: 2
+ *         description: Field name search query (minimum 2 characters)
+ *     responses:
+ *       200:
+ *         description: Search results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 sobjects:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       name:
+ *                         type: string
+ *                       label:
+ *                         type: string
+ *                       matchingFields:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             name:
+ *                               type: string
+ *                             label:
+ *                               type: string
+ *                             type:
+ *                               type: string
+ *                       matchCount:
+ *                         type: integer
+ *                 totalMatches:
+ *                   type: integer
+ *                 searchQuery:
+ *                   type: string
+ *                 cachedAt:
+ *                   type: string
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+app.get('/api/sobjects/field-search/search', loginModule.requireAuth, (req, res) => {
+  sobjectFieldSearchModule.searchByFieldName(req, res);
+});
+
+/**
+ * @swagger
+ * /api/sobjects/field-search/clear-cache:
+ *   delete:
+ *     summary: Clear field metadata cache
+ *     description: Clear the cached field metadata for the current org
+ *     tags: [SObject Field Search]
+ *     security:
+ *       - sessionAuth: []
+ *     responses:
+ *       200:
+ *         description: Cache cleared successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+app.delete('/api/sobjects/field-search/clear-cache', loginModule.requireAuth, (req, res) => {
+  sobjectFieldSearchModule.clearCache(req, res);
+});
+
+/**
+ * @swagger
+ * /api/sobjects/field-search/cache-data:
+ *   get:
+ *     summary: Get detailed field cache data
+ *     description: Retrieve detailed statistics and full cache data for admin viewing
+ *     tags: [SObject Field Search]
+ *     security:
+ *       - sessionAuth: []
+ *     responses:
+ *       200:
+ *         description: Cache data retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+app.get('/api/sobjects/field-search/cache-data', loginModule.requireAuth, (req, res) => {
+  sobjectFieldSearchModule.getCacheData(req, res);
+});
+
 // Order Management Routes
 /**
  * @swagger
@@ -1340,10 +1523,28 @@ app.post('/api/salesforce/agentforce/chat', loginModule.requireAuth, async (req,
     res.json(result);
   } catch (error) {
     console.error('❌ [AGENTFORCE-ROUTE] Error in chat endpoint:', error);
-    res.status(500).json({
+    
+    // Return detailed error information including API response if available
+    const errorResponse = {
       success: false,
-      message: 'Internal server error: ' + error.message
-    });
+      message: 'Internal server error: ' + error.message,
+      error: {
+        message: error.message,
+        stack: error.stack
+      }
+    };
+    
+    // Include Salesforce API response details if available
+    if (error.response) {
+      errorResponse.apiError = {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data,
+        headers: error.response.headers
+      };
+    }
+    
+    res.status(error.response?.status || 500).json(errorResponse);
   }
 });
 
@@ -1424,6 +1625,120 @@ app.get('/api/salesforce/agentforce/filtered-logs', loginModule.requireAuth, asy
       message: 'Internal server error: ' + error.message
     });
   }
+});
+
+/**
+ * @swagger
+ * /api/datacloud/connect:
+ *   post:
+ *     summary: Connect to Salesforce Data Cloud
+ *     tags: [Data Cloud]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully connected to Data Cloud
+ *       401:
+ *         description: Not authenticated with Salesforce
+ *       500:
+ *         description: Failed to connect to Data Cloud
+ */
+app.post('/api/datacloud/connect', loginModule.requireAuth, (req, res) => {
+  dataCloudModule.connectDataCloud(req, res);
+});
+
+/**
+ * @swagger
+ * /api/datacloud/query:
+ *   post:
+ *     summary: Execute a Data Cloud SQL query
+ *     tags: [Data Cloud]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               sql:
+ *                 type: string
+ *                 description: SQL query to execute
+ *     responses:
+ *       200:
+ *         description: Query executed successfully
+ *       400:
+ *         description: Invalid request
+ *       401:
+ *         description: Not connected to Data Cloud
+ *       500:
+ *         description: Failed to execute query
+ */
+app.post('/api/datacloud/query', loginModule.requireAuth, (req, res) => {
+  dataCloudModule.executeQuery(req, res);
+});
+
+/**
+ * @swagger
+ * /api/datacloud/metadata:
+ *   get:
+ *     summary: Get Data Cloud metadata for entity types
+ *     tags: [Data Cloud]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: entityType
+ *         schema:
+ *           type: string
+ *           enum: [DataLakeObject, DataModel]
+ *         required: true
+ *         description: Entity type to retrieve metadata for
+ *     responses:
+ *       200:
+ *         description: Metadata retrieved successfully
+ *       400:
+ *         description: Invalid request
+ *       401:
+ *         description: Not connected to Data Cloud
+ *       500:
+ *         description: Failed to fetch metadata
+ */
+app.get('/api/datacloud/metadata', loginModule.requireAuth, (req, res) => {
+  dataCloudModule.getMetadata(req, res);
+});
+
+/**
+ * @swagger
+ * /api/datacloud/status:
+ *   get:
+ *     summary: Get Data Cloud connection status
+ *     tags: [Data Cloud]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Connection status retrieved
+ */
+app.get('/api/datacloud/status', loginModule.requireAuth, (req, res) => {
+  dataCloudModule.getConnectionStatus(req, res);
+});
+
+/**
+ * @swagger
+ * /api/datacloud/disconnect:
+ *   post:
+ *     summary: Disconnect from Data Cloud
+ *     tags: [Data Cloud]
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully disconnected
+ */
+app.post('/api/datacloud/disconnect', loginModule.requireAuth, (req, res) => {
+  dataCloudModule.disconnectDataCloud(req, res);
 });
 
 // 🧪 DEBUG: Force clear cache and reload 
@@ -1674,12 +1989,172 @@ app.get('/api/admin/session-info', loginModule.requireAuth, (req, res) => {
   adminModule.getSessionInfo(req, res);
 });
 
+app.get('/api/admin/current-org-info', loginModule.requireAuth, (req, res) => {
+  adminModule.getCurrentOrgInfo(req, res);
+});
+
 app.get('/api/admin/environment-info', loginModule.requireAuth, (req, res) => {
   adminModule.getEnvironmentInfo(req, res);
 });
 
 app.get('/api/admin/server-logs', loginModule.requireAuth, (req, res) => {
   adminModule.getServerLogs(req, res);
+});
+
+// Environment Manager API routes
+/**
+ * @swagger
+ * /api/admin/env/orgs:
+ *   get:
+ *     summary: Get all organizations from .env file
+ *     description: Retrieve list of all configured organizations from .env file
+ *     tags: [Environment Management]
+ *     security:
+ *       - sessionAuth: []
+ *     responses:
+ *       200:
+ *         description: Organizations retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+app.get('/api/admin/env/orgs', loginModule.requireAuth, (req, res) => {
+  envManagerModule.getOrgs(req, res);
+});
+
+/**
+ * @swagger
+ * /api/admin/env/orgs:
+ *   put:
+ *     summary: Update organizations in .env file
+ *     description: Update all organizations in .env file (creates backup)
+ *     tags: [Environment Management]
+ *     security:
+ *       - sessionAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               orgs:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *     responses:
+ *       200:
+ *         description: Organizations updated successfully
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+app.put('/api/admin/env/orgs', loginModule.requireAuth, (req, res) => {
+  envManagerModule.updateOrgs(req, res);
+});
+
+/**
+ * @swagger
+ * /api/admin/env/orgs:
+ *   post:
+ *     summary: Add a new organization
+ *     description: Add a new organization to .env file (creates backup)
+ *     tags: [Environment Management]
+ *     security:
+ *       - sessionAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               org:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: Organization added successfully
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+app.post('/api/admin/env/orgs', loginModule.requireAuth, (req, res) => {
+  envManagerModule.addOrg(req, res);
+});
+
+/**
+ * @swagger
+ * /api/admin/env/orgs/{index}:
+ *   delete:
+ *     summary: Delete an organization
+ *     description: Delete an organization from .env file (creates backup)
+ *     tags: [Environment Management]
+ *     security:
+ *       - sessionAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: index
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Organization index
+ *     responses:
+ *       200:
+ *         description: Organization deleted successfully
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Organization not found
+ *       500:
+ *         description: Server error
+ */
+app.delete('/api/admin/env/orgs/:index', loginModule.requireAuth, (req, res) => {
+  envManagerModule.deleteOrg(req, res);
+});
+
+/**
+ * @swagger
+ * /api/admin/env/backups:
+ *   get:
+ *     summary: Get list of .env backup files
+ *     description: Retrieve list of all .env backup files
+ *     tags: [Environment Management]
+ *     security:
+ *       - sessionAuth: []
+ *     responses:
+ *       200:
+ *         description: Backup list retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+app.get('/api/admin/env/backups', loginModule.requireAuth, (req, res) => {
+  envManagerModule.getBackups(req, res);
+});
+
+// Get backup file content
+app.get('/api/admin/env/backups/:filename', loginModule.requireAuth, (req, res) => {
+  envManagerModule.getBackupContent(req, res);
+});
+
+// Delete backup files
+app.delete('/api/admin/env/backups', loginModule.requireAuth, (req, res) => {
+  envManagerModule.deleteBackups(req, res);
+});
+
+// Get current .env content
+app.get('/api/admin/env/current', loginModule.requireAuth, (req, res) => {
+  envManagerModule.getCurrentEnvContent(req, res);
 });
 
 /**
@@ -2394,6 +2869,7 @@ server.listen(PORT, () => {
   console.log(`   🔐 LoginModule initialized`);
   console.log(`   📡 PlatformEventsModule initialized`);
   console.log(`   📊 SObjectsModule initialized`);
+  console.log(`   🔍 SObjectFieldSearchModule initialized`);
   console.log(`   ⚙️ OrderManagementModule initialized`);
   console.log(`   🔗 OmnistudioModule initialized (with Redis integration)`);
   console.log(`   🔌 RedisModule initialized (${redisModule.isAvailable() ? 'Connected' : 'Offline'})`);

@@ -21,12 +21,34 @@ const TalkToSFDCAgentTab = () => {
   const [autoSendVoice, setAutoSendVoice] = useState(false);
   const [isStopped, setIsStopped] = useState(false);
   const autoSendVoiceRef = useRef(autoSendVoice);
+  const isCreatingRecognition = useRef(false);
+  const recordingTimeoutRef = useRef(null);
 
   // Keep ref in sync with state
   useEffect(() => {
     console.log('🎤 Ref updated to:', autoSendVoice);
     autoSendVoiceRef.current = autoSendVoice;
   }, [autoSendVoice]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (recordingTimeoutRef.current) {
+        clearTimeout(recordingTimeoutRef.current);
+        recordingTimeoutRef.current = null;
+      }
+    };
+  }, []);
+
+  // Format timestamp as HH:MM:SS.mmm
+  const formatTimestamp = (timestamp) => {
+    const date = new Date(timestamp);
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    const milliseconds = String(date.getMilliseconds()).padStart(3, '0');
+    return `${hours}:${minutes}:${seconds}.${milliseconds}`;
+  };
 
   // Utility function to clean Salesforce data by removing "_link" nodes and optionally headers
   const cleanSalesforceData = (data) => {
@@ -89,9 +111,18 @@ const TalkToSFDCAgentTab = () => {
 
   // Handle voice input
   const startVoiceInput = async () => {
+    console.log('🎤 ===== START VOICE INPUT CALLED =====');
     console.log('🎤 Starting voice input, auto-send enabled:', autoSendVoiceRef.current);
     console.log('🎤 Is recording:', isRecording);
     console.log('🎤 Is stopped:', isStopped);
+    console.log('🎤 Session started:', sessionStarted);
+    console.log('🎤 ======================================');
+    
+    // Early exit if session not started
+    if (!sessionStarted) {
+      console.log('🎤 ❌ Cannot start voice input - session not started');
+      return;
+    }
     
     // Check microphone permissions first
     try {
@@ -104,17 +135,22 @@ const TalkToSFDCAgentTab = () => {
       return;
     }
     
-    if (!isRecording && !isStopped) {
+    if (!isRecording && !isCreatingRecognition.current) {
       setError('');
-      setIsStopped(false); // Reset stop state
+      // If recording was stopped, automatically reset it when user clicks to start
+      if (isStopped) {
+        console.log('🎤 Recording was stopped, automatically resetting to allow new recording');
+        setIsStopped(false);
+      }
+      isCreatingRecognition.current = true; // Prevent multiple simultaneous creations
       
       // Create a fresh recognition instance each time
       if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const freshRecognition = new SpeechRecognition();
         
-        freshRecognition.continuous = false;
-        freshRecognition.interimResults = false;
+        freshRecognition.continuous = true;  // Keep recording until manually stopped
+        freshRecognition.interimResults = true;  // Get partial results as you speak
         freshRecognition.lang = 'en-US';
         
         console.log('🎤 Created fresh recognition instance:', freshRecognition);
@@ -124,26 +160,80 @@ const TalkToSFDCAgentTab = () => {
           console.log('🎤 Fresh recognition started');
           setIsRecording(true);
           setIsStopped(false);
+          isCreatingRecognition.current = false; // Reset creation flag
+          
+          // Set a timeout to automatically stop recording after 30 seconds of silence
+          recordingTimeoutRef.current = setTimeout(() => {
+            console.log('🎤 Auto-stopping recording due to timeout');
+            if (isRecording && !isStopped) {
+              stopVoiceInput();
+            }
+          }, 30000); // 30 seconds
         };
         
         freshRecognition.onresult = (event) => {
           console.log('🎤 Fresh recognition result event fired');
           console.log('🎤 Event results:', event.results);
-          const transcript = event.results[0][0].transcript;
-          handleVoiceResult(transcript);
+          
+          // Get the latest result (most recent)
+          const result = event.results[event.results.length - 1];
+          const transcript = result[0].transcript;
+          const isFinal = result.isFinal;
+          
+          console.log('🎤 Transcript:', transcript, 'Is final:', isFinal);
+          
+          // Reset the timeout when we get any result (speech detected)
+          if (recordingTimeoutRef.current) {
+            clearTimeout(recordingTimeoutRef.current);
+            recordingTimeoutRef.current = null;
+          }
+          
+          // Only process final results to avoid sending partial text
+          if (isFinal) {
+            handleVoiceResult(transcript);
+          } else {
+            // Set a new timeout for the next period of silence
+            recordingTimeoutRef.current = setTimeout(() => {
+              console.log('🎤 Auto-stopping recording due to silence timeout');
+              if (isRecording && !isStopped) {
+                stopVoiceInput();
+              }
+            }, 10000); // 10 seconds of silence
+          }
         };
         
         freshRecognition.onerror = (event) => {
           console.error('🎤 Fresh recognition error:', event.error);
           setIsRecording(false);
           setIsStopped(true);
-          setError('Voice recognition failed: ' + event.error);
+          isCreatingRecognition.current = false; // Reset creation flag
+          
+          // Clear timeout on error
+          if (recordingTimeoutRef.current) {
+            clearTimeout(recordingTimeoutRef.current);
+            recordingTimeoutRef.current = null;
+          }
+          
+          // Only show error for certain types of errors, not "no-speech"
+          if (event.error !== 'no-speech' && event.error !== 'aborted') {
+            setError('Voice recognition failed: ' + event.error);
+          } else {
+            // Clear any existing error for no-speech or aborted errors
+            setError('');
+          }
         };
         
         freshRecognition.onend = () => {
           console.log('🎤 Fresh recognition ended');
           setIsRecording(false);
-          setIsStopped(false); // Reset stopped state when recognition ends naturally
+          // Don't reset isStopped here - let user control when to allow recording again
+          isCreatingRecognition.current = false; // Reset creation flag
+          
+          // Clear timeout when recognition ends
+          if (recordingTimeoutRef.current) {
+            clearTimeout(recordingTimeoutRef.current);
+            recordingTimeoutRef.current = null;
+          }
         };
         
         try {
@@ -153,12 +243,13 @@ const TalkToSFDCAgentTab = () => {
         } catch (error) {
           console.error('🎤 Error starting fresh recognition:', error);
           setError('Failed to start voice recognition: ' + error.message);
+          isCreatingRecognition.current = false; // Reset creation flag
         }
       } else {
         setError('Speech recognition not supported in this browser');
       }
     } else {
-      console.log('🎤 Cannot start - recording:', isRecording, 'stopped:', isStopped);
+      console.log('🎤 Cannot start - already recording:', isRecording, 'or creating recognition:', isCreatingRecognition.current);
     }
   };
 
@@ -169,7 +260,14 @@ const TalkToSFDCAgentTab = () => {
       setIsRecording(false);
       setIsStopped(true);
     }
+    
+    // Clear any active timeout
+    if (recordingTimeoutRef.current) {
+      clearTimeout(recordingTimeoutRef.current);
+      recordingTimeoutRef.current = null;
+    }
   };
+
 
   // Fetch API communication logs from the backend
   const fetchApiLogs = useCallback(async () => {
@@ -230,6 +328,10 @@ const TalkToSFDCAgentTab = () => {
     }
     
     console.log('🎤 ✅ All conditions met, proceeding to send voice message');
+    
+    // Ensure recording is stopped before sending
+    setIsRecording(false);
+    setIsStopped(true);
 
     const userMessage = {
       id: Date.now(),
@@ -316,6 +418,10 @@ const TalkToSFDCAgentTab = () => {
     if (autoSendVoiceRef.current && transcript.trim()) {
       console.log('🎤 ✅ Auto-send conditions met, proceeding with auto-send');
       console.log('🎤 Auto-sending voice input:', transcript);
+      
+      // Immediately stop recording and set stopped state to prevent restart
+      setIsRecording(false);
+      setIsStopped(true);
       
       // Send the message directly with the transcript
       setTimeout(() => {
@@ -572,8 +678,7 @@ const TalkToSFDCAgentTab = () => {
     <div className="talk-to-sfdc-agent-tab">
       <div className="tab-content">
         <div className="tab-header">
-        <h2>🤖 Talk to SFDC Agent</h2>
-        <p>Chat with Salesforce Agentforce agents for real-time assistance</p>
+        <h2>Chat with Agentforce Agent for real time assistance</h2>
       </div>
 
       {/* Session Controls */}
@@ -672,7 +777,7 @@ const TalkToSFDCAgentTab = () => {
                        message.type === 'agent' ? agentName : 'System'}
                     </span>
                     <span className="message-time">
-                      {new Date(message.timestamp).toLocaleDateString()} {new Date(message.timestamp).toLocaleTimeString()}
+                      {formatTimestamp(message.timestamp)}
                     </span>
                   </div>
                   <div className="message-content">
@@ -702,6 +807,14 @@ const TalkToSFDCAgentTab = () => {
             className="message-input"
           />
           
+          <button 
+            type="submit" 
+            disabled={!sessionStarted || !inputMessage.trim() || isLoading}
+            className="send-button"
+          >
+            {isLoading ? '⏳' : '📤'}
+          </button>
+          
           {/* Voice Input Button */}
           {sessionStarted && recognition && (
             <button
@@ -715,13 +828,6 @@ const TalkToSFDCAgentTab = () => {
             </button>
           )}
           
-          <button 
-            type="submit" 
-            disabled={!sessionStarted || !inputMessage.trim() || isLoading}
-            className="send-button"
-          >
-            {isLoading ? '⏳' : '📤'}
-          </button>
           
           {/* Preset Messages Arrow Button - Only visible during active session */}
           {sessionStarted && (
@@ -813,7 +919,7 @@ const TalkToSFDCAgentTab = () => {
                 <div key={log.id} className={`log-entry log-${log.type}`}>
                   <div className="log-header">
                     <span className="log-type">{log.type.toUpperCase()}</span>
-                    <span className="log-timestamp">{new Date(log.timestamp).toLocaleDateString()} {new Date(log.timestamp).toLocaleTimeString()}</span>
+                    <span className="log-timestamp">{formatTimestamp(log.timestamp)}</span>
                   </div>
                   <div className="log-data">
                     <pre>{JSON.stringify(cleanSalesforceData(log.data), null, 2)}</pre>

@@ -6,6 +6,11 @@
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 
+/* Dark mode background for admin console container */
+.dashboard.dark-mode .admin-console-container {
+  background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%) !important;
+}
+
 .admin-console-layout {
   display: grid;
   grid-template-columns: 400px 1fr;
@@ -75,9 +80,22 @@
 }
 
 .admin-section-item.selected {
-  background: #eef4ff;
-  border-left: 4px solid #4f46e5;
-  padding-left: 16px;
+  background: linear-gradient(90deg, #eef4ff 0%, #dbeafe 100%);
+  border-left: 5px solid #4f46e5;
+  padding-left: 15px;
+  box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3), inset 0 0 0 1px rgba(79, 70, 229, 0.1);
+  transform: translateX(4px);
+  font-weight: 600;
+}
+
+.admin-section-item.selected .section-name {
+  color: #4f46e5 !important;
+  font-weight: 700 !important;
+}
+
+.admin-section-item.selected .section-description {
+  color: #6366f1 !important;
+  font-weight: 500 !important;
 }
 
 /* Dark mode hover and selected states */
@@ -88,9 +106,23 @@
 }
 
 .dashboard.dark-mode .admin-section-item.selected {
-  background: #1f2937 !important;
-  border-left: 4px solid #4f46e5 !important;
-  padding-left: 16px !important;
+  background: linear-gradient(90deg, #1e40af 0%, #3b82f6 100%) !important;
+  border-left: 5px solid #60a5fa !important;
+  padding-left: 15px !important;
+  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.5), inset 0 0 0 1px rgba(96, 165, 250, 0.3) !important;
+  transform: translateX(4px) !important;
+  font-weight: 700 !important;
+}
+
+.dashboard.dark-mode .admin-section-item.selected .section-name {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+}
+
+.dashboard.dark-mode .admin-section-item.selected .section-description {
+  color: #dbeafe !important;
+  font-weight: 600 !important;
 }
 
 .section-icon {
@@ -493,6 +525,7 @@
   line-height: 1.5;
   max-height: 600px;
   overflow-y: auto;
+  scroll-behavior: smooth;
 }
 
 .log-line {
@@ -1038,5 +1071,238 @@
 
 .dashboard.dark-mode .redis-description li {
   color: #a0aec0 !important;
+}
+
+/* Dark mode for cache summary, logs summary, and env summary */
+.dashboard.dark-mode .cache-summary,
+.dashboard.dark-mode .logs-summary,
+.dashboard.dark-mode .env-summary {
+  background: linear-gradient(145deg, #2d3748, #1a202c) !important;
+  border: 2px solid #4a5568 !important;
+  color: #e2e8f0 !important;
+}
+
+.dashboard.dark-mode .stat-label {
+  color: #81c784 !important;
+}
+
+.dashboard.dark-mode .stat-value {
+  background: linear-gradient(145deg, #667eea, #764ba2) !important;
+  color: white !important;
+  border: 1px solid #5a67d8 !important;
+}
+
+/* Dark mode for cache org card */
+.dashboard.dark-mode .cache-org-card {
+  background: linear-gradient(145deg, #2d3748, #1a202c) !important;
+  border: 2px solid #4a5568 !important;
+  color: #e2e8f0 !important;
+}
+
+.dashboard.dark-mode .cache-org-header {
+  border-bottom-color: #4a5568 !important;
+}
+
+/* Dark mode for environment variables */
+.dashboard.dark-mode .env-item {
+  background: linear-gradient(145deg, #2d3748, #1a202c) !important;
+  border: 2px solid #4a5568 !important;
+  color: #e2e8f0 !important;
+}
+
+.dashboard.dark-mode .env-item label {
+  color: #81c784 !important;
+}
+
+.dashboard.dark-mode .env-value {
+  background: #1a202c !important;
+  color: #68d391 !important;
+  border: 1px solid #38a169 !important;
+}
+
+.dashboard.dark-mode .hidden-value {
+  background: #7f1d1d !important;
+  color: #fca5a5 !important;
+  border: 1px solid #ef4444 !important;
+}
+
+.dashboard.dark-mode .instance-url {
+  color: #63b3ed !important;
+}
+
+.dashboard.dark-mode .session-id {
+  background: #1a202c !important;
+  color: #68d391 !important;
+  border: 1px solid #38a169 !important;
+}
+
+/* Dark mode for field type distribution bars */
+.dashboard.dark-mode .cache-org-card h4 {
+  color: #f7fafc !important;
+}
+
+.dashboard.dark-mode .cache-org-card > div > div {
+  background: linear-gradient(145deg, #2d3748, #1a202c) !important;
+  border: 1px solid #4b5563 !important;
+}
+
+.dashboard.dark-mode .cache-org-card > div > div > span:first-child {
+  color: #81c784 !important;
+}
+
+/* Dark mode for optimization info */
+.dashboard.dark-mode .cache-org-card > div[style*="background: #f0fdf4"] {
+  background: linear-gradient(145deg, #1e3a2e, #1a2f26) !important;
+  border: 1px solid #38a169 !important;
+}
+
+.dashboard.dark-mode .cache-org-card > div[style*="background: #f0fdf4"] p {
+  color: #86efac !important;
+}
+
+.dashboard.dark-mode .cache-org-card > div[style*="background: #f0fdf4"] span {
+  background: #1e3a2e !important;
+  border: 1px solid #38a169 !important;
+  color: #86efac !important;
+}
+
+/* Sticky scroll indicator */
+.logs-container {
+  position: relative;
+}
+
+/* Organization Management Styles */
+.org-list-container {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.org-list-item {
+  background: white;
+  color: #1e293b;
+}
+
+.org-list-item.selected {
+  background: #3b82f6 !important;
+  color: white !important;
+}
+
+.org-reorder-button {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  font-weight: 900;
+  padding: 0;
+  line-height: 1;
+  transition: all 0.2s;
+}
+
+.org-reorder-button:hover:not(:disabled) {
+  transform: scale(1.2);
+}
+
+.org-reorder-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.org-header-container {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.org-details-container {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.org-field-input {
+  background: white;
+  color: #1e293b;
+  border: 1px solid #d1d5db;
+}
+
+.org-field-input:disabled {
+  background: #f9fafb;
+}
+
+.backup-list-container {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.backup-item {
+  color: #1e293b;
+}
+
+/* Dark Mode for Organization Management */
+.dashboard.dark-mode .org-list-container {
+  background: #2d3748 !important;
+  border-color: #4a5568 !important;
+}
+
+.dashboard.dark-mode .org-list-item {
+  background: #374151 !important;
+  color: #e5e7eb !important;
+  border-bottom-color: #4a5568 !important;
+}
+
+.dashboard.dark-mode .org-list-item:hover:not(.selected) {
+  background: #4b5563 !important;
+}
+
+.dashboard.dark-mode .org-list-item.selected {
+  background: #3b82f6 !important;
+  color: white !important;
+}
+
+.dashboard.dark-mode .org-reorder-button:not(:disabled) {
+  color: #e5e7eb !important;
+}
+
+.dashboard.dark-mode .org-list-item.selected .org-reorder-button:not(:disabled) {
+  color: white !important;
+}
+
+.dashboard.dark-mode .org-reorder-button:disabled {
+  color: #6b7280 !important;
+}
+
+.dashboard.dark-mode .org-header-container {
+  background: #2d3748 !important;
+  border-color: #4a5568 !important;
+}
+
+.dashboard.dark-mode .org-details-container {
+  background: #2d3748 !important;
+  border-color: #4a5568 !important;
+}
+
+.dashboard.dark-mode .org-field-input {
+  background: #374151 !important;
+  color: #e5e7eb !important;
+  border-color: #4a5568 !important;
+}
+
+.dashboard.dark-mode .org-field-input:disabled {
+  background: #1f2937 !important;
+  color: #9ca3af !important;
+}
+
+.dashboard.dark-mode .backup-list-container {
+  background: #2d3748 !important;
+  border-color: #4a5568 !important;
+}
+
+.dashboard.dark-mode .backup-item {
+  color: #e5e7eb !important;
+}
+
+.dashboard.dark-mode .backup-item-filename {
+  color: #9ca3af !important;
 }
 

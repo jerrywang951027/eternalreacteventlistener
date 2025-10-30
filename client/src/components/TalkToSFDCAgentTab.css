@@ -540,6 +540,13 @@
   background: #dc2626;
 }
 
+.voice-button.disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+
 @keyframes pulse {
   0% {
     transform: scale(1);
@@ -678,8 +685,16 @@
 
 /* Make top banner shorter by 33% */
 .talk-to-sfdc-agent-tab .tab-header {
-  padding: 10px 20px;
-  min-height: 40px;
+  padding: 8px 20px;
+  min-height: auto;
+  margin-bottom: 10px;
+}
+
+.talk-to-sfdc-agent-tab .tab-header h2 {
+  margin: 0;
+  font-size: 1.3em;
+  font-weight: 600;
+  text-align: center;
 }
 
 /* Session Controls */

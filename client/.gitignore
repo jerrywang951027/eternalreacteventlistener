@@ -10,7 +10,8 @@
 
 # production
 /build
-
+/work/backup/*
+/server/env_backups/*
 # misc
 .DS_Store
 .env.local

@@ -134,10 +134,8 @@ class AgentforceModule {
       
     } catch (error) {
       console.error('❌ [AGENTFORCE] Error sending chat message via Agent API:', error);
-      return {
-        success: false,
-        message: 'Failed to send message via Agent API: ' + error.message
-      };
+      // Throw error to let endpoint handler deal with it and return full error details
+      throw error;
     }
   }
 
@@ -340,6 +338,16 @@ class AgentforceModule {
         };
       }
 
+      // Get agent type from org configuration (AEA or ASA)
+      const agentType = orgConfig.agentType || 'ASA'; // Default to ASA if not specified
+      
+      // Determine bypassUser based on agent type
+      // AEA (Agent Embedded Automation) = false
+      // ASA (Agent Service Agent) = true
+      const bypassUser = agentType.toUpperCase() === 'AEA' ? false : true;
+      
+      console.log(`🤖 [AGENTFORCE] Agent Type: ${agentType}, bypassUser: ${bypassUser}`);
+
       // Get the current org's access token from web session
       if (!req.session.salesforce || !req.session.salesforce.accessToken) {
         return {
@@ -363,11 +371,35 @@ class AgentforceModule {
         streamingCapabilities: {
           chunkTypes: ["Text"]
         },
-        bypassUser: true
+        bypassUser: bypassUser
       };
 
+      // Get orgId for x-sfdc-tenant-id header
+      const orgId = orgConfig.orgId || '00DRL00000BrEq32AF'; // Default if not configured
+      const tenantId = `core/prod/${orgId}`;
+      
       console.log(`📤 [AGENTFORCE] Starting agentforce session with agent ${agentId} for org ${orgConfig.name}`);
       console.log(`🌐 [AGENTFORCE] Using endpoint: ${myDomainUrl}`);
+      console.log(`🔑 [AGENTFORCE] Using tenant ID: ${tenantId}`);
+      console.log(`⚙️  [AGENTFORCE] Request payload:`, JSON.stringify(requestPayload, null, 2));
+      
+      // Generate a temporary session ID for logging (will be replaced with actual sessionId after response)
+      const tempSessionId = `temp_${externalSessionKey}`;
+      
+      // Log the outbound request to start session
+      const startSessionRequestLog = {
+        url: `https://api.salesforce.com/einstein/ai-agent/v1/agents/${agentId}/sessions`,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken.substring(0, 20)}...`,
+          'x-salesforce-region': 'us-east-1',
+          'x-sfdc-tenant-id': tenantId
+        },
+        payload: requestPayload
+      };
+      
+      console.log(`📤 [AGENTFORCE-SALESFORCE-API] START SESSION REQUEST:`, JSON.stringify(startSessionRequestLog, null, 2));
       
       // Call Salesforce Agent API to start agentforce session
       const response = await axios.post(
@@ -378,7 +410,7 @@ class AgentforceModule {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${accessToken}`,
             'x-salesforce-region': 'us-east-1',
-            'x-sfdc-tenant-id': 'core/prod/00DRL00000BrEq32AF'
+            'x-sfdc-tenant-id': tenantId
           }
         }
       );
@@ -388,6 +420,16 @@ class AgentforceModule {
         const welcomeMessage = response.data.messages?.[0]?.message || 'Hi, I\'m an AI service assistant. How can I help you?';
         
         console.log(`✅ [AGENTFORCE] Agentforce session started successfully: ${sessionId}`);
+        
+        // Log the inbound response from Salesforce Agent API
+        const startSessionResponseLog = {
+          status: response.status,
+          statusText: response.statusText,
+          headers: response.headers,
+          data: response.data
+        };
+        
+        console.log(`📥 [AGENTFORCE-SALESFORCE-API] START SESSION RESPONSE:`, JSON.stringify(startSessionResponseLog, null, 2));
         
         // Store agentforce session info
         this.activeAgentSessions.set(sessionId, {
@@ -402,6 +444,10 @@ class AgentforceModule {
           apiLogs: [] // Store API communication logs
         });
         
+        // Now log both request and response with the actual sessionId
+        this.logAgentApiCommunication(sessionId, 'request', startSessionRequestLog);
+        this.logAgentApiCommunication(sessionId, 'response', startSessionResponseLog);
+        
         return {
           success: true,
           message: 'Agentforce session started successfully',
@@ -415,6 +461,39 @@ class AgentforceModule {
       
     } catch (error) {
       console.error('❌ [AGENTFORCE] Error starting agentforce session:', error);
+      
+      // Try to log the error response if we have a session ID or can create one
+      const errorSessionId = error.config?.data ? `error_${Date.now()}` : null;
+      
+      if (errorSessionId) {
+        const startSessionErrorLog = {
+          status: error.response?.status || 'ERROR',
+          statusText: error.response?.statusText || 'Request Failed',
+          headers: error.response?.headers || {},
+          data: {
+            error: error.message,
+            details: error.response?.data || 'No response data',
+            stack: error.response ? undefined : error.stack
+          }
+        };
+        
+        console.log(`📥 [AGENTFORCE-SALESFORCE-API] START SESSION ERROR RESPONSE:`, JSON.stringify(startSessionErrorLog, null, 2));
+        
+        // Create a temporary session entry for error logging
+        this.activeAgentSessions.set(errorSessionId, {
+          agentId: '',
+          externalSessionKey: '',
+          startTime: new Date(),
+          messageCount: 0,
+          myDomainUrl: '',
+          accessToken: '',
+          orgKey: '',
+          orgName: 'Error Session',
+          apiLogs: []
+        });
+        
+        this.logAgentApiCommunication(errorSessionId, 'response', startSessionErrorLog);
+      }
       
       // Check if it's an authentication error
       if (error.response?.status === 401) {
@@ -803,46 +882,64 @@ class AgentforceModule {
       
       console.log(`📤 [AGENTFORCE] Sending message with sequence ID ${sequenceId} to Salesforce Agent API`);
       
-      // Log the outbound request to Salesforce Agent API
+      const apiUrl = `https://api.salesforce.com/einstein/ai-agent/v1/sessions/${agentSessionId}/messages`;
+      const apiHeaders = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${agentSessionInfo.accessToken}`
+      };
+      
+      // Log EXACT request being sent
+      console.log('\n========== AGENT MESSAGE REQUEST - START ==========');
+      console.log('📤 [AGENTFORCE] REQUEST URL:', apiUrl);
+      console.log('📤 [AGENTFORCE] REQUEST METHOD:', 'POST');
+      console.log('📤 [AGENTFORCE] REQUEST HEADERS:', JSON.stringify(apiHeaders, null, 2));
+      console.log('📤 [AGENTFORCE] REQUEST BODY:', JSON.stringify(messagePayload, null, 2));
+      console.log('========== AGENT MESSAGE REQUEST - END ==========\n');
+      
+      // Also log with truncated token for storage
       const requestLog = {
-        url: `https://api.salesforce.com/einstein/ai-agent/v1/sessions/${agentSessionId}/messages`,
+        url: apiUrl,
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${agentSessionInfo.accessToken.substring(0, 20)}...`,
-          'x-salesforce-region': 'us-east-1',
-          'x-sfdc-tenant-id': 'core/prod/00DRL00000BrEq32AF'
+          'Authorization': `Bearer ${agentSessionInfo.accessToken.substring(0, 20)}...`
         },
         payload: messagePayload
       };
-      
-      console.log(`📤 [AGENTFORCE-SALESFORCE-API] OUTBOUND REQUEST:`, JSON.stringify(requestLog, null, 2));
       this.logAgentApiCommunication(agentSessionId, 'request', requestLog);
       
       // Call Salesforce Agent API messages endpoint
-      const response = await axios.post(
-        `https://api.salesforce.com/einstein/ai-agent/v1/sessions/${agentSessionId}/messages`,
-        messagePayload,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${agentSessionInfo.accessToken}`,
-            'x-salesforce-region': 'us-east-1',
-            'x-sfdc-tenant-id': 'core/prod/00DRL00000BrEq32AF'
-          }
+      const response = await axios.post(apiUrl, messagePayload, {
+        headers: apiHeaders,
+        timeout: 30000, // 30 second timeout
+        validateStatus: function (status) {
+          // Accept any status code so we can log the full response
+          return true;
         }
-      );
+      });
       
-      // Log the inbound response from Salesforce Agent API
+      // Log EXACT response received
+      console.log('\n========== AGENT MESSAGE RESPONSE - START ==========');
+      console.log('📥 [AGENTFORCE] RESPONSE STATUS:', response.status, response.statusText);
+      console.log('📥 [AGENTFORCE] RESPONSE HEADERS:', JSON.stringify(response.headers, null, 2));
+      console.log('📥 [AGENTFORCE] RESPONSE BODY:', JSON.stringify(response.data, null, 2));
+      console.log('========== AGENT MESSAGE RESPONSE - END ==========\n');
+      
+      // Log for storage
       const responseLog = {
         status: response.status,
         statusText: response.statusText,
         headers: response.headers,
         data: response.data
       };
-      
-      console.log(`📥 [AGENTFORCE-SALESFORCE-API] INBOUND RESPONSE:`, JSON.stringify(responseLog, null, 2));
       this.logAgentApiCommunication(agentSessionId, 'response', responseLog);
+      
+      // Check if response status is not successful (not 2xx)
+      if (response.status < 200 || response.status >= 300) {
+        const error = new Error(`Salesforce Agent API returned status ${response.status}: ${response.statusText}`);
+        error.response = response;
+        throw error;
+      }
       
       if (response.data) {
         console.log(`✅ [AGENTFORCE] Message sent successfully via Salesforce Agent API`);
@@ -878,17 +975,39 @@ class AgentforceModule {
       }
       
     } catch (error) {
-      console.error('❌ [AGENTFORCE] Error sending message via Salesforce Agent API:', error);
+      console.error('\n========== AGENT MESSAGE ERROR - START ==========');
+      console.error('❌ [AGENTFORCE] Error sending message via Salesforce Agent API');
+      console.error('❌ [AGENTFORCE] Error Message:', error.message);
+      console.error('❌ [AGENTFORCE] Error Code:', error.code);
       
-      // If the Salesforce API call fails, fall back to mock response for testing
-      console.log('⚠️ [AGENTFORCE] Salesforce Agent API call failed, using fallback mock response');
-      
-      const agentSessionInfo = this.activeAgentSessions.get(agentSessionId);
-      if (agentSessionInfo) {
-        return await this.generateMockAgentResponse(message, agentSessionInfo.agentId);
-      } else {
-        throw error;
+      // Check for timeout
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+        console.error('❌ [AGENTFORCE] REQUEST TIMEOUT - Salesforce API did not respond within 30 seconds');
       }
+      
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.error('❌ [AGENTFORCE] ERROR RESPONSE STATUS:', error.response.status, error.response.statusText);
+        console.error('❌ [AGENTFORCE] ERROR RESPONSE HEADERS:', JSON.stringify(error.response.headers, null, 2));
+        console.error('❌ [AGENTFORCE] ERROR RESPONSE BODY:', JSON.stringify(error.response.data, null, 2));
+      } else if (error.request) {
+        // The request was made but no response was received
+        console.error('❌ [AGENTFORCE] NO RESPONSE RECEIVED FROM SERVER');
+        console.error('❌ [AGENTFORCE] This usually means:');
+        console.error('   - Network timeout (request took > 30 seconds)');
+        console.error('   - Network connectivity issue');
+        console.error('   - Salesforce API endpoint is down or unreachable');
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        console.error('❌ [AGENTFORCE] REQUEST SETUP ERROR');
+      }
+      
+      console.error('❌ [AGENTFORCE] Error Stack:', error.stack);
+      console.error('========== AGENT MESSAGE ERROR - END ==========\n');
+      
+      // Throw error to propagate to endpoint handler
+      throw error;
     }
   }
 
@@ -1042,12 +1161,14 @@ class AgentforceModule {
       
       for (const org of orgConfigs) {
         const hasAgentId = !!org.agentId;
-        console.log(`🔍 [AGENTFORCE] Processing org: name="${org.name}", agentId="${org.agentId}", hasAgentId=${hasAgentId}`);
+        const hasDataCloud = !!org.dataCloud;
+        console.log(`🔍 [AGENTFORCE] Processing org: name="${org.name}", agentId="${org.agentId}", hasAgentId=${hasAgentId}, dataCloud=${hasDataCloud}`);
         status.push({
           orgName: org.name,
           orgId: org.name, // Use org name for matching
           hasAgentId: hasAgentId,
           agentId: org.agentId || 'Not configured',
+          dataCloud: hasDataCloud,
           status: hasAgentId ? '✅ Configured' : '❌ Missing agentId'
         });
       }

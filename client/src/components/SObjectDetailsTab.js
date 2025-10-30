@@ -3,6 +3,11 @@ import React, { useState } from 'react';
 const SObjectDetailsTab = ({ selectedSObject, describe, loading, error }) => {
   const [hoveredField, setHoveredField] = useState(null);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
+  const [showOnlyPicklists, setShowOnlyPicklists] = useState(false);
+  const [fieldSearchQuery, setFieldSearchQuery] = useState('');
+  const [hideSystemFields, setHideSystemFields] = useState(true); // Hide by default
+  const [sortField, setSortField] = useState(null); // null, 'name', or 'label'
+  const [sortOrder, setSortOrder] = useState('asc'); // 'asc' or 'desc'
 
   const renderFieldType = (field) => {
     let typeDisplay = field.type;
@@ -32,18 +37,125 @@ const SObjectDetailsTab = ({ selectedSObject, describe, loading, error }) => {
     return props.length > 0 ? props.join(', ') : '-';
   };
 
+  const isSystemField = (fieldName) => {
+    const systemFields = [
+      'Id',
+      'IsDeleted',
+      'Name',
+      'CreatedDate',
+      'CreatedById',
+      'LastModifiedDate',
+      'LastModifiedById',
+      'SystemModstamp',
+      'LastViewedDate',
+      'LastReferencedDate'
+    ];
+    return systemFields.includes(fieldName);
+  };
+
+  const filterFields = (fields) => {
+    let filtered = fields;
+    
+    // Filter out system fields if checkbox is checked
+    if (hideSystemFields) {
+      filtered = filtered.filter(f => !isSystemField(f.name));
+    }
+    
+    // Filter by picklist type if checkbox is checked
+    if (showOnlyPicklists) {
+      filtered = filtered.filter(f => f.type === 'picklist');
+    }
+    
+    // Filter by search query
+    if (fieldSearchQuery.trim() !== '') {
+      const query = fieldSearchQuery.toLowerCase();
+      filtered = filtered.filter(f => 
+        f.name.toLowerCase().includes(query) || 
+        f.label.toLowerCase().includes(query)
+      );
+    }
+    
+    return filtered;
+  };
+
+  const sortFields = (fields) => {
+    if (!sortField) return fields;
+    
+    const sorted = [...fields].sort((a, b) => {
+      let aValue, bValue;
+      
+      if (sortField === 'name') {
+        aValue = a.name.toLowerCase();
+        bValue = b.name.toLowerCase();
+      } else if (sortField === 'label') {
+        aValue = a.label.toLowerCase();
+        bValue = b.label.toLowerCase();
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
+    
+    return sorted;
+  };
+
   const groupFieldsByCategory = (fields) => {
-    const standard = fields.filter(f => !f.custom);
-    const custom = fields.filter(f => f.custom);
+    const filteredFields = filterFields(fields);
+    const sortedFields = sortFields(filteredFields);
+    const standard = sortedFields.filter(f => !f.custom);
+    const custom = sortedFields.filter(f => f.custom);
     
     return { standard, custom };
   };
+  
+  const handleSort = (field) => {
+    if (sortField === field) {
+      // Toggle sort order
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      // New field, default to ascending
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
 
   const handleFieldHover = (field, event) => {
+    // Handle picklist fields
     if (field.type === 'picklist' && field.picklistValues && field.picklistValues.length > 0) {
       const rect = event.target.getBoundingClientRect();
       const popupWidth = 400; // max width from CSS
       const popupHeight = Math.min(400, field.picklistValues.length * 25 + 60); // estimate height
+      
+      let x = rect.right + 10;
+      let y = rect.top;
+      
+      // Check if popup would go off the right edge of screen
+      if (x + popupWidth > window.innerWidth) {
+        x = rect.left - popupWidth - 10; // Show on left side instead
+      }
+      
+      // Check if popup would go off the bottom of screen
+      if (y + popupHeight > window.innerHeight) {
+        y = window.innerHeight - popupHeight - 10; // Adjust to stay in view
+      }
+      
+      // Make sure it doesn't go above the top
+      if (y < 10) {
+        y = 10;
+      }
+      
+      setPopupPosition({ x, y });
+      setHoveredField(field);
+    }
+    
+    // Handle reference fields
+    if (field.type === 'reference' && field.referenceTo && field.referenceTo.length > 0) {
+      const rect = event.target.getBoundingClientRect();
+      const popupWidth = 300;
+      const popupHeight = Math.min(300, field.referenceTo.length * 40 + 100);
       
       let x = rect.right + 10;
       let y = rect.top;
@@ -166,10 +278,137 @@ const SObjectDetailsTab = ({ selectedSObject, describe, loading, error }) => {
         <div className="fields-section">
           <h4>📝 Fields ({describe.fields.length})</h4>
           
+          {/* Filter Controls */}
+          <div style={{ 
+            display: 'flex', 
+            gap: '15px', 
+            marginBottom: '15px', 
+            alignItems: 'center',
+            padding: '12px',
+            backgroundColor: '#374151',
+            borderRadius: '8px',
+            border: '2px solid #4b5563',
+            flexWrap: 'wrap'
+          }}>
+            <label style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '500',
+              color: '#e5e7eb'
+            }}>
+              <input
+                type="checkbox"
+                checked={hideSystemFields}
+                onChange={(e) => setHideSystemFields(e.target.checked)}
+                style={{ cursor: 'pointer' }}
+              />
+              <span>Hide system fields</span>
+            </label>
+            
+            <label style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '500',
+              color: '#e5e7eb'
+            }}>
+              <input
+                type="checkbox"
+                checked={showOnlyPicklists}
+                onChange={(e) => setShowOnlyPicklists(e.target.checked)}
+                style={{ cursor: 'pointer' }}
+              />
+              <span>Show only Picklist fields</span>
+            </label>
+            
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px',
+              flex: '1'
+            }}>
+              <input
+                type="text"
+                placeholder="Search by field API name or label..."
+                value={fieldSearchQuery}
+                onChange={(e) => setFieldSearchQuery(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #4b5563',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  flex: '1',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                  backgroundColor: '#1f2937',
+                  color: '#e5e7eb'
+                }}
+                onFocus={(e) => e.target.style.borderColor = '#3b82f6'}
+                onBlur={(e) => e.target.style.borderColor = '#4b5563'}
+              />
+              {fieldSearchQuery && (
+                <button
+                  onClick={() => setFieldSearchQuery('')}
+                  style={{
+                    padding: '8px 12px',
+                    border: 'none',
+                    background: '#ef4444',
+                    color: 'white',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                  }}
+                  title="Clear search"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+          
           {(() => {
             const { standard, custom } = groupFieldsByCategory(describe.fields);
+            const totalFiltered = standard.length + custom.length;
+            
+            if (totalFiltered === 0) {
+              return (
+                <div style={{
+                  padding: '20px',
+                  textAlign: 'center',
+                  color: '#9ca3af',
+                  backgroundColor: '#374151',
+                  borderRadius: '6px',
+                  border: '1px solid #4b5563'
+                }}>
+                  <p>No fields match the current filters.</p>
+                  <p style={{ fontSize: '14px', marginTop: '8px' }}>
+                    Try adjusting your search or unchecking the picklist filter.
+                  </p>
+                </div>
+              );
+            }
+            
             return (
               <div className="fields-container">
+                {totalFiltered < describe.fields.length && (
+                  <div style={{
+                    padding: '10px',
+                    marginBottom: '15px',
+                    backgroundColor: '#1e3a5f',
+                    borderRadius: '6px',
+                    border: '1px solid #3b82f6',
+                    fontSize: '14px',
+                    color: '#93c5fd'
+                  }}>
+                    Showing {totalFiltered} of {describe.fields.length} fields
+                  </div>
+                )}
                 {custom.length > 0 && (
                   <div className="field-group">
                     <h5>🔧 Custom Fields ({custom.length})</h5>
@@ -177,8 +416,20 @@ const SObjectDetailsTab = ({ selectedSObject, describe, loading, error }) => {
                       <table>
                         <thead>
                           <tr>
-                            <th>API Name</th>
-                            <th>Label</th>
+                            <th 
+                              onClick={() => handleSort('name')}
+                              style={{ cursor: 'pointer', userSelect: 'none' }}
+                              title="Click to sort by API Name"
+                            >
+                              API Name {sortField === 'name' && (sortOrder === 'asc' ? '▲' : '▼')}
+                            </th>
+                            <th 
+                              onClick={() => handleSort('label')}
+                              style={{ cursor: 'pointer', userSelect: 'none' }}
+                              title="Click to sort by Label"
+                            >
+                              Label {sortField === 'label' && (sortOrder === 'asc' ? '▲' : '▼')}
+                            </th>
                             <th>Type</th>
                             <th>Properties</th>
                           </tr>
@@ -197,7 +448,27 @@ const SObjectDetailsTab = ({ selectedSObject, describe, loading, error }) => {
                                 )}
                               </td>
                               <td className="field-label">{field.label}</td>
-                              <td className="field-type">{renderFieldType(field)}</td>
+                              <td 
+                                className="field-type"
+                                onMouseEnter={(e) => {
+                                  if (field.type === 'reference') {
+                                    handleFieldHover(field, e);
+                                  }
+                                }}
+                                onMouseLeave={() => {
+                                  if (field.type === 'reference') {
+                                    handleFieldLeave();
+                                  }
+                                }}
+                                style={{ 
+                                  cursor: field.type === 'reference' ? 'help' : 'default'
+                                }}
+                              >
+                                {renderFieldType(field)}
+                                {field.type === 'reference' && field.referenceTo && field.referenceTo.length > 0 && (
+                                  <span style={{ marginLeft: '6px', fontSize: '12px' }}>🔗</span>
+                                )}
+                              </td>
                               <td className="field-properties">{renderFieldProperties(field)}</td>
                             </tr>
                           ))}
@@ -213,8 +484,20 @@ const SObjectDetailsTab = ({ selectedSObject, describe, loading, error }) => {
                     <table>
                       <thead>
                         <tr>
-                          <th>API Name</th>
-                          <th>Label</th>
+                          <th 
+                            onClick={() => handleSort('name')}
+                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                            title="Click to sort by API Name"
+                          >
+                            API Name {sortField === 'name' && (sortOrder === 'asc' ? '▲' : '▼')}
+                          </th>
+                          <th 
+                            onClick={() => handleSort('label')}
+                            style={{ cursor: 'pointer', userSelect: 'none' }}
+                            title="Click to sort by Label"
+                          >
+                            Label {sortField === 'label' && (sortOrder === 'asc' ? '▲' : '▼')}
+                          </th>
                           <th>Type</th>
                           <th>Properties</th>
                         </tr>
@@ -233,7 +516,27 @@ const SObjectDetailsTab = ({ selectedSObject, describe, loading, error }) => {
                               )}
                             </td>
                             <td className="field-label">{field.label}</td>
-                            <td className="field-type">{renderFieldType(field)}</td>
+                            <td 
+                              className="field-type"
+                              onMouseEnter={(e) => {
+                                if (field.type === 'reference') {
+                                  handleFieldHover(field, e);
+                                }
+                              }}
+                              onMouseLeave={() => {
+                                if (field.type === 'reference') {
+                                  handleFieldLeave();
+                                }
+                              }}
+                              style={{ 
+                                cursor: field.type === 'reference' ? 'help' : 'default'
+                              }}
+                            >
+                              {renderFieldType(field)}
+                              {field.type === 'reference' && field.referenceTo && field.referenceTo.length > 0 && (
+                                <span style={{ marginLeft: '6px', fontSize: '12px' }}>🔗</span>
+                              )}
+                            </td>
                             <td className="field-properties">{renderFieldProperties(field)}</td>
                           </tr>
                         ))}
@@ -274,6 +577,41 @@ const SObjectDetailsTab = ({ selectedSObject, describe, loading, error }) => {
             </div>
           </div>
         )}
+
+        {/* Record Types */}
+        {describe.recordTypeInfos && describe.recordTypeInfos.length > 0 && (
+          <div className="record-types-section">
+            <h4>🎯 Record Types ({describe.recordTypeInfos.length})</h4>
+            <div className="record-types-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Developer Name</th>
+                    <th>Record Type ID</th>
+                    <th>Active</th>
+                    <th>Available</th>
+                    <th>Default</th>
+                    <th>Master</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {describe.recordTypeInfos.map((rt, index) => (
+                    <tr key={index}>
+                      <td className="record-type-name">{rt.name}</td>
+                      <td>{rt.developerName || 'N/A'}</td>
+                      <td className="record-type-id">{rt.recordTypeId}</td>
+                      <td>{rt.active ? '✅ Yes' : '❌ No'}</td>
+                      <td>{rt.available ? '✅ Yes' : '❌ No'}</td>
+                      <td>{rt.defaultRecordTypeMapping ? '⭐ Yes' : '—'}</td>
+                      <td>{rt.master ? '🔑 Yes' : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Picklist Values Popup */}
@@ -300,6 +638,52 @@ const SObjectDetailsTab = ({ selectedSObject, describe, loading, error }) => {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Reference Type Popup */}
+      {hoveredField && hoveredField.type === 'reference' && hoveredField.referenceTo && hoveredField.referenceTo.length > 0 && (
+        <div 
+          className="picklist-popup"
+          style={{
+            position: 'fixed',
+            left: popupPosition.x,
+            top: popupPosition.y,
+            zIndex: 1000,
+            minWidth: '250px'
+          }}
+        >
+          <div className="picklist-popup-header">
+            <strong>{hoveredField.name}</strong> - References
+          </div>
+          <div className="picklist-values-list">
+            {hoveredField.referenceTo.map((refObject, index) => (
+              <div key={index} className="picklist-value-item" style={{ 
+                padding: '8px 12px',
+                justifyContent: 'flex-start'
+              }}>
+                <span style={{ 
+                  fontSize: '14px', 
+                  fontWeight: '500',
+                  color: '#60a5fa',
+                  fontFamily: 'monospace'
+                }}>
+                  🔗 {refObject}
+                </span>
+              </div>
+            ))}
+          </div>
+          {hoveredField.referenceTo.length > 1 && (
+            <div style={{
+              padding: '8px 12px',
+              fontSize: '12px',
+              color: '#9ca3af',
+              borderTop: '1px solid #4b5563',
+              fontStyle: 'italic'
+            }}>
+              Polymorphic reference ({hoveredField.referenceTo.length} objects)
+            </div>
+          )}
         </div>
       )}
     </>

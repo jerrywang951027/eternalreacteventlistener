@@ -177,6 +177,282 @@ class AdminModule {
   }
 
   /**
+   * Get detailed information about the currently connected Salesforce org
+   */
+  async getCurrentOrgInfo(req, res) {
+    try {
+      if (!req.session?.salesforce) {
+        console.log('❌ [ADMIN] No Salesforce session found');
+        return res.status(401).json({
+          success: false,
+          message: 'Not connected to Salesforce'
+        });
+      }
+
+      const sf = req.session.salesforce;
+      console.log('📋 [ADMIN] Fetching current org info...');
+      console.log('📋 [ADMIN] Session orgId:', sf.organizationId);
+      console.log('📋 [ADMIN] Session has accessToken:', !!sf.accessToken);
+      console.log('📋 [ADMIN] Session instanceUrl:', sf.instanceUrl);
+      
+      // Build org info from session data
+      const orgInfo = {
+        // Organization details from session
+        organizationId: sf.organizationId,
+        organizationName: sf.organizationName || 'Unknown',
+        organizationType: sf.orgType || 'Unknown',
+        isSandbox: sf.orgType?.toLowerCase().includes('sandbox') || false,
+        instanceUrl: sf.instanceUrl,
+        instanceName: sf.instanceUrl ? new URL(sf.instanceUrl).hostname.split('.')[0] : 'Unknown',
+        
+        // API information
+        apiVersion: '60.0',
+        
+        // Session information
+        orgKey: sf.orgKey,
+        orgName: sf.orgName,
+        orgType: sf.orgType,
+        
+        // User information from session
+        userId: sf.userId,
+        username: sf.username || 'Unknown',
+        userFullName: sf.displayName || sf.username || 'Unknown',
+        userEmail: sf.email || 'Unknown',
+        profileName: 'User',
+        userType: 'Standard',
+        
+        // Login information
+        loginTime: sf.loginTime || new Date().toISOString(),
+        sessionActive: true
+      };
+
+      // Create a fresh connection from access token (same pattern as sobjects.js)
+      if (sf.accessToken && sf.instanceUrl) {
+        console.log('🔄 [ADMIN] Creating connection from access token');
+        const conn = new jsforce.Connection({
+          oauth2: req.session.oauth2,
+          accessToken: sf.accessToken,
+          instanceUrl: sf.instanceUrl,
+          version: '60.0'
+        });
+      
+        try {
+          console.log('🔍 [ADMIN] Querying Organization object...');
+          // Query Organization object for basic info (fields available in all editions)
+          const orgQuery = await conn.query(
+            "SELECT Id, Name, OrganizationType, IsSandbox, InstanceName, " +
+            "CreatedById, CreatedDate, LastModifiedById, LastModifiedDate " +
+            "FROM Organization LIMIT 1"
+          );
+          
+          console.log('✅ [ADMIN] Basic org data retrieved');
+          
+          // Try to get additional fields that may not be in all editions
+          let extendedOrgData = {};
+          try {
+            const extendedQuery = await conn.query(
+              "SELECT Division, Street, City, State, PostalCode, Country, Phone, Fax, " +
+              "PrimaryContact, NamespacePrefix, TrialExpirationDate, " +
+              "FiscalYearStartMonth, DefaultLocaleSidKey, LanguageLocaleKey, TimeZoneSidKey " +
+              "FROM Organization LIMIT 1"
+            );
+            if (extendedQuery.records && extendedQuery.records.length > 0) {
+              extendedOrgData = extendedQuery.records[0];
+              console.log('✅ [ADMIN] Extended org data retrieved');
+            }
+          } catch (extError) {
+            console.log('ℹ️ [ADMIN] Some extended fields not available:', extError.message);
+          }
+
+          // Get user details
+          const userQuery = await conn.query(
+            `SELECT Id, Name, Username, Email, ProfileId, Profile.Name, UserType FROM User WHERE Id = '${sf.userId}' LIMIT 1`
+          );
+          
+          // Get creator and modifier names
+          let creatorName = 'Unknown';
+          let modifierName = 'Unknown';
+          if (orgQuery.records && orgQuery.records.length > 0) {
+            const orgData = orgQuery.records[0];
+            
+            // Query for Created By and Modified By user names
+            if (orgData.CreatedById) {
+              const creatorQuery = await conn.query(
+                `SELECT Name FROM User WHERE Id = '${orgData.CreatedById}' LIMIT 1`
+              );
+              if (creatorQuery.records && creatorQuery.records.length > 0) {
+                creatorName = creatorQuery.records[0].Name;
+              }
+            }
+            
+            if (orgData.LastModifiedById) {
+              const modifierQuery = await conn.query(
+                `SELECT Name FROM User WHERE Id = '${orgData.LastModifiedById}' LIMIT 1`
+              );
+              if (modifierQuery.records && modifierQuery.records.length > 0) {
+                modifierName = modifierQuery.records[0].Name;
+              }
+            }
+          }
+
+          // Get org limits (API usage, storage, etc.)
+          let limits = {};
+          try {
+            limits = await conn.request('/services/data/v60.0/limits');
+          } catch (limitsError) {
+            console.log('⚠️ [ADMIN] Could not fetch org limits:', limitsError.message);
+          }
+          
+          // Get User License information
+          let userLicenses = [];
+          try {
+            const licenseQuery = await conn.query(
+              "SELECT Id, Name, TotalLicenses, UsedLicenses, Status FROM UserLicense ORDER BY Name"
+            );
+            userLicenses = licenseQuery.records || [];
+            console.log(`✅ [ADMIN] Retrieved ${userLicenses.length} user licenses`);
+          } catch (licenseError) {
+            console.log('⚠️ [ADMIN] Could not fetch user licenses:', licenseError.message);
+          }
+          
+          // Get Permission Set License information
+          let permissionSetLicenses = [];
+          try {
+            const pslQuery = await conn.query(
+              "SELECT Id, MasterLabel, DeveloperName, TotalLicenses, UsedLicenses, Status FROM PermissionSetLicense ORDER BY MasterLabel"
+            );
+            permissionSetLicenses = pslQuery.records || [];
+            console.log(`✅ [ADMIN] Retrieved ${permissionSetLicenses.length} permission set licenses`);
+          } catch (pslError) {
+            console.log('⚠️ [ADMIN] Could not fetch permission set licenses:', pslError.message);
+          }
+          
+          // Get Permission Set information
+          let permissionSets = [];
+          try {
+            const psQuery = await conn.query(
+              "SELECT Id, Name, Label, Description, IsCustom, IsOwnedByProfile, Type, NamespacePrefix FROM PermissionSet ORDER BY Label"
+            );
+            permissionSets = psQuery.records || [];
+            console.log(`✅ [ADMIN] Retrieved ${permissionSets.length} permission sets`);
+          } catch (psError) {
+            console.log('⚠️ [ADMIN] Could not fetch permission sets:', psError.message);
+          }
+          
+          // Get Permission Set Group information
+          let permissionSetGroups = [];
+          try {
+            const psgQuery = await conn.query(
+              "SELECT Id, DeveloperName, MasterLabel, Description, Status FROM PermissionSetGroup ORDER BY MasterLabel"
+            );
+            permissionSetGroups = psgQuery.records || [];
+            console.log(`✅ [ADMIN] Retrieved ${permissionSetGroups.length} permission set groups`);
+          } catch (psgError) {
+            console.log('⚠️ [ADMIN] Could not fetch permission set groups:', psgError.message);
+          }
+
+          if (orgQuery.records && orgQuery.records.length > 0) {
+            const orgData = orgQuery.records[0];
+            console.log('✅ [ADMIN] Organization data retrieved successfully');
+            console.log('📋 [ADMIN] Org Name:', orgData.Name);
+            
+            // Merge extended data
+            const fullOrgData = { ...orgData, ...extendedOrgData };
+            
+            // Organization details
+            orgInfo.organizationName = fullOrgData.Name;
+            orgInfo.organizationType = fullOrgData.OrganizationType;
+            orgInfo.isSandbox = fullOrgData.IsSandbox;
+            orgInfo.instanceName = fullOrgData.InstanceName;
+            orgInfo.namespacePrefix = fullOrgData.NamespacePrefix || null;
+            orgInfo.fiscalYearStart = fullOrgData.FiscalYearStartMonth;
+            
+            // Address information
+            orgInfo.division = fullOrgData.Division;
+            orgInfo.address = {
+              street: fullOrgData.Street,
+              city: fullOrgData.City,
+              state: fullOrgData.State,
+              postalCode: fullOrgData.PostalCode,
+              country: fullOrgData.Country
+            };
+            
+            // Contact information
+            orgInfo.phone = fullOrgData.Phone;
+            orgInfo.fax = fullOrgData.Fax;
+            orgInfo.primaryContact = fullOrgData.PrimaryContact;
+            
+            // Locale and language settings
+            orgInfo.defaultLocale = fullOrgData.DefaultLocaleSidKey;
+            orgInfo.defaultLanguage = fullOrgData.LanguageLocaleKey;
+            orgInfo.defaultTimeZone = fullOrgData.TimeZoneSidKey;
+            
+            // Audit information
+            orgInfo.createdBy = {
+              id: fullOrgData.CreatedById,
+              name: creatorName,
+              date: fullOrgData.CreatedDate
+            };
+            orgInfo.lastModifiedBy = {
+              id: fullOrgData.LastModifiedById,
+              name: modifierName,
+              date: fullOrgData.LastModifiedDate
+            };
+            
+            if (fullOrgData.TrialExpirationDate) {
+              orgInfo.trialExpiration = fullOrgData.TrialExpirationDate;
+            }
+          }
+          
+          // Add limits information
+          if (limits) {
+            orgInfo.limits = {
+              dataStorage: limits.DataStorageMB || {},
+              fileStorage: limits.FileStorageMB || {},
+              dailyApiRequests: limits.DailyApiRequests || {},
+              dailyStreamingApiEvents: limits.DailyStreamingApiEvents || {},
+              monthlyPlatformEvents: limits.MonthlyPlatformEvents || {}
+            };
+          }
+          
+          // Add license information
+          orgInfo.userLicenses = userLicenses;
+          orgInfo.permissionSetLicenses = permissionSetLicenses;
+          
+          // Add permission set information
+          orgInfo.permissionSets = permissionSets;
+          orgInfo.permissionSetGroups = permissionSetGroups;
+
+          if (userQuery.records && userQuery.records.length > 0) {
+            const userData = userQuery.records[0];
+            orgInfo.userFullName = userData.Name;
+            orgInfo.username = userData.Username;
+            orgInfo.userEmail = userData.Email;
+            orgInfo.profileName = userData.Profile?.Name || 'Unknown';
+            orgInfo.userType = userData.UserType;
+          }
+
+          orgInfo.apiVersion = conn.version || '60.0';
+        } catch (queryError) {
+          console.log('⚠️ [ADMIN] Could not query additional org details, using session data only:', queryError.message);
+          // Continue with session data
+        }
+      }
+
+      res.json({
+        success: true,
+        data: orgInfo
+      });
+    } catch (error) {
+      console.error('❌ [ADMIN] Error getting current org info:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get current org info: ' + error.message
+      });
+    }
+  }
+
+  /**
    * Get environment variables (sanitized)
    */
   async getEnvironmentInfo(req, res) {

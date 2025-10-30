@@ -12,7 +12,8 @@ class SObjectsModule {
     return new jsforce.Connection({
       oauth2: req.session.oauth2,
       accessToken: req.session.salesforce.accessToken,
-      instanceUrl: req.session.salesforce.instanceUrl
+      instanceUrl: req.session.salesforce.instanceUrl,
+      version: '65.0'
     });
   }
 
@@ -36,22 +37,36 @@ class SObjectsModule {
       const describe = await conn.describeGlobal();
       const matchingSObjects = describe.sobjects
         .filter(sobject => 
-          sobject.name.toLowerCase().startsWith(searchPattern) ||
           sobject.name.toLowerCase().includes(searchPattern) ||
           (sobject.label && sobject.label.toLowerCase().includes(searchPattern))
         )
         .sort((a, b) => {
-          // Prioritize exact prefix matches
-          const aStartsWith = a.name.toLowerCase().startsWith(searchPattern);
-          const bStartsWith = b.name.toLowerCase().startsWith(searchPattern);
+          const aLower = a.name.toLowerCase();
+          const bLower = b.name.toLowerCase();
+          
+          // Prioritize exact matches
+          if (aLower === searchPattern && bLower !== searchPattern) return -1;
+          if (bLower === searchPattern && aLower !== searchPattern) return 1;
+          
+          // Then prioritize objects that start with the search term
+          const aStartsWith = aLower.startsWith(searchPattern);
+          const bStartsWith = bLower.startsWith(searchPattern);
           
           if (aStartsWith && !bStartsWith) return -1;
           if (!aStartsWith && bStartsWith) return 1;
           
-          // Then sort alphabetically
+          // Then prioritize by position of match (earlier match = higher priority)
+          const aIndex = aLower.indexOf(searchPattern);
+          const bIndex = bLower.indexOf(searchPattern);
+          
+          if (aIndex !== bIndex) return aIndex - bIndex;
+          
+          // Finally sort alphabetically
           return a.name.localeCompare(b.name);
         })
-        .slice(0, 20); // Limit to top 20 results for performance
+        .slice(0, 200); // Limit to top 200 results for performance
+
+      console.log(`🔍 [SOBJECTS] Search for "${query}" found ${matchingSObjects.length} results`);
 
       res.json({
         success: true,

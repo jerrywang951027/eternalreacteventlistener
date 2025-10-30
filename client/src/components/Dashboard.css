@@ -6,8 +6,8 @@
 .dashboard-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 20px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 8px 15px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .header-content {
@@ -17,36 +17,39 @@
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 15px;
+  gap: 8px;
 }
 
 .header-content h1 {
   margin: 0;
-  font-size: 1.8rem;
+  font-size: 1.2rem;
 }
 
 .header-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 6px;
 }
 
 .connection-status {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 14px;
+  gap: 3px;
+  font-size: 11px;
+  padding: 3px 8px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
 }
 
 .status-indicator {
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .status-text {
@@ -54,17 +57,18 @@
 }
 
 .theme-toggle {
-  background: none;
-  border: none;
-  font-size: 18px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 14px;
   cursor: pointer;
-  padding: 5px;
-  border-radius: 5px;
-  transition: background-color 0.2s;
+  padding: 4px 8px;
+  border-radius: 12px;
+  transition: all 0.2s;
 }
 
 .theme-toggle:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.25);
+  transform: scale(1.05);
 }
 
 .api-docs-link {
@@ -87,19 +91,21 @@
 }
 
 .logout-btn {
-  background: none;
-  border: 1px solid #dc3545;
-  color: #dc3545;
-  padding: 8px 16px;
-  border-radius: 5px;
+  background: rgba(220, 53, 69, 0.15);
+  border: 1px solid rgba(220, 53, 69, 0.5);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 11px;
   transition: all 0.2s;
+  font-weight: 500;
 }
 
 .logout-btn:hover {
   background-color: #dc3545;
-  color: white;
+  border-color: #dc3545;
+  transform: scale(1.05);
 }
 
 .dark-mode-toggle {
@@ -1094,16 +1100,16 @@
 .tabs-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 15px;
 }
 
 .tabs-nav {
   display: flex;
   background: white;
-  border-radius: 12px 12px 0 0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   overflow: hidden;
-  margin-top: 20px;
+  margin-top: 8px;
 }
 
 .tab-btn {
@@ -1111,17 +1117,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 16px 20px;
+  gap: 6px;
+  padding: 8px 12px;
   background: #f1f5f9;
   border: none;
-  border-bottom: 3px solid transparent;
+  border-bottom: 2px solid transparent;
   cursor: pointer;
   transition: all 0.3s ease;
   color: #64748b;
-  font-size: 14px;
-  font-weight: bold;
-  min-height: 60px;
+  font-size: 13px;
+  font-weight: 600;
+  min-height: 45px;
   transform: scale(1);
 }
 
@@ -1145,12 +1151,13 @@
 }
 
 .tab-icon {
-  font-size: 20px;
+  font-size: 16px;
   transition: transform 0.3s ease;
 }
 
 .tab-label {
   transition: color 0.3s ease;
+  font-size: 12px;
 }
 
 .tab-content-container {
@@ -1481,10 +1488,10 @@
 
 /* SObjects Tab Styles */
 .sobjects-content {
-  height: calc(100vh - 200px);
+  height: calc(100vh - 160px);
   max-width: none;
   margin: 0;
-  padding: 0;
+  padding: 0 0 20px 0;
   background: transparent;
   border-radius: 0;
   box-shadow: none;
@@ -1550,6 +1557,7 @@
 .search-input-container {
   position: relative;
   margin-bottom: 20px;
+  flex-shrink: 0;
 }
 
 .sobject-search-input {
@@ -1589,6 +1597,27 @@
 .clear-search-btn:hover {
   background: #f3f4f6;
   color: #374151;
+}
+
+/* Dark mode styles for search elements */
+.dashboard.dark-mode .sobject-search-input {
+  background: #374151 !important;
+  color: #e1e7ef !important;
+  border-color: #4a5568 !important;
+}
+
+.dashboard.dark-mode .sobject-search-input:focus {
+  border-color: #63b3ed !important;
+  box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.2) !important;
+}
+
+.dashboard.dark-mode .clear-search-btn {
+  color: #a0aec0 !important;
+}
+
+.dashboard.dark-mode .clear-search-btn:hover {
+  background: #4a5568 !important;
+  color: #e1e7ef !important;
 }
 
 .search-results {
@@ -1667,6 +1696,7 @@
 .show-all-section {
   border-top: 1px solid #e5e7eb;
   padding-top: 20px;
+  flex-shrink: 0;
 }
 
 .checkbox-label {
@@ -1985,6 +2015,45 @@
   border-bottom: 1px solid #e5e7eb;
 }
 
+/* Record Types Section Styles */
+.record-types-section {
+  margin-bottom: 20px;
+}
+
+.record-types-section h4 {
+  color: #2563eb;
+  margin: 0 0 15px 0;
+  font-size: 1.2rem;
+}
+
+.record-types-table {
+  overflow-x: auto;
+}
+
+.record-types-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.record-types-table th {
+  background: #f3f4f6;
+  padding: 10px 8px;
+  text-align: left;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.record-types-table td {
+  padding: 8px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.record-types-table tr:hover {
+  background: #f9fafb;
+}
+
 .error-details {
   text-align: center;
   padding: 40px;
@@ -2092,6 +2161,36 @@
   flex: 1;
 }
 
+/* Dark mode styles for picklist popup */
+.dashboard.dark-mode .picklist-popup {
+  background: #2d3748 !important;
+  border: 2px solid #4a5568 !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4) !important;
+}
+
+.dashboard.dark-mode .picklist-popup-header {
+  background: #374151 !important;
+  border-bottom: 1px solid #4a5568 !important;
+  color: #f7fafc !important;
+}
+
+.dashboard.dark-mode .picklist-value-item {
+  border-bottom: 1px solid #4a5568 !important;
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .picklist-value-item:hover {
+  background-color: #374151 !important;
+}
+
+.dashboard.dark-mode .picklist-value {
+  color: #63b3ed !important;
+}
+
+.dashboard.dark-mode .picklist-label {
+  color: #e1e7ef !important;
+}
+
 .inactive-badge {
   background: #f87171;
   color: white;
@@ -2108,6 +2207,17 @@
   padding: 2px 5px;
   border-radius: 3px;
   font-weight: 600;
+}
+
+/* Dark mode styles for picklist badges */
+.dashboard.dark-mode .inactive-badge {
+  background: #e53e3e !important;
+  color: white !important;
+}
+
+.dashboard.dark-mode .default-badge {
+  background: #38a169 !important;
+  color: white !important;
 }
 
 /* OM Tab Styles */

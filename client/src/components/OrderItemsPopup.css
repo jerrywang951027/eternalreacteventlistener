@@ -345,6 +345,152 @@
   border-color: #d1d5db;
 }
 
+/* Dark mode styles for order items popup */
+.dashboard.dark-mode .order-items-popup {
+  background: #2d3748 !important;
+  border: 1px solid #4a5568 !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 10px 20px rgba(0, 0, 0, 0.2) !important;
+}
+
+.dashboard.dark-mode .popup-header {
+  background: #374151 !important;
+  border-bottom: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .popup-header h4 {
+  color: #f7fafc !important;
+}
+
+.dashboard.dark-mode .popup-close-btn {
+  color: #a0aec0 !important;
+}
+
+.dashboard.dark-mode .popup-close-btn:hover {
+  background: #4a5568 !important;
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .popup-loading,
+.dashboard.dark-mode .popup-error,
+.dashboard.dark-mode .popup-no-items {
+  color: #a0aec0 !important;
+}
+
+.dashboard.dark-mode .popup-error {
+  color: #f87171 !important;
+}
+
+.dashboard.dark-mode .order-item-card {
+  background: #374151 !important;
+  border: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .order-item-card:hover {
+  background: #4a5568 !important;
+  border-color: #718096 !important;
+}
+
+.dashboard.dark-mode .order-item-card.parent-item {
+  background: #2b6cb0 !important;
+  border-color: #3182ce !important;
+}
+
+.dashboard.dark-mode .order-item-card.parent-item:hover {
+  background: #3182ce !important;
+  border-color: #2c5aa0 !important;
+}
+
+.dashboard.dark-mode .order-item-card.child-item {
+  background: #2d3748 !important;
+  border-color: #4a5568 !important;
+}
+
+.dashboard.dark-mode .order-item-card.child-item:hover {
+  background: #374151 !important;
+  border-color: #718096 !important;
+}
+
+.dashboard.dark-mode .accordion-toggle {
+  color: #63b3ed !important;
+}
+
+.dashboard.dark-mode .accordion-toggle:hover {
+  background: #2b6cb0 !important;
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .product-name {
+  color: #f7fafc !important;
+}
+
+.dashboard.dark-mode .children-count {
+  color: #63b3ed !important;
+  background: #2b6cb0 !important;
+  border-color: #3182ce !important;
+}
+
+.dashboard.dark-mode .item-quantity {
+  background: #2b6cb0 !important;
+  color: #e1e7ef !important;
+  border-color: #3182ce !important;
+}
+
+.dashboard.dark-mode .pricing-label {
+  color: #a0aec0 !important;
+}
+
+.dashboard.dark-mode .pricing-value {
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .pricing-value.one-time {
+  color: #68d391 !important;
+}
+
+.dashboard.dark-mode .pricing-value.recurring {
+  color: #4fd1c7 !important;
+}
+
+.dashboard.dark-mode .item-description {
+  color: #a0aec0 !important;
+  border-top: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .popup-footer {
+  background: #374151 !important;
+  border-top: 1px solid #4a5568 !important;
+}
+
+.dashboard.dark-mode .popup-footer small {
+  color: #a0aec0 !important;
+}
+
+.dashboard.dark-mode .popup-content::-webkit-scrollbar-track {
+  background: #374151 !important;
+}
+
+.dashboard.dark-mode .popup-content::-webkit-scrollbar-thumb {
+  background: #4a5568 !important;
+}
+
+.dashboard.dark-mode .popup-content::-webkit-scrollbar-thumb:hover {
+  background: #718096 !important;
+}
+
+.dashboard.dark-mode .parent-item .product-name {
+  color: #63b3ed !important;
+}
+
+.dashboard.dark-mode .child-item .product-name {
+  color: #e1e7ef !important;
+}
+
+.dashboard.dark-mode .child-item .item-quantity {
+  background: #4a5568 !important;
+  color: #a0aec0 !important;
+  border-color: #718096 !important;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .order-items-popup {
