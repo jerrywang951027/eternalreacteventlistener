@@ -1199,6 +1199,19 @@
   border-bottom: 1px solid #4a5568 !important;
 }
 
+.dashboard.dark-mode .results-header h5 {
+  color: #f7fafc !important;
+}
+
+.dashboard.dark-mode .results-count {
+  background: #1e3a5f !important;
+  color: #93c5fd !important;
+}
+
+.dashboard.dark-mode .results-meta {
+  color: #e1e7ef !important;
+}
+
 /* ====== FINAL DARK MODE OVERRIDES - ADDED AT END FOR MAXIMUM PRECEDENCE ====== */
 .dashboard.dark-mode .sobjects-left-panel-compact {
   background: #1a202c !important;

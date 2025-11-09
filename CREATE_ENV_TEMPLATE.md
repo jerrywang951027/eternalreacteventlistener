@@ -8,7 +8,7 @@ Copy and paste this template into a new `.env` file in the project root:
 # Session Configuration
 SESSION_SECRET=your-random-secret-key-here
 NODE_ENV=development
-PORT=5000
+PORT=15000
 CLIENT_PORT=3000
 APP_URL=http://localhost:3000
 
@@ -18,7 +18,7 @@ SALESFORCE_ORGS={"org1":{"name":"8x8-jinwangdev8","clientId":"REPLACE_WITH_YOUR_
 # Legacy fallback (optional)
 SALESFORCE_CLIENT_ID=fallback-client-id
 SALESFORCE_CLIENT_SECRET=fallback-client-secret
-SALESFORCE_REDIRECT_URI=http://localhost:5000/api/auth/salesforce/callback
+SALESFORCE_REDIRECT_URI=http://localhost:15000/api/auth/salesforce/callback
 ```
 
 ## Step 2: Replace the placeholders
@@ -75,4 +75,4 @@ SALESFORCE_ORGS={"orgKey1":{"name":"Display Name","clientId":"your-client-id","c
 
 **Login failing?**
 - Verify your clientId and clientSecret are correct
-- Check that your Connected App callback URL matches: `http://localhost:5000/api/auth/salesforce/callback`
+- Check that your Connected App callback URL matches: `http://localhost:15000/api/auth/salesforce/callback`

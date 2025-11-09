@@ -20,7 +20,7 @@ const getServerUrls = () => {
   // Development server (always include for testing)
   if (process.env.NODE_ENV !== 'production') {
     servers.push({
-      url: 'http://localhost:5000',
+      url: 'http://localhost:15000',
       description: 'Development server'
     });
   }

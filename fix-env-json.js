@@ -19,7 +19,7 @@ if (!fs.existsSync(envFilePath)) {
   const template = `# Session Configuration
 SESSION_SECRET=your-random-secret-key-here
 NODE_ENV=development
-PORT=5000
+PORT=15000
 CLIENT_PORT=3000
 APP_URL=http://localhost:3000
 
@@ -29,7 +29,7 @@ SALESFORCE_ORGS={"org1":{"name":"8x8-jinwangdev8","clientId":"REPLACE_WITH_YOUR_
 # Legacy fallback (optional)
 SALESFORCE_CLIENT_ID=fallback-client-id
 SALESFORCE_CLIENT_SECRET=fallback-client-secret
-SALESFORCE_REDIRECT_URI=http://localhost:5000/api/auth/salesforce/callback`;
+SALESFORCE_REDIRECT_URI=http://localhost:15000/api/auth/salesforce/callback`;
 
   fs.writeFileSync(envFilePath, template);
   console.log('✅ Created .env template file');

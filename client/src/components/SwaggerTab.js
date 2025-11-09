@@ -11,7 +11,7 @@ const SwaggerTab = () => {
       return `${window.location.origin}/api-docs`;
     }
     // In development, use the server port
-    return 'http://localhost:5000/api-docs';
+    return 'http://localhost:15000/api-docs';
   };
 
   useEffect(() => {

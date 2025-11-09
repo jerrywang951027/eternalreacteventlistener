@@ -1,0 +1,33 @@
+1.add a new tab with name "RagSearch Eval"
+2.duplicate entire funtionality from tab "DC V3 Query" to start with
+3.add a button to the very right "Evaluate Rag Result",only enable  this button when the sql statement contains 
+  hybrid_search or vector_search as well as after the sql has been executed
+4.Once clicked, it should open a right panel beside "sql editor" and above "sql result"
+5. header of right panel says "please enter prompt for evaluation
+6. you are allowed to enter some text in the text window taking up all space of the panel
+7. once you enter something in the text window, there is a button enabled with label "start LLM evaluation"
+8. for LLM evaluation, invoke salesforce LLM Model API with endpoint: https://api.salesforce.com/einstein/platform/v1/models/sfdc_ai__DefaultOpenAIGPT4OmniMini/chat-generations
+   the request should be like:
+     {
+        "messages": [
+            {
+                "role": "user",
+                "content": "{{prompt}}"
+            }
+        ],
+        "localization": {
+            "defaultLocale": "en_US",
+            "inputLocales": [
+                {
+                    "locale": "en_US",
+                    "probability": 0.8
+                }
+            ],
+            "expectedLocales": [
+                "en_US"
+            ]
+        },
+        "tags": {}
+    }
+9. the prompt should be the prompt entered inside the text window
+10. However the entered prompt will have reference to executed sql result which is an array.

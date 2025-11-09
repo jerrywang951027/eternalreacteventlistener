@@ -10,6 +10,9 @@ import SwaggerTab from './SwaggerTab';
 import TalkToSFDCAgentTab from './TalkToSFDCAgentTab';
 import DataCloudQueryTab from './DataCloudQueryTab';
 import DataCloudObjectsTab from './DataCloudObjectsTab';
+import DataCloudV3QueryTab from './DataCloudV3QueryTab';
+import DataCloudObjectsV3Tab from './DataCloudObjectsV3Tab';
+import RagSearchEvalTab from './RagSearchEvalTab';
 import UserInfoPopup from './UserInfoPopup';
 import './Dashboard.css';
 
@@ -67,6 +70,29 @@ const Dashboard = ({ user, onLogout }) => {
   // Data Cloud Objects tab state - persisted across tab switches
   const [dataCloudObjectsState, setDataCloudObjectsState] = useState({
     isConnected: false,
+    entityType: '',
+    objects: [],
+    selectedObject: null,
+    searchTerm: '',
+    error: ''
+  });
+
+  // Data Cloud V3 Query tab state - persisted across tab switches
+  const [dataCloudV3QueryState, setDataCloudV3QueryState] = useState({
+    sqlQuery: '',
+    queryResult: null,
+    error: ''
+  });
+
+  // RAG Search Eval tab state - persisted across tab switches
+  const [ragSearchEvalState, setRagSearchEvalState] = useState({
+    sqlQuery: '',
+    queryResult: null,
+    error: ''
+  });
+
+  // Data Cloud Objects V3 tab state - persisted across tab switches
+  const [dataCloudObjectsV3State, setDataCloudObjectsV3State] = useState({
     entityType: '',
     objects: [],
     selectedObject: null,
@@ -270,7 +296,7 @@ const Dashboard = ({ user, onLogout }) => {
     }
     
     // Use environment-appropriate URL
-    const socketUrl = process.env.NODE_ENV === 'production' ? window.location.origin : 'http://localhost:5000';
+    const socketUrl = process.env.NODE_ENV === 'production' ? window.location.origin : 'http://localhost:15000';
     
     socketRef.current = io(socketUrl, {
       withCredentials: true,
@@ -831,8 +857,8 @@ const Dashboard = ({ user, onLogout }) => {
 
   // Tab navigation
   const tabs = [
-    { id: 'platform-events', label: 'Explore Platform Events', icon: '📨' },
-    { id: 'sobjects', label: 'Explore SObjects', icon: '🗃️' }
+    { id: 'platform-events', label: 'Platform Events', icon: '📨' },
+    { id: 'sobjects', label: 'Core Objects', icon: '🗃️' }
     // { id: 'om', label: 'Explore OM', icon: '⚙️' }, // Hidden to save space
     // { id: 'omnistudio', label: 'Explore Omnistudio(MP)', icon: '🔧' }, // Hidden to save space
     // { id: 'swagger', label: 'API Documentation', icon: '📚' } // Hidden to save space
@@ -851,8 +877,11 @@ const Dashboard = ({ user, onLogout }) => {
   console.log('🔍 [DASHBOARD] Building tabs array, dataCloudConfig:', dataCloudConfig);
   if (dataCloudConfig.hasDataCloud) {
     console.log('✅ [DASHBOARD] Adding Data Cloud Query tab to tabs array');
-    tabs.push({ id: 'datacloud-query', label: 'Data Cloud Query', icon: '🌥️' });
-    tabs.push({ id: 'datacloud-objects', label: 'Data Cloud Objects', icon: '🗂️' });
+    tabs.push({ id: 'datacloud-query', label: 'DC V1 Query', icon: '🌥️' });
+    tabs.push({ id: 'datacloud-objects', label: 'DC V1 Objects', icon: '🗂️' });
+    tabs.push({ id: 'datacloud-v3-query', label: 'DC V3 Query', icon: '☁️' });
+    tabs.push({ id: 'datacloud-objects-v3', label: 'DC Objects', icon: '📦' });
+    tabs.push({ id: 'rag-search-eval', label: 'RagSearch Eval', icon: '🤖' });
   } else {
     console.log('❌ [DASHBOARD] Data Cloud tabs NOT added, hasDataCloud:', dataCloudConfig.hasDataCloud);
   }
@@ -936,6 +965,27 @@ const Dashboard = ({ user, onLogout }) => {
           <DataCloudObjectsTab 
             persistedState={dataCloudObjectsState}
             onStateChange={setDataCloudObjectsState}
+          />
+        );
+      case 'datacloud-v3-query':
+        return (
+          <DataCloudV3QueryTab 
+            persistedState={dataCloudV3QueryState}
+            onStateChange={setDataCloudV3QueryState}
+          />
+        );
+      case 'rag-search-eval':
+        return (
+          <RagSearchEvalTab 
+            persistedState={ragSearchEvalState}
+            onStateChange={setRagSearchEvalState}
+          />
+        );
+      case 'datacloud-objects-v3':
+        return (
+          <DataCloudObjectsV3Tab 
+            persistedState={dataCloudObjectsV3State}
+            onStateChange={setDataCloudObjectsV3State}
           />
         );
       case 'admin-console':

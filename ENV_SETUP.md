@@ -8,7 +8,7 @@ Create a `.env` file in the root directory with the following structure:
 # Session Configuration
 SESSION_SECRET=your-secret-key-here
 NODE_ENV=development
-PORT=5000
+PORT=15000
 CLIENT_PORT=3000
 APP_URL=http://localhost:3000
 
@@ -18,7 +18,7 @@ SALESFORCE_ORGS={"org1":{"name":"8x8-jinwangdev8","clientId":"your-client-id-1",
 # Legacy fallback (will be deprecated)
 SALESFORCE_CLIENT_ID=fallback-client-id
 SALESFORCE_CLIENT_SECRET=fallback-client-secret
-SALESFORCE_REDIRECT_URI=http://localhost:5000/api/auth/salesforce/callback
+SALESFORCE_REDIRECT_URI=http://localhost:15000/api/auth/salesforce/callback
 ```
 
 ## Configuration Details
@@ -60,7 +60,7 @@ For each organization, create a Connected App in Salesforce Setup:
 3. **API Name**: Auto-generated
 4. **Contact Email**: Your email
 5. **Enable OAuth Settings**: ✅ Checked
-6. **Callback URL**: `http://localhost:5000/api/auth/salesforce/callback`
+6. **Callback URL**: `http://localhost:15000/api/auth/salesforce/callback`
 7. **Selected OAuth Scopes**: 
    - Access and manage your data (api)
    - Perform requests on your behalf at any time (refresh_token, offline_access)
@@ -70,7 +70,7 @@ For each organization, create a Connected App in Salesforce Setup:
 ### Environment Variables
 - **`SESSION_SECRET`**: Random string for session encryption
 - **`NODE_ENV`**: `development` or `production`
-- **`PORT`**: Server port (default: 5000)
+- **`PORT`**: Server port (default: 15000)
 - **`CLIENT_PORT`**: React dev server port (default: 3000)
 - **`APP_URL`**: Frontend URL for production deployments
 

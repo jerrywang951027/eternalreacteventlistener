@@ -48,7 +48,7 @@ const AgentforceModule = require('./modules/agentforce');
 const EnvManagerModule = require('./modules/envManager');
 const DataCloudModule = require('./modules/dataCloud');
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 15000;
 const CLIENT_PORT = process.env.CLIENT_PORT || 3000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
@@ -1677,6 +1677,104 @@ app.post('/api/datacloud/connect', loginModule.requireAuth, (req, res) => {
  */
 app.post('/api/datacloud/query', loginModule.requireAuth, (req, res) => {
   dataCloudModule.executeQuery(req, res);
+});
+
+/**
+ * @swagger
+ * /api/datacloud/v3/query:
+ *   post:
+ *     summary: Execute a Data Cloud SQL query using V3 API
+ *     tags: [Data Cloud]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               sql:
+ *                 type: string
+ *                 description: SQL query to execute
+ *     responses:
+ *       200:
+ *         description: Query executed successfully using V3 endpoint
+ *       400:
+ *         description: Invalid request
+ *       401:
+ *         description: Not authenticated
+ *       500:
+ *         description: Failed to execute query
+ */
+app.post('/api/datacloud/v3/query', loginModule.requireAuth, (req, res) => {
+  dataCloudModule.executeV3Query(req, res);
+});
+
+/**
+ * @swagger
+ * /api/datacloud/rag-eval:
+ *   post:
+ *     summary: Evaluate RAG search results using Salesforce LLM
+ *     tags: [Data Cloud]
+ *     security:
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               prompt:
+ *                 type: string
+ *                 description: Fully parsed evaluation prompt with all substitutions already done (frontend handles JSONPath and placeholder replacements)
+ *               model:
+ *                 type: string
+ *                 description: LLM model to use (sfdc_ai__DefaultGPT4Omni, sfdc_ai__DefaultOpenAIGPT4OmniMini, or sfdc_ai__DefaultVertexAIGemini25Flash001)
+ *                 default: sfdc_ai__DefaultGPT4Omni
+ *     responses:
+ *       200:
+ *         description: Evaluation completed successfully
+ *       400:
+ *         description: Invalid request
+ *       401:
+ *         description: Not authenticated
+ *       500:
+ *         description: Failed to evaluate
+ */
+app.post('/api/datacloud/rag-eval', loginModule.requireAuth, (req, res) => {
+  dataCloudModule.evaluateRagResults(req, res);
+});
+
+/**
+ * @swagger
+ * /api/datacloud/v3/metadata:
+ *   get:
+ *     summary: Get Data Cloud metadata using V3 API
+ *     tags: [Data Cloud]
+ *     security:
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: entityType
+ *         schema:
+ *           type: string
+ *           enum: [DataLakeObject, DataModel]
+ *         required: true
+ *         description: Entity type to retrieve metadata for
+ *     responses:
+ *       200:
+ *         description: Metadata retrieved successfully using V3 endpoint
+ *       400:
+ *         description: Invalid request
+ *       401:
+ *         description: Not authenticated
+ *       500:
+ *         description: Failed to fetch metadata
+ */
+app.get('/api/datacloud/v3/metadata', loginModule.requireAuth, (req, res) => {
+  dataCloudModule.getV3Metadata(req, res);
 });
 
 /**

@@ -400,7 +400,7 @@ const DataCloudQueryTab = ({ persistedState, onStateChange }) => {
   return (
     <div className="datacloud-query-tab">
       <div className="tab-header">
-        <h2>🌥️ Data Cloud Query</h2>
+        <h2>🌥️ DC V1 Query</h2>
         <button
           className={`connect-btn ${isConnected ? 'connected' : ''}`}
           onClick={handleConnectDataCloud}

@@ -30,7 +30,7 @@ npm run dev
 ```
 
 **This single command will:**
-- ✅ Start Node.js server on `http://localhost:5000`
+- ✅ Start Node.js server on `http://localhost:15000`
 - ✅ Automatically start React dev server on `http://localhost:3000`  
 - ✅ Enable WebSocket connections between client and server
 - ✅ Set up hot reloading for both frontend and backend
@@ -81,7 +81,7 @@ The backend server provides the following endpoints:
 
 1. Run `npm run dev` to start both applications
 2. React app will open at `http://localhost:3000`
-3. Backend API is available at `http://localhost:5000`
+3. Backend API is available at `http://localhost:15000`
 4. React app can make API calls to `/api/*` routes (proxied to backend)
 5. Hot reloading enabled for both frontend and backend
 
@@ -114,7 +114,7 @@ The backend server provides the following endpoints:
 
 3. **API (Enable OAuth Settings):**
    - ✅ Enable OAuth Settings
-   - **Callback URL:** `http://localhost:5000/api/auth/salesforce/callback`
+   - **Callback URL:** `http://localhost:15000/api/auth/salesforce/callback`
    - **Selected OAuth Scopes:**
      - Access and manage your data (api)
      - Perform requests on your behalf at any time (refresh_token, offline_access)
@@ -127,14 +127,14 @@ Create a `.env` file in the `server` directory:
 
 ```bash
 # Server Configuration
-PORT=5000
+PORT=15000
 NODE_ENV=development
 SESSION_SECRET=your-super-secret-session-key-here
 
 # Salesforce OAuth Configuration
 SALESFORCE_CLIENT_ID=your-consumer-key-from-connected-app
 SALESFORCE_CLIENT_SECRET=your-consumer-secret-from-connected-app
-SALESFORCE_REDIRECT_URI=http://localhost:5000/api/auth/salesforce/callback
+SALESFORCE_REDIRECT_URI=http://localhost:15000/api/auth/salesforce/callback
 ```
 
 ### 3. Platform Events Setup (Optional)
@@ -155,7 +155,7 @@ npm run dev
 
 **You'll see:**
 ```
-🚀 Server running on port 5000
+🚀 Server running on port 15000
 🔌 WebSocket server ready for connections
 🎯 Starting full-stack application...
 🚀 Starting React development server...
@@ -164,7 +164,7 @@ npm run dev
 
 ✨ Access your application:
    🌐 React App: http://localhost:3000
-   🔗 API Server: http://localhost:5000
+   🔗 API Server: http://localhost:15000
 ```
 
 ### 2. Login Process

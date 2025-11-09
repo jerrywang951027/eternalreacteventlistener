@@ -216,7 +216,7 @@ class LoginModule {
       const oauth2 = new jsforce.OAuth2({
         clientId,
         clientSecret,
-        redirectUri: process.env.SALESFORCE_REDIRECT_URI || 'http://localhost:5000/api/auth/salesforce/callback',
+        redirectUri: process.env.SALESFORCE_REDIRECT_URI || 'http://localhost:15000/api/auth/salesforce/callback',
         loginUrl: loginUrl
       });
 

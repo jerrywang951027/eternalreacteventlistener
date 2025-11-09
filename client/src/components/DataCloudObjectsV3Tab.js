@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import './DataCloudObjectsTab.css';
+import './DataCloudObjectsTab.css'; // Reuse the same CSS
 
-const DataCloudObjectsTab = ({ persistedState, onStateChange }) => {
-  // Initialize from persisted state or defaults
-  const [isConnected, setIsConnected] = useState(persistedState?.isConnected || false);
-  const [connecting, setConnecting] = useState(false);
+const DataCloudObjectsV3Tab = ({ persistedState, onStateChange }) => {
+  // Initialize from persisted state or defaults (no connection state needed)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(persistedState?.error || '');
   const [entityType, setEntityType] = useState(persistedState?.entityType || '');
@@ -17,7 +15,6 @@ const DataCloudObjectsTab = ({ persistedState, onStateChange }) => {
   useEffect(() => {
     if (onStateChange) {
       onStateChange({
-        isConnected,
         entityType,
         objects,
         selectedObject,
@@ -25,48 +22,7 @@ const DataCloudObjectsTab = ({ persistedState, onStateChange }) => {
         error
       });
     }
-  }, [isConnected, entityType, objects, selectedObject, searchTerm, error, onStateChange]);
-
-  // Check if already connected to Data Cloud on mount
-  useEffect(() => {
-    checkConnectionStatus();
-  }, []);
-
-  const checkConnectionStatus = async () => {
-    try {
-      const response = await axios.get('/api/datacloud/status', {
-        withCredentials: true
-      });
-      
-      if (response.data.success && response.data.connected) {
-        setIsConnected(true);
-      }
-    } catch (err) {
-      console.error('Failed to check connection status:', err);
-    }
-  };
-
-  const handleConnect = async () => {
-    setConnecting(true);
-    setError('');
-    
-    try {
-      const response = await axios.post('/api/datacloud/connect', {}, {
-        withCredentials: true
-      });
-      
-      if (response.data.success) {
-        setIsConnected(true);
-        setError('');
-      } else {
-        setError(response.data.message || 'Failed to connect to Data Cloud');
-      }
-    } catch (err) {
-      setError('Failed to connect to Data Cloud: ' + (err.response?.data?.message || err.message));
-    } finally {
-      setConnecting(false);
-    }
-  };
+  }, [entityType, objects, selectedObject, searchTerm, error, onStateChange]);
 
   const handleEntityTypeChange = (e) => {
     setEntityType(e.target.value);
@@ -75,11 +31,6 @@ const DataCloudObjectsTab = ({ persistedState, onStateChange }) => {
   };
 
   const handleLoadObjects = async () => {
-    if (!isConnected) {
-      setError('Please connect to Data Cloud first');
-      return;
-    }
-
     if (!entityType) {
       setObjects([]);
       return;
@@ -89,7 +40,7 @@ const DataCloudObjectsTab = ({ persistedState, onStateChange }) => {
     setError('');
     
     try {
-      const response = await axios.get(`/api/datacloud/metadata?entityType=${entityType}`, {
+      const response = await axios.get(`/api/datacloud/v3/metadata?entityType=${entityType}`, {
         withCredentials: true
       });
       
@@ -101,18 +52,20 @@ const DataCloudObjectsTab = ({ persistedState, onStateChange }) => {
         setError(response.data.message || 'Failed to load metadata');
       }
     } catch (err) {
-      setError('Failed to load metadata: ' + (err.response?.data?.message || err.message));
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || err.message;
+      const errorDetails = err.response?.data?.details;
+      setError(`Failed to load metadata: ${errorMsg}${errorDetails ? ' - ' + JSON.stringify(errorDetails) : ''}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // Auto-load objects when entity type changes and connected
+  // Auto-load objects when entity type changes
   useEffect(() => {
-    if (isConnected && entityType) {
+    if (entityType) {
       handleLoadObjects();
     }
-  }, [entityType, isConnected]);
+  }, [entityType]);
 
   const handleObjectSelect = (object) => {
     setSelectedObject(object);
@@ -236,14 +189,11 @@ const DataCloudObjectsTab = ({ persistedState, onStateChange }) => {
     <div className="datacloud-objects-tab">
       {/* Header */}
       <div className="tab-header">
-        <h2>🌥️ DC V1 Objects</h2>
-        <button
-          className={`connect-btn ${isConnected ? 'connected' : ''}`}
-          onClick={handleConnect}
-          disabled={connecting || isConnected}
-        >
-          {connecting ? '⏳ Connecting...' : isConnected ? '✅ Connected' : '🔌 Connect DataCloud'}
-        </button>
+        <h2>☁️ DC Objects</h2>
+        <div className="tab-header-info">
+          <span className="info-badge">Using Salesforce API v65.0</span>
+          <span className="info-badge">✅ Always Connected</span>
+        </div>
       </div>
 
       {error && (
@@ -253,7 +203,7 @@ const DataCloudObjectsTab = ({ persistedState, onStateChange }) => {
       )}
 
       {/* Main Content - Two Panel Layout */}
-      <div className={`main-content ${!isConnected ? 'disabled' : ''}`}>
+      <div className="main-content">
         {/* Left Panel */}
         <div className="left-panel">
           <div className="panel-header">
@@ -262,7 +212,6 @@ const DataCloudObjectsTab = ({ persistedState, onStateChange }) => {
               id="entity-type"
               value={entityType}
               onChange={handleEntityTypeChange}
-              disabled={!isConnected}
               className="entity-type-select"
             >
               <option value="">Select Entity Type...</option>
@@ -277,7 +226,6 @@ const DataCloudObjectsTab = ({ persistedState, onStateChange }) => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Filter by name..."
-              disabled={!isConnected}
               className="search-input"
             />
           </div>
@@ -319,11 +267,9 @@ const DataCloudObjectsTab = ({ persistedState, onStateChange }) => {
               </>
             ) : (
               <div className="empty-state">
-                {!isConnected 
-                  ? 'Connect to Data Cloud to load objects' 
-                  : !entityType 
-                    ? 'Select an entity type to load objects'
-                    : 'No objects found'}
+                {!entityType 
+                  ? 'Select an entity type to load objects'
+                  : 'No objects found'}
               </div>
             )}
           </div>
@@ -338,5 +284,6 @@ const DataCloudObjectsTab = ({ persistedState, onStateChange }) => {
   );
 };
 
-export default DataCloudObjectsTab;
+export default DataCloudObjectsV3Tab;
+
 
