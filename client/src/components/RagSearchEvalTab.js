@@ -1471,7 +1471,7 @@ const RagSearchEvalTab = ({ persistedState, onStateChange }) => {
                       style={{
                         padding: '8px 16px',
                         background: promptTab === 'input' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent',
-                        color: promptTab === 'input' ? 'white' : '#666',
+                        color: promptTab === 'input' ? 'white' : '#9ca3af',
                         border: 'none',
                         borderBottom: promptTab === 'input' ? '2px solid #667eea' : '2px solid transparent',
                         cursor: 'pointer',
@@ -1488,7 +1488,7 @@ const RagSearchEvalTab = ({ persistedState, onStateChange }) => {
                       style={{
                         padding: '8px 16px',
                         background: promptTab === 'parsed' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent',
-                        color: promptTab === 'parsed' ? 'white' : '#666',
+                        color: promptTab === 'parsed' ? 'white' : '#9ca3af',
                         border: 'none',
                         borderBottom: promptTab === 'parsed' ? '2px solid #667eea' : '2px solid transparent',
                         cursor: 'pointer',
@@ -1629,7 +1629,7 @@ const RagSearchEvalTab = ({ persistedState, onStateChange }) => {
                   <>
                     <div style={{ 
                       fontSize: '13px', 
-                      color: '#666', 
+                      color: '#9ca3af', 
                       marginBottom: '5px',
                       display: 'flex',
                       justifyContent: 'space-between',
