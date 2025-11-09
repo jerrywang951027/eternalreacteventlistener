@@ -1373,8 +1373,8 @@ const RagSearchEvalTab = ({ persistedState, onStateChange }) => {
                 width: `${evalPanelWidth}px`,
                 display: 'flex',
                 flexDirection: 'column',
-                background: '#f8f9fa',
-                borderLeft: '1px solid #e0e0e0',
+                background: '#1a202c',
+                borderLeft: '1px solid #4a5568',
                 flexShrink: 0,
                 overflow: 'hidden'
               }}
@@ -1412,8 +1412,8 @@ const RagSearchEvalTab = ({ persistedState, onStateChange }) => {
               {/* LLM Model Selection */}
               <div style={{
                 padding: '10px 12px',
-                background: '#f8f9fa',
-                borderBottom: '1px solid #e5e7eb',
+                background: '#2d3748',
+                borderBottom: '1px solid #4a5568',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '10px',
@@ -1422,7 +1422,7 @@ const RagSearchEvalTab = ({ persistedState, onStateChange }) => {
                 <label style={{
                   fontSize: '13px',
                   fontWeight: '600',
-                  color: '#374151',
+                  color: '#e5e7eb',
                   whiteSpace: 'nowrap'
                 }}>
                   🧠 LLM Model:
@@ -1434,10 +1434,10 @@ const RagSearchEvalTab = ({ persistedState, onStateChange }) => {
                     flex: 1,
                     padding: '6px 10px',
                     fontSize: '12px',
-                    border: '1px solid #d1d5db',
+                    border: '1px solid #4a5568',
                     borderRadius: '4px',
-                    background: 'white',
-                    color: '#1f2937',
+                    background: '#1a202c',
+                    color: '#e5e7eb',
                     cursor: 'pointer',
                     fontFamily: 'Monaco, Menlo, Courier New, monospace'
                   }}
@@ -1462,7 +1462,7 @@ const RagSearchEvalTab = ({ persistedState, onStateChange }) => {
                   display: 'flex', 
                   justifyContent: 'space-between', 
                   alignItems: 'center',
-                  borderBottom: '1px solid #e5e7eb',
+                  borderBottom: '1px solid #4a5568',
                   marginBottom: '8px'
                 }}>
                   <div style={{ display: 'flex', gap: '0' }}>
@@ -1546,13 +1546,13 @@ const RagSearchEvalTab = ({ persistedState, onStateChange }) => {
                   <>
                     <div style={{ 
                       fontSize: '13px', 
-                      color: '#666', 
+                      color: '#9ca3af', 
                       marginBottom: '5px', 
                       display: 'flex',
                       alignItems: 'center',
                       gap: '8px'
                     }}>
-                      <span style={{ fontSize: '12px', color: '#999' }}>💡 Prompt supports placeholders and JSONPath</span>
+                      <span style={{ fontSize: '12px', color: '#9ca3af' }}>💡 Prompt supports placeholders and JSONPath</span>
                       <div style={{ position: 'relative', display: 'inline-block' }}>
                         <span 
                           className="info-icon"
@@ -1611,12 +1611,14 @@ const RagSearchEvalTab = ({ persistedState, onStateChange }) => {
                       style={{
                         flex: 1,
                         padding: '12px',
-                        border: '1px solid #d1d5db',
+                        border: '1px solid #4a5568',
                         borderRadius: '4px',
                         fontSize: '13px',
                         fontFamily: 'Monaco, Menlo, Courier New, monospace',
                         resize: 'none',
-                        minHeight: '150px'
+                        minHeight: '150px',
+                        background: '#2d3748',
+                        color: '#e5e7eb'
                       }}
                     />
                   </>
@@ -1652,14 +1654,14 @@ const RagSearchEvalTab = ({ persistedState, onStateChange }) => {
                       style={{
                         flex: 1,
                         padding: '12px',
-                        border: '1px solid #d1d5db',
+                        border: '1px solid #4a5568',
                         borderRadius: '4px',
                         fontSize: '13px',
                         fontFamily: 'Monaco, Menlo, Courier New, monospace',
                         resize: 'none',
                         minHeight: '150px',
-                        background: '#f8f9fa',
-                        color: '#1f2937',
+                        background: '#2d3748',
+                        color: '#e5e7eb',
                         cursor: 'default'
                       }}
                     />

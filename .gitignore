@@ -125,3 +125,10 @@ misc/envs/env.json
 # Environment file backups
 server/env_backups/
 server/.env.backup-*
+
+# Sensitive debug/request files - DO NOT COMMIT!
+ragEvalRequest.json
+*Request.json
+*Response.json
+*.token
+*.credentials
