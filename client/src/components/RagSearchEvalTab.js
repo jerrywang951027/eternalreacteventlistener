@@ -366,9 +366,11 @@ const RagSearchEvalTab = ({ persistedState, onStateChange }) => {
                 const evalData = evaluationArray[rowIndex];
                 if (evalData) {
                   Object.assign(newRow, evalData);
-                  // Only log first and last row to avoid console spam
-                  if (rowIndex === 0 || rowIndex === dataToMerge.length - 1) {
-                    console.log(`✅ [RAG-EVAL] Merged row ${rowIndex + 1} with evaluation data`);
+                  // Log mapping for first 3 and last 3 rows to verify alignment
+                  if (rowIndex < 3 || rowIndex >= dataToMerge.length - 3) {
+                    const contentPreview = Array.isArray(row) ? (row[1] || '').toString().substring(0, 50) : 'N/A';
+                    const scorePreview = evalData.score || 'N/A';
+                    console.log(`🔗 [RAG-EVAL] Row ${rowIndex + 1} (display index ${rowIndex + 1}): content="${contentPreview}..." → score="${scorePreview}"`);
                   }
                 } else {
                   console.warn(`⚠️ [RAG-EVAL] Row ${rowIndex + 1}: evaluation data is null/undefined`);
