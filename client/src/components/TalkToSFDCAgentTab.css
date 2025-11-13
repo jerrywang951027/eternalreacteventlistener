@@ -1048,7 +1048,7 @@
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  height: 150%; /* Increase height by 50% */
+  /* height removed - let flexbox handle sizing */
 } 
 
 .chat-messages { 
