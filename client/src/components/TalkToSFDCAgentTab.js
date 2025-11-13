@@ -375,9 +375,9 @@ const TalkToSFDCAgentTab = () => {
         
         setMessages(prev => [...prev, agentResponse]);
         
-        // Fetch updated API logs if the panel is open
+        // Fetch updated API logs if the panel is open (with small delay to ensure backend has logged)
         if (showApiLogs) {
-          fetchApiLogs();
+          setTimeout(() => fetchApiLogs(), 300);
         }
         
         console.log('🎤 Voice message sent successfully, agent response received:', agentResponse);
@@ -606,9 +606,9 @@ const TalkToSFDCAgentTab = () => {
         
         setMessages(prev => [...prev, agentResponse]);
         
-        // Fetch updated API logs if the panel is open
+        // Fetch updated API logs if the panel is open (with small delay to ensure backend has logged)
         if (showApiLogs) {
-          fetchApiLogs();
+          setTimeout(() => fetchApiLogs(), 300);
         }
         
         console.log('💬 [AGENTFORCE] Agent response received:', agentResponse);
