@@ -120,9 +120,29 @@ const EmbeddedSiteTab = () => {
         </div>
 
         <div className="info-card status-card">
-          <h3>✅ Status</h3>
-          <p>Embedded messaging is initializing...</p>
-          <p className="status-hint">Check the browser console for detailed initialization logs.</p>
+          <h3>⚠️ Setup Required</h3>
+          <p style={{ color: '#f59e0b', fontWeight: '600', marginBottom: '15px' }}>
+            If you see CORS or CSP errors in the console, you need to configure allowed domains.
+          </p>
+          <div style={{ textAlign: 'left', background: '#111827', padding: '15px', borderRadius: '6px', marginTop: '15px' }}>
+            <p style={{ color: '#e5e7eb', fontWeight: '600', marginBottom: '10px' }}>📋 Setup Steps:</p>
+            <ol style={{ color: '#9ca3af', lineHeight: '1.8', paddingLeft: '20px' }}>
+              <li>Go to Salesforce Setup → "Embedded Service Deployments"</li>
+              <li>Find deployment: <code style={{ color: '#60a5fa' }}>FDE01</code></li>
+              <li>Add these domains to "Allowed Domains":
+                <ul style={{ marginTop: '8px' }}>
+                  <li><code style={{ color: '#10b981' }}>http://localhost:3000</code></li>
+                  <li><code style={{ color: '#10b981' }}>http://127.0.0.1:3000</code></li>
+                  <li><code style={{ color: '#10b981' }}>http://localhost:5001</code></li>
+                </ul>
+              </li>
+              <li>Save and wait 2-3 minutes for changes to propagate</li>
+              <li>Refresh this page</li>
+            </ol>
+          </div>
+          <p className="status-hint" style={{ marginTop: '15px' }}>
+            Check the browser console for detailed initialization logs.
+          </p>
         </div>
       </div>
     </div>
