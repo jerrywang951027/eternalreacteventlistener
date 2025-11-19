@@ -3,7 +3,7 @@ import axios from 'axios';
 import * as Diff from 'diff';
 import './AdminConsoleTab.css';
 
-const AdminConsoleTab = ({ onTabLoad }) => {
+const AdminConsoleTab = ({ onTabLoad, tabVisibility, updateTabVisibility }) => {
   // State management
   const [selectedSection, setSelectedSection] = useState('system-overview');
   const [sectionData, setSectionData] = useState(null);
@@ -97,6 +97,13 @@ const AdminConsoleTab = ({ onTabLoad }) => {
       description: 'Recent server log entries',
       icon: '📋',
       endpoint: '/api/admin/server-logs'
+    },
+    {
+      id: 'tab-visibility',
+      name: 'Tab Visibility',
+      description: 'Control which tabs are visible in the dashboard',
+      icon: '👁️',
+      endpoint: null // Client-side only, no backend endpoint
     }
   ];
 
@@ -245,6 +252,13 @@ const AdminConsoleTab = ({ onTabLoad }) => {
   const loadSectionData = async (sectionId) => {
     const section = adminSections.find(s => s.id === sectionId);
     if (!section) return;
+
+    // Skip loading for client-side only sections
+    if (sectionId === 'tab-visibility') {
+      setLoading(false);
+      setSectionData({ clientSideOnly: true });
+      return;
+    }
 
     try {
       setLoading(true);
@@ -3490,6 +3504,110 @@ const AdminConsoleTab = ({ onTabLoad }) => {
     </div>
   );
 
+  const renderTabVisibility = () => {
+    // Define tabs that can be controlled
+    const controllableTabs = [
+      { id: 'datacloud-query', label: 'DC V1 Query', icon: '🌥️', description: 'Data Cloud V1 Query Tab' },
+      { id: 'datacloud-objects', label: 'DC V1 Objects', icon: '🗂️', description: 'Data Cloud V1 Objects Tab' }
+    ];
+
+    return (
+      <div className="admin-section-content">
+        <h3>👁️ Tab Visibility Control</h3>
+        <p style={{ color: '#9ca3af', marginBottom: '30px' }}>
+          Control which tabs are visible in the main dashboard navigation. 
+          Changes are saved automatically and applied immediately.
+        </p>
+
+        <div style={{ display: 'grid', gap: '20px' }}>
+          {controllableTabs.map(tab => {
+            const isVisible = tabVisibility?.[tab.id] !== false;
+            
+            return (
+              <div 
+                key={tab.id}
+                style={{
+                  background: '#1f2937',
+                  border: '1px solid #374151',
+                  borderRadius: '8px',
+                  padding: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '24px' }}>{tab.icon}</span>
+                    <h4 style={{ margin: 0, color: '#f3f4f6', fontSize: '18px' }}>{tab.label}</h4>
+                  </div>
+                  <p style={{ color: '#9ca3af', margin: 0, fontSize: '14px' }}>{tab.description}</p>
+                </div>
+                
+                <button
+                  onClick={() => updateTabVisibility(tab.id, !isVisible)}
+                  style={{
+                    padding: '10px 24px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    borderRadius: '6px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    background: isVisible ? '#10b981' : '#6b7280',
+                    color: 'white',
+                    minWidth: '100px'
+                  }}
+                  onMouseOver={(e) => {
+                    e.target.style.opacity = '0.8';
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.opacity = '1';
+                  }}
+                >
+                  {isVisible ? '✅ Visible' : '👁️‍🗨️ Hidden'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        <div 
+          style={{
+            marginTop: '30px',
+            padding: '20px',
+            background: '#1f2937',
+            border: '1px solid #374151',
+            borderRadius: '8px'
+          }}
+        >
+          <h4 style={{ color: '#f3f4f6', marginBottom: '10px' }}>💡 How It Works</h4>
+          <ul style={{ color: '#9ca3af', lineHeight: '1.8', paddingLeft: '20px' }}>
+            <li>Toggle tabs on/off to control their visibility in the main navigation</li>
+            <li>Hidden tabs will not appear in the tab bar but their data is preserved</li>
+            <li>Changes are saved to browser localStorage and persist across sessions</li>
+            <li>This helps reduce clutter if you have many tabs enabled</li>
+          </ul>
+        </div>
+
+        <div 
+          style={{
+            marginTop: '20px',
+            padding: '15px',
+            background: '#374151',
+            border: '1px solid #4b5563',
+            borderRadius: '6px',
+            color: '#d1d5db',
+            fontSize: '13px',
+            fontFamily: 'Monaco, Courier New, monospace'
+          }}
+        >
+          <strong>Current State:</strong> {JSON.stringify(tabVisibility, null, 2)}
+        </div>
+      </div>
+    );
+  };
+
   const renderSectionContent = () => {
     if (loading) {
       return (
@@ -3535,6 +3653,8 @@ const AdminConsoleTab = ({ onTabLoad }) => {
         return renderRedisManagement(sectionData);
       case 'server-logs':
         return renderServerLogs(sectionData);
+      case 'tab-visibility':
+        return renderTabVisibility();
       default:
         return <div className="empty-state"><p>Unknown section selected.</p></div>;
     }

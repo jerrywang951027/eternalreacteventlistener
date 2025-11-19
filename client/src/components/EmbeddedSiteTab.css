@@ -1,0 +1,134 @@
+.embedded-site-container {
+  padding: 30px;
+  max-width: 1200px;
+  margin: 0 auto;
+  color: #e5e7eb;
+}
+
+.embedded-site-header {
+  margin-bottom: 40px;
+  text-align: center;
+}
+
+.embedded-site-header h2 {
+  font-size: 32px;
+  margin-bottom: 15px;
+  color: #f3f4f6;
+}
+
+.embedded-site-description {
+  font-size: 16px;
+  color: #9ca3af;
+  max-width: 800px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.embedded-site-content {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 30px;
+}
+
+@media (min-width: 768px) {
+  .embedded-site-content {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.info-card {
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.info-card h3 {
+  font-size: 20px;
+  margin-bottom: 20px;
+  color: #f3f4f6;
+  border-bottom: 2px solid #374151;
+  padding-bottom: 10px;
+}
+
+.config-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+  padding: 10px;
+  background: #111827;
+  border-radius: 6px;
+}
+
+.config-label {
+  font-weight: 600;
+  color: #60a5fa;
+  margin-right: 15px;
+  min-width: 120px;
+}
+
+.config-value {
+  color: #d1d5db;
+  word-break: break-all;
+  text-align: right;
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+}
+
+.usage-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.usage-list li {
+  padding: 12px;
+  margin-bottom: 10px;
+  background: #111827;
+  border-left: 3px solid #3b82f6;
+  border-radius: 4px;
+  color: #d1d5db;
+  line-height: 1.6;
+}
+
+.usage-list li:before {
+  content: '→';
+  margin-right: 10px;
+  color: #3b82f6;
+  font-weight: bold;
+}
+
+.status-card {
+  grid-column: 1 / -1;
+  text-align: center;
+}
+
+.status-card p {
+  color: #9ca3af;
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+
+.status-hint {
+  font-size: 14px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Dark mode overrides (already dark by default, but ensuring consistency) */
+body.dark-mode .embedded-site-container {
+  color: #e5e7eb;
+}
+
+body.dark-mode .info-card {
+  background: #1f2937;
+  border-color: #374151;
+}
+
+body.dark-mode .config-item,
+body.dark-mode .usage-list li {
+  background: #111827;
+}
+

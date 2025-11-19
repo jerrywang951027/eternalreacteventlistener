@@ -13,6 +13,7 @@ import DataCloudObjectsTab from './DataCloudObjectsTab';
 import DataCloudV3QueryTab from './DataCloudV3QueryTab';
 import DataCloudObjectsV3Tab from './DataCloudObjectsV3Tab';
 import RagSearchEvalTab from './RagSearchEvalTab';
+import EmbeddedSiteTab from './EmbeddedSiteTab';
 import UserInfoPopup from './UserInfoPopup';
 import './Dashboard.css';
 
@@ -35,6 +36,22 @@ const Dashboard = ({ user, onLogout }) => {
     const newDarkMode = !isDarkMode;
     setIsDarkMode(newDarkMode);
     localStorage.setItem('dashboard-dark-mode', newDarkMode.toString());
+  };
+  
+  // Tab visibility state - initialize from localStorage or default to all visible
+  const [tabVisibility, setTabVisibility] = useState(() => {
+    const savedVisibility = localStorage.getItem('dashboard-tab-visibility');
+    return savedVisibility ? JSON.parse(savedVisibility) : {
+      'datacloud-query': true,
+      'datacloud-objects': true
+    };
+  });
+
+  // Update tab visibility
+  const updateTabVisibility = (tabId, isVisible) => {
+    const newVisibility = { ...tabVisibility, [tabId]: isVisible };
+    setTabVisibility(newVisibility);
+    localStorage.setItem('dashboard-tab-visibility', JSON.stringify(newVisibility));
   };
   
   // User info popup state
@@ -873,18 +890,29 @@ const Dashboard = ({ user, onLogout }) => {
     console.log('❌ [DASHBOARD] Agentforce tab NOT added, hasAgentId:', agentforceConfig.hasAgentId);
   }
 
-  // Add Data Cloud tabs conditionally
+  // Add Data Cloud tabs conditionally with visibility control
   console.log('🔍 [DASHBOARD] Building tabs array, dataCloudConfig:', dataCloudConfig);
   if (dataCloudConfig.hasDataCloud) {
-    console.log('✅ [DASHBOARD] Adding Data Cloud Query tab to tabs array');
-    tabs.push({ id: 'datacloud-query', label: 'DC V1 Query', icon: '🌥️' });
-    tabs.push({ id: 'datacloud-objects', label: 'DC V1 Objects', icon: '🗂️' });
+    console.log('✅ [DASHBOARD] Adding Data Cloud tabs to tabs array with visibility control');
+    
+    // Only add tabs if they're visible (default true if not in tabVisibility)
+    if (tabVisibility['datacloud-query'] !== false) {
+      tabs.push({ id: 'datacloud-query', label: 'DC V1 Query', icon: '🌥️' });
+    }
+    if (tabVisibility['datacloud-objects'] !== false) {
+      tabs.push({ id: 'datacloud-objects', label: 'DC V1 Objects', icon: '🗂️' });
+    }
+    
+    // These tabs are always visible (not controlled by tab visibility yet)
     tabs.push({ id: 'datacloud-v3-query', label: 'DC V3 Query', icon: '☁️' });
     tabs.push({ id: 'datacloud-objects-v3', label: 'DC Objects', icon: '📦' });
     tabs.push({ id: 'rag-search-eval', label: 'RagSearch Eval', icon: '🤖' });
   } else {
     console.log('❌ [DASHBOARD] Data Cloud tabs NOT added, hasDataCloud:', dataCloudConfig.hasDataCloud);
   }
+
+  // Add Embedded Site tab
+  tabs.push({ id: 'embedded-site', label: 'Embedded Site', icon: '🌐' });
 
   // Add Admin Console at the very end
   tabs.push({ id: 'admin-console', label: 'Admin Console', icon: '🛠️' });
@@ -988,12 +1016,20 @@ const Dashboard = ({ user, onLogout }) => {
             onStateChange={setDataCloudObjectsV3State}
           />
         );
+      case 'embedded-site':
+        return <EmbeddedSiteTab />;
       case 'admin-console':
-        return <AdminConsoleTab onTabLoad={loadOmnistudioGlobalData} />;
-        case 'swagger':
-          return <SwaggerTab />;
-        default:
-          return <div>Tab not found</div>;
+        return (
+          <AdminConsoleTab 
+            onTabLoad={loadOmnistudioGlobalData}
+            tabVisibility={tabVisibility}
+            updateTabVisibility={updateTabVisibility}
+          />
+        );
+      case 'swagger':
+        return <SwaggerTab />;
+      default:
+        return <div>Tab not found</div>;
     }
   };
 
