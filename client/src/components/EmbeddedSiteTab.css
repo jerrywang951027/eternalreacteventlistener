@@ -18,10 +18,11 @@
 
 .embedded-site-description {
   font-size: 16px;
-  color: #9ca3af;
+  color: #d1d5db;
   max-width: 800px;
   margin: 0 auto;
   line-height: 1.6;
+  font-weight: 500;
 }
 
 .embedded-site-content {
@@ -70,11 +71,12 @@
 }
 
 .config-value {
-  color: #d1d5db;
+  color: #e5e7eb;
   word-break: break-all;
   text-align: right;
   font-family: 'Monaco', 'Courier New', monospace;
   font-size: 13px;
+  font-weight: 500;
 }
 
 .usage-list {
@@ -89,8 +91,9 @@
   background: #111827;
   border-left: 3px solid #3b82f6;
   border-radius: 4px;
-  color: #d1d5db;
+  color: #e5e7eb;
   line-height: 1.6;
+  font-weight: 500;
 }
 
 .usage-list li:before {
@@ -106,7 +109,7 @@
 }
 
 .status-card p {
-  color: #9ca3af;
+  color: #d1d5db;
   margin-bottom: 10px;
   font-size: 16px;
 }
