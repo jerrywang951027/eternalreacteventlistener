@@ -91,21 +91,23 @@ const EmbeddedSiteTab = () => {
       <div className="embedded-site-content">
         <div className="info-card">
           <h3>📋 Configuration Details</h3>
-          <div className="config-item">
-            <span className="config-label">Org ID:</span>
-            <span className="config-value">00DgL00000EuD9X</span>
-          </div>
-          <div className="config-item">
-            <span className="config-label">Deployment ID:</span>
-            <span className="config-value">FDE01</span>
-          </div>
-          <div className="config-item">
-            <span className="config-label">Site URL:</span>
-            <span className="config-value">https://orgfarm-80191db225.my.site.com/ESWFDE011763545810631</span>
-          </div>
-          <div className="config-item">
-            <span className="config-label">SCRT2 URL:</span>
-            <span className="config-value">https://orgfarm-80191db225.my.salesforce-scrt.com</span>
+          <div className="config-grid">
+            <div className="config-row">
+              <div className="config-label">Org ID:</div>
+              <div className="config-value">00DgL00000EuD9X</div>
+            </div>
+            <div className="config-row">
+              <div className="config-label">Deployment ID:</div>
+              <div className="config-value">FDE01</div>
+            </div>
+            <div className="config-row">
+              <div className="config-label">Site URL:</div>
+              <div className="config-value">https://orgfarm-80191db225.my.site.com/ESWFDE011763545810631</div>
+            </div>
+            <div className="config-row">
+              <div className="config-label">SCRT2 URL:</div>
+              <div className="config-value">https://orgfarm-80191db225.my.salesforce-scrt.com</div>
+            </div>
           </div>
         </div>
 

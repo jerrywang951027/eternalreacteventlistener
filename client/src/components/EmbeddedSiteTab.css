@@ -53,30 +53,38 @@
   padding-bottom: 10px;
 }
 
-.config-item {
+.config-grid {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 15px;
-  padding: 10px;
-  background: #111827;
-  border-radius: 6px;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.config-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 15px;
+  padding: 12px;
+  background: transparent;
+  border-left: 3px solid #3b82f6;
+  border-radius: 4px;
 }
 
 .config-label {
   font-weight: 600;
   color: #60a5fa;
-  margin-right: 15px;
-  min-width: 120px;
+  display: flex;
+  align-items: center;
 }
 
 .config-value {
   color: #e5e7eb;
   word-break: break-all;
-  text-align: right;
   font-family: 'Monaco', 'Courier New', monospace;
   font-size: 13px;
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  background: transparent;
 }
 
 .usage-list {
@@ -130,7 +138,12 @@ body.dark-mode .info-card {
   border-color: #374151;
 }
 
-body.dark-mode .config-item,
+body.dark-mode .config-row,
+body.dark-mode .config-value,
+body.dark-mode .usage-list li {
+  background: transparent;
+}
+
 body.dark-mode .usage-list li {
   background: #111827;
 }
