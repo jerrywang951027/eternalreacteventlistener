@@ -911,7 +911,7 @@ class AgentforceModule {
       // Call Salesforce Agent API messages endpoint
       const response = await axios.post(apiUrl, messagePayload, {
         headers: apiHeaders,
-        timeout: 30000, // 30 second timeout
+        timeout: 60000, // 60 second timeout
         validateStatus: function (status) {
           // Accept any status code so we can log the full response
           return true;
@@ -982,7 +982,7 @@ class AgentforceModule {
       
       // Check for timeout
       if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
-        console.error('❌ [AGENTFORCE] REQUEST TIMEOUT - Salesforce API did not respond within 30 seconds');
+        console.error('❌ [AGENTFORCE] REQUEST TIMEOUT - Salesforce API did not respond within 60 seconds');
       }
       
       if (error.response) {
@@ -995,7 +995,7 @@ class AgentforceModule {
         // The request was made but no response was received
         console.error('❌ [AGENTFORCE] NO RESPONSE RECEIVED FROM SERVER');
         console.error('❌ [AGENTFORCE] This usually means:');
-        console.error('   - Network timeout (request took > 30 seconds)');
+        console.error('   - Network timeout (request took > 60 seconds)');
         console.error('   - Network connectivity issue');
         console.error('   - Salesforce API endpoint is down or unreachable');
       } else {
