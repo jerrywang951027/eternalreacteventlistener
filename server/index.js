@@ -1839,6 +1839,46 @@ app.post('/api/datacloud/disconnect', loginModule.requireAuth, (req, res) => {
   dataCloudModule.disconnectDataCloud(req, res);
 });
 
+// Ingestion API routes
+app.get('/api/datacloud/ingestion/streams', loginModule.requireAuth, (req, res) => {
+  dataCloudModule.getIngestionStreams(req, res);
+});
+
+app.get('/api/datacloud/ingestion/streams/:streamId/details', loginModule.requireAuth, (req, res) => {
+  dataCloudModule.getStreamDetails(req, res);
+});
+
+app.post('/api/datacloud/ingestion/authenticate', loginModule.requireAuth, (req, res) => {
+  dataCloudModule.authenticateForIngestion(req, res);
+});
+
+app.post('/api/datacloud/ingestion/dc-token', loginModule.requireAuth, (req, res) => {
+  dataCloudModule.getDataCloudToken(req, res);
+});
+
+// Single endpoint that handles both authentication steps internally
+app.post('/api/datacloud/ingestion/get-dc-token', loginModule.requireAuth, (req, res) => {
+  dataCloudModule.getDataCloudTokenForIngestion(req, res);
+});
+
+app.post('/api/datacloud/ingestion/create-job', loginModule.requireAuth, (req, res) => {
+  dataCloudModule.createIngestionJob(req, res);
+});
+
+// File upload route - reads file from filesystem (no multer needed)
+app.post('/api/datacloud/ingestion/upload-batch', loginModule.requireAuth, (req, res) => {
+  dataCloudModule.uploadBatch(req, res);
+});
+
+// Process CSV file endpoint - reads file from filesystem
+app.post('/api/datacloud/ingestion/process-csv', loginModule.requireAuth, (req, res) => {
+  dataCloudModule.processCSVFile(req, res);
+});
+
+app.post('/api/datacloud/ingestion/complete-job', loginModule.requireAuth, (req, res) => {
+  dataCloudModule.completeIngestionJob(req, res);
+});
+
 // 🧪 DEBUG: Force clear cache and reload 
 app.post('/api/omnistudio/force-reload', loginModule.requireAuth, (req, res) => {
   console.log(`🔄 [FORCE-RELOAD] Clearing cache and forcing reload for org ${req.session.salesforce.organizationId}`);

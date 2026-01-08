@@ -12,9 +12,9 @@ class RedisModule {
    * Get Redis connection options based on environment
    */
   getConnectionOptions() {
-    const isProduction = process.env.NODE_ENV === 'production';
-    
-    if (isProduction && process.env.REDIS_URL) {
+    // Check for REDIS_URL first (Heroku Redis sets this automatically)
+    // This is the definitive indicator of Heroku Redis, regardless of NODE_ENV
+    if (process.env.REDIS_URL) {
       // Heroku Redis configuration
       console.log('🔧 [REDIS] Using Heroku Redis configuration');
       return {

@@ -14,15 +14,24 @@ import DataCloudV3QueryTab from './DataCloudV3QueryTab';
 import DataCloudObjectsV3Tab from './DataCloudObjectsV3Tab';
 import RagSearchEvalTab from './RagSearchEvalTab';
 import EmbeddedSiteTab from './EmbeddedSiteTab';
+import IngestionAPITab from './IngestionAPITab';
 import UserInfoPopup from './UserInfoPopup';
 import './Dashboard.css';
 
 const Dashboard = ({ user, onLogout }) => {
-  // Initialize activeTab from localStorage or default to 'platform-events'
-  const [activeTab, setActiveTab] = useState(() => {
-    const savedTab = localStorage.getItem('dashboard-active-tab');
-    return savedTab || 'platform-events';
+  // Initialize mainTab and subTab from localStorage or defaults
+  const [mainTab, setMainTab] = useState(() => {
+    const savedMainTab = localStorage.getItem('dashboard-main-tab');
+    return savedMainTab || 'core-platform';
   });
+  
+  const [subTab, setSubTab] = useState(() => {
+    const savedSubTab = localStorage.getItem('dashboard-sub-tab');
+    return savedSubTab || 'platform-events';
+  });
+  
+  // Helper to get activeTab for backward compatibility with renderTabContent
+  const activeTab = subTab;
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   
   // Dark mode state - initialize from localStorage or default to false
@@ -258,11 +267,12 @@ const Dashboard = ({ user, onLogout }) => {
 
   // Switch away from Agentforce tab if it gets hidden
   useEffect(() => {
-    if (!agentforceConfig.hasAgentId && activeTab === 'talk-to-sfdc-agent') {
+    if (!agentforceConfig.hasAgentId && subTab === 'talk-to-sfdc-agent') {
       console.log('🔄 Agentforce tab hidden, switching to platform-events tab');
-      setActiveTab('platform-events');
+      setSubTab('platform-events');
+      localStorage.setItem('dashboard-sub-tab', 'platform-events');
     }
-  }, [agentforceConfig.hasAgentId, activeTab]);
+  }, [agentforceConfig.hasAgentId, subTab]);
   
   // Platform Events Tab State (lifted up to preserve across tab switches)
   const [platformEventsState, setPlatformEventsState] = useState({
@@ -872,50 +882,82 @@ const Dashboard = ({ user, onLogout }) => {
     };
   }, [userPopupTimeout]);
 
-  // Tab navigation
-  const tabs = [
-    { id: 'platform-events', label: 'Platform Events', icon: '📨' },
-    { id: 'sobjects', label: 'Core Objects', icon: '🗃️' }
-    // { id: 'om', label: 'Explore OM', icon: '⚙️' }, // Hidden to save space
-    // { id: 'omnistudio', label: 'Explore Omnistudio(MP)', icon: '🔧' }, // Hidden to save space
-    // { id: 'swagger', label: 'API Documentation', icon: '📚' } // Hidden to save space
+  // Hierarchical tab structure
+  const mainTabs = [
+    {
+      id: 'core-platform',
+      label: 'Core Platform',
+      icon: '⚙️',
+      subTabs: [
+        { id: 'platform-events', label: 'Platform Events', icon: '📨' },
+        { id: 'sobjects', label: 'Core Objects', icon: '🗃️' },
+        ...(agentforceConfig.hasAgentId ? [{ id: 'talk-to-sfdc-agent', label: 'AgentChat', icon: '🤖' }] : [])
+      ]
+    },
+    {
+      id: 'data-cloud',
+      label: 'Data Cloud',
+      icon: '☁️',
+      subTabs: (() => {
+        if (!dataCloudConfig.hasDataCloud) return [];
+        const subTabs = [];
+        // These tabs are always visible (not controlled by tab visibility yet)
+        subTabs.push({ id: 'datacloud-objects-v3', label: 'DC Objects', icon: '📦' });
+        subTabs.push({ id: 'datacloud-v3-query', label: 'DC V3 Query', icon: '☁️' });
+        subTabs.push({ id: 'rag-search-eval', label: 'RagSearch Eval', icon: '🤖' });
+        subTabs.push({ id: 'ingestion-api', label: 'Ingestion API', icon: '📥' });
+        // Only add V1 tabs if they're visible (default true if not in tabVisibility)
+        if (tabVisibility['datacloud-objects'] !== false) {
+          subTabs.push({ id: 'datacloud-objects', label: 'DC V1 Objects', icon: '🗂️' });
+        }
+        if (tabVisibility['datacloud-query'] !== false) {
+          subTabs.push({ id: 'datacloud-query', label: 'DC V1 Query', icon: '🌥️' });
+        }
+        return subTabs;
+      })()
+    },
+    {
+      id: 'admin-console',
+      label: 'Admin Console',
+      icon: '🛠️',
+      subTabs: [
+        { id: 'admin-console', label: 'Admin Console', icon: '🛠️' }
+      ]
+    }
   ];
 
-  // Add Agentforce tab conditionally
-  console.log('🔍 [DASHBOARD] Building tabs array, agentforceConfig:', agentforceConfig);
-  if (agentforceConfig.hasAgentId) {
-    console.log('✅ [DASHBOARD] Adding Agentforce tab to tabs array');
-    tabs.push({ id: 'talk-to-sfdc-agent', label: 'AgentChat', icon: '🤖' });
-  } else {
-    console.log('❌ [DASHBOARD] Agentforce tab NOT added, hasAgentId:', agentforceConfig.hasAgentId);
-  }
+  // Get current main tab's sub tabs
+  const currentMainTab = mainTabs.find(tab => tab.id === mainTab) || mainTabs[0];
+  const subTabs = currentMainTab?.subTabs || [];
 
-  // Add Data Cloud tabs conditionally with visibility control
-  console.log('🔍 [DASHBOARD] Building tabs array, dataCloudConfig:', dataCloudConfig);
-  if (dataCloudConfig.hasDataCloud) {
-    console.log('✅ [DASHBOARD] Adding Data Cloud tabs to tabs array with visibility control');
-    
-    // Only add tabs if they're visible (default true if not in tabVisibility)
-    if (tabVisibility['datacloud-query'] !== false) {
-      tabs.push({ id: 'datacloud-query', label: 'DC V1 Query', icon: '🌥️' });
+  // Ensure subTab is valid for current mainTab
+  useEffect(() => {
+    if (subTabs.length > 0 && !subTabs.find(tab => tab.id === subTab)) {
+      const defaultSubTab = subTabs[0].id;
+      setSubTab(defaultSubTab);
+      localStorage.setItem('dashboard-sub-tab', defaultSubTab);
     }
-    if (tabVisibility['datacloud-objects'] !== false) {
-      tabs.push({ id: 'datacloud-objects', label: 'DC V1 Objects', icon: '🗂️' });
-    }
+  }, [mainTab, subTabs, subTab]);
+
+  // Handle main tab change
+  const handleMainTabChange = (newMainTab) => {
+    setMainTab(newMainTab);
+    localStorage.setItem('dashboard-main-tab', newMainTab);
     
-    // These tabs are always visible (not controlled by tab visibility yet)
-    tabs.push({ id: 'datacloud-v3-query', label: 'DC V3 Query', icon: '☁️' });
-    tabs.push({ id: 'datacloud-objects-v3', label: 'DC Objects', icon: '📦' });
-    tabs.push({ id: 'rag-search-eval', label: 'RagSearch Eval', icon: '🤖' });
-  } else {
-    console.log('❌ [DASHBOARD] Data Cloud tabs NOT added, hasDataCloud:', dataCloudConfig.hasDataCloud);
-  }
+    // Set first sub-tab of new main tab
+    const newMainTabData = mainTabs.find(tab => tab.id === newMainTab);
+    if (newMainTabData && newMainTabData.subTabs.length > 0) {
+      const firstSubTab = newMainTabData.subTabs[0].id;
+      setSubTab(firstSubTab);
+      localStorage.setItem('dashboard-sub-tab', firstSubTab);
+    }
+  };
 
-  // Add Embedded Site tab
-  tabs.push({ id: 'embedded-site', label: 'Embedded Site', icon: '🌐' });
-
-  // Add Admin Console at the very end
-  tabs.push({ id: 'admin-console', label: 'Admin Console', icon: '🛠️' });
+  // Handle sub tab change
+  const handleSubTabChange = (newSubTab) => {
+    setSubTab(newSubTab);
+    localStorage.setItem('dashboard-sub-tab', newSubTab);
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -1016,6 +1058,8 @@ const Dashboard = ({ user, onLogout }) => {
             onStateChange={setDataCloudObjectsV3State}
           />
         );
+      case 'ingestion-api':
+        return <IngestionAPITab />;
       case 'embedded-site':
         return <EmbeddedSiteTab />;
       case 'admin-console':
@@ -1061,21 +1105,33 @@ const Dashboard = ({ user, onLogout }) => {
       </header>
 
       <div className="tabs-container">
-        <div className="tabs-nav">
-          {tabs.map(tab => (
+        <div className="main-tabs-nav">
+          {mainTabs.map(tab => (
             <button
               key={tab.id}
-              className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => {
-                setActiveTab(tab.id);
-                localStorage.setItem('dashboard-active-tab', tab.id);
-              }}
+              className={`main-tab-btn ${mainTab === tab.id ? 'active' : ''}`}
+              onClick={() => handleMainTabChange(tab.id)}
             >
               <span className="tab-icon">{tab.icon}</span>
               <span className="tab-label">{tab.label}</span>
             </button>
           ))}
         </div>
+        
+        {subTabs.length > 0 && (
+          <div className="sub-tabs-nav">
+            {subTabs.map(tab => (
+              <button
+                key={tab.id}
+                className={`sub-tab-btn ${subTab === tab.id ? 'active' : ''}`}
+                onClick={() => handleSubTabChange(tab.id)}
+              >
+                <span className="tab-icon">{tab.icon}</span>
+                <span className="tab-label">{tab.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
         
         <div className="tab-content-container">
           {renderTabContent()}

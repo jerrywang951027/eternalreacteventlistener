@@ -182,6 +182,54 @@
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
 }
 
+.dashboard.dark-mode .main-tabs-nav {
+  background: #2d3748;
+  border-bottom: 2px solid #667eea;
+}
+
+.dashboard.dark-mode .sub-tabs-nav {
+  background: #1a202c;
+  border-bottom: 1px solid #4a5568;
+}
+
+.dashboard.dark-mode .main-tab-btn {
+  background: #2d3748;
+  color: #a0aec0;
+  border-bottom: 3px solid transparent;
+}
+
+.dashboard.dark-mode .main-tab-btn:hover {
+  background: #4a5568;
+  color: #e1e7ef;
+}
+
+.dashboard.dark-mode .main-tab-btn.active {
+  background: #667eea !important;
+  color: #ffffff !important;
+  border-bottom-color: #667eea !important;
+  font-weight: bold !important;
+  box-shadow: 0 0 15px rgba(102, 126, 234, 0.5) !important;
+  transform: scale(1.02) !important;
+}
+
+.dashboard.dark-mode .sub-tab-btn {
+  background: transparent;
+  color: #a0aec0;
+  border-bottom: 2px solid transparent;
+}
+
+.dashboard.dark-mode .sub-tab-btn:hover {
+  background: #2d3748;
+  color: #e1e7ef;
+}
+
+.dashboard.dark-mode .sub-tab-btn.active {
+  background: #2d3748 !important;
+  color: #667eea !important;
+  border-bottom-color: #667eea !important;
+  font-weight: bold !important;
+}
+
 .dashboard.dark-mode .tabs-nav {
   background: #2d3748;
   border-bottom: 1px solid #4a5568;
@@ -1127,6 +1175,33 @@
   min-height: 0; /* Important for proper flex sizing */
 }
 
+/* Main tabs navigation */
+.main-tabs-nav {
+  display: flex;
+  background: white;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: hidden;
+  margin: 0;
+  border-bottom: 2px solid #667eea;
+  flex-shrink: 0;
+  width: 100%;
+}
+
+/* Sub tabs navigation */
+.sub-tabs-nav {
+  display: flex;
+  background: #f8f9fa;
+  border-radius: 0;
+  box-shadow: none;
+  overflow-x: auto;
+  margin: 0;
+  border-bottom: 1px solid #ddd;
+  flex-shrink: 0;
+  width: 100%;
+}
+
+/* Legacy tabs-nav for backward compatibility */
 .tabs-nav {
   display: flex;
   background: white;
@@ -1139,6 +1214,83 @@
   width: 100%;
 }
 
+/* Main tab button styles */
+.main-tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 16px;
+  background: #f1f5f9;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 50px;
+  transform: scale(1);
+}
+
+.main-tab-btn:hover {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+/* Light mode active main tab - only applies when NOT in dark mode */
+.dashboard:not(.dark-mode) .main-tab-btn.active {
+  background: #667eea !important;
+  border-bottom-color: #667eea !important;
+  color: #ffffff !important;
+  font-weight: bold !important;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3) !important;
+  transform: scale(1.02) !important;
+}
+
+.main-tab-btn.active .tab-icon {
+  transform: scale(1.2) !important;
+}
+
+/* Sub tab button styles */
+.sub-tab-btn {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 500;
+  min-height: 40px;
+  white-space: nowrap;
+}
+
+.sub-tab-btn:hover {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+/* Light mode active sub tab - only applies when NOT in dark mode */
+.dashboard:not(.dark-mode) .sub-tab-btn.active {
+  background: #ffffff !important;
+  border-bottom-color: #667eea !important;
+  color: #667eea !important;
+  font-weight: 600 !important;
+}
+
+.sub-tab-btn.active .tab-icon {
+  transform: scale(1.15) !important;
+}
+
+/* Legacy tab-btn for backward compatibility */
 .tab-btn {
   flex: 1;
   display: flex;
@@ -1489,6 +1641,31 @@
 
 /* Responsive tabs */
 @media (max-width: 768px) {
+  .main-tabs-nav {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+  
+  .main-tab-btn {
+    padding: 10px 12px;
+    font-size: 12px;
+    min-height: 45px;
+    flex-shrink: 0;
+    min-width: 120px;
+  }
+  
+  .sub-tabs-nav {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .sub-tab-btn {
+    padding: 8px 12px;
+    font-size: 11px;
+    min-height: 38px;
+    flex-shrink: 0;
+  }
+  
   .tabs-nav {
     flex-direction: row;
     border-radius: 8px 8px 0 0;
