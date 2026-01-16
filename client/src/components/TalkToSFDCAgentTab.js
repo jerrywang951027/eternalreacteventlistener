@@ -20,6 +20,9 @@ const TalkToSFDCAgentTab = () => {
   const [recognition, setRecognition] = useState(null);
   const [autoSendVoice, setAutoSendVoice] = useState(false);
   const [isStopped, setIsStopped] = useState(false);
+  const [availableAgents, setAvailableAgents] = useState([]);
+  const [selectedAgentId, setSelectedAgentId] = useState('');
+  const [loadingAgents, setLoadingAgents] = useState(false);
   const autoSendVoiceRef = useRef(autoSendVoice);
   const isCreatingRecognition = useRef(false);
   const recordingTimeoutRef = useRef(null);
@@ -510,10 +513,42 @@ const TalkToSFDCAgentTab = () => {
     };
   }, []);
 
+  // Fetch available agents on component mount
+  useEffect(() => {
+    const fetchAgents = async () => {
+      try {
+        setLoadingAgents(true);
+        const response = await axios.get('/api/salesforce/agentforce/agents');
+        if (response.data.success && response.data.agents) {
+          setAvailableAgents(response.data.agents);
+          // Auto-select first agent if available
+          if (response.data.agents.length > 0 && !selectedAgentId) {
+            setSelectedAgentId(response.data.agents[0].id);
+          }
+        } else {
+          console.error('Failed to fetch agents:', response.data.message);
+          setError('Failed to load available agents: ' + (response.data.message || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error fetching agents:', error);
+        setError('Error loading agents: ' + (error.response?.data?.message || error.message));
+      } finally {
+        setLoadingAgents(false);
+      }
+    };
+
+    fetchAgents();
+  }, []);
+
 
 
   // Start a new agent session
   const startSession = async () => {
+    if (!selectedAgentId) {
+      setError('Please select an agent from the dropdown');
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError('');
@@ -521,7 +556,9 @@ const TalkToSFDCAgentTab = () => {
       
 
       
-      const response = await axios.post('/api/salesforce/agentforce/start-session');
+      const response = await axios.post('/api/salesforce/agentforce/start-session', {
+        agentId: selectedAgentId
+      });
       
 
       
@@ -678,15 +715,41 @@ const TalkToSFDCAgentTab = () => {
     <div className="talk-to-sfdc-agent-tab">
       <div className="tab-content">
         <div className="tab-header">
-        <h2>Chat with Agentforce Agent for real time assistance</h2>
-      </div>
+          <h2>Chat with Agentforce Agent for real time assistance</h2>
+          {/* Agent Selection Dropdown */}
+          <div className="agent-selection">
+            <label htmlFor="agent-select">Select Agent:</label>
+            <select
+              id="agent-select"
+              value={selectedAgentId}
+              onChange={(e) => setSelectedAgentId(e.target.value)}
+              disabled={sessionStarted || loadingAgents}
+              className="agent-dropdown"
+            >
+              {loadingAgents ? (
+                <option value="">Loading agents...</option>
+              ) : availableAgents.length === 0 ? (
+                <option value="">No agents available</option>
+              ) : (
+                <>
+                  <option value="">-- Select an agent --</option>
+                  {availableAgents.map((agent) => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.name} ({agent.type})
+                    </option>
+                  ))}
+                </>
+              )}
+            </select>
+          </div>
+        </div>
 
       {/* Session Controls */}
       <div className="session-controls">
         {!sessionStarted ? (
           <button 
             onClick={startSession}
-            disabled={isLoading}
+            disabled={isLoading || !selectedAgentId || loadingAgents}
             className="start-session-btn"
           >
             🚀 Start Session

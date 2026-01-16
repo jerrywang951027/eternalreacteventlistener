@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
+const jsforce = require('jsforce');
 
 class AgentforceModule {
   constructor() {
@@ -22,70 +23,69 @@ class AgentforceModule {
    * @param {Object} req - Express request object
    * @returns {Object} Response with agent info
    */
+  /**
+   * Create Salesforce connection from session
+   */
+  createConnection(req) {
+    return new jsforce.Connection({
+      oauth2: req.session.oauth2,
+      accessToken: req.session.salesforce.accessToken,
+      instanceUrl: req.session.salesforce.instanceUrl,
+      version: '65.0'
+    });
+  }
+
   async getAvailableAgents(req) {
     try {
-      console.log('🔍 [AGENTFORCE] Getting configured agent from current org...');
+      console.log('🔍 [AGENTFORCE] Querying BotDefinition for available agents...');
       
-      // Get the current org's configuration using orgKey from session
-      const orgKey = req.session.salesforce?.orgKey;
-      if (!orgKey) {
+      // Check if user is authenticated
+      if (!req.session.salesforce || !req.session.salesforce.accessToken) {
         return {
           success: false,
-          message: 'No organization selected. Please login first.',
+          message: 'No Salesforce access token found. Please login first.',
           agents: []
         };
       }
 
-      // Get org configuration from login module
-      const loginModule = req.app.locals.loginModule;
-      if (!loginModule) {
-        return {
-          success: false,
-          message: 'Login module not available.',
-          agents: []
-        };
-      }
+      // Create jsforce connection
+      const conn = this.createConnection(req);
 
-      const orgConfig = loginModule.getOrgConfiguration(orgKey);
-      if (!orgConfig) {
-        return {
-          success: false,
-          message: 'Organization configuration not found.',
-          agents: []
-        };
-      }
-
-      // Get agent ID from org configuration
-      const agentId = orgConfig.agentId;
-      if (!agentId) {
-        return {
-          success: false,
-          message: 'No agent ID configured for this organization. Please add agentId to org configuration.',
-          agents: []
-        };
-      }
-
-      // Return the single configured agent for this org
-      const agent = {
-        id: agentId,
-        name: 'AI Service Assistant',
-        type: 'Agentforce Agent',
-        description: `AI-powered service assistant for ${orgConfig.name || 'this Salesforce org'}`
-      };
+      // Execute SOQL query to get all BotDefinition records
+      const soqlQuery = 'SELECT Id, MasterLabel, AgentType FROM BotDefinition LIMIT 200';
+      console.log(`📋 [AGENTFORCE] Executing SOQL: ${soqlQuery}`);
       
-      console.log(`✅ [AGENTFORCE] Found configured agent for org ${orgConfig.name}: ${agent.name} (${agent.id})`);
+      const result = await conn.query(soqlQuery);
+      
+      if (!result.records || result.records.length === 0) {
+        console.log('⚠️ [AGENTFORCE] No BotDefinition records found');
+        return {
+          success: true,
+          message: 'No agents found',
+          agents: []
+        };
+      }
+
+      // Map records to agent objects
+      const agents = result.records.map(record => ({
+        id: record.Id,
+        name: record.MasterLabel || 'Unnamed Agent',
+        type: record.AgentType || 'Unknown'
+      }));
+      
+      console.log(`✅ [AGENTFORCE] Found ${agents.length} agents from BotDefinition`);
       
       return {
         success: true,
-        message: 'Agent configuration loaded successfully',
-        agents: [agent]
+        message: `Found ${agents.length} agents`,
+        agents: agents
       };
       
     } catch (error) {
-      console.error('❌ [AGENTFORCE] Error getting agent configuration:', error);
+      console.error('❌ [AGENTFORCE] Error querying BotDefinition:', error);
       return {
         success: false,
-        message: 'Failed to load agent configuration: ' + error.message,
+        message: 'Failed to query agents: ' + (error.message || 'Unknown error'),
         agents: []
       };
     }
@@ -329,12 +329,12 @@ class AgentforceModule {
         };
       }
 
-      // Get agent ID from org configuration
-      const agentId = orgConfig.agentId;
+      // Get agent ID from request body (preferred) or fallback to org configuration
+      const agentId = req.body.agentId || orgConfig.agentId;
       if (!agentId) {
         return {
           success: false,
-          message: 'No agent ID configured for this organization. Please add agentId to org configuration.'
+          message: 'No agent ID provided. Please select an agent from the dropdown or configure agentId in org configuration.'
         };
       }
 
